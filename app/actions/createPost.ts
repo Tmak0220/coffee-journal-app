@@ -1,0 +1,358 @@
+"use server"
+
+import { createClient } from "@supabase/supabase-js"
+import { S3Client, CopyObjectCommand, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+
+// 共通で使えるように、ファイル内専用だった名前からエクスポート関数へ変更
+export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<string> {
+  if (!tmpUrl || !tmpUrl.includes("/tmp/")) return tmpUrl
+
+  try {
+    const urlObj = new URL(tmpUrl)
+    const srcKey = decodeURIComponent(urlObj.pathname.slice(1)) 
+    
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0") 
+
+    const destKey = srcKey.replace(/^tmp\//, `${year}/${month}/`)
+
+    await r2.send(
+      new CopyObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        CopySource: `${process.env.R2_BUCKET_NAME}/${srcKey}`,
+        Key: destKey,
+      })
+    )
+
+    await r2.send(
+      new DeleteObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: srcKey,
+      })
+    )
+
+    return `${urlObj.origin}/${destKey}`
+  } catch (err) {
+    console.error(`Failed to move file to permanent storage: ${tmpUrl}`, err)
+    return tmpUrl
+  }
+}
+
+// UUIDチェック用の正規表現
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// ==========================================
+// 1. 新規投稿作成処理 (INSERT)
+// ==========================================
+export async function createPost(input: any, userId: string) {
+  try {
+    if (!input.title?.trim()) throw new Error("タイトルは必須です")
+    if (!input.imageUrls?.length) throw new Error("画像は1枚以上必要です")
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const currentUserId = userId
+    if (!currentUserId) throw new Error("ユーザー認証に失敗しました")
+
+    const permanentImageUrls = await Promise.all(
+      input.imageUrls.map((url: string) => serverMoveToPermanentStorage(url))
+    )
+
+    // 💡 image_urls をカンマ結合せず、配列 (string[]) のまま保存するように修正
+    const insertPayload = {
+      user_id: currentUserId,
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      tastes: input.tastes?.trim() || null,
+      image_urls: permanentImageUrls, // ← ここを配列に変更
+      visibility: input.visibility || "draft",
+      lang: input.lang === "en" ? "en" : "ja",
+      source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
+      market_origin_id: Number.isInteger(input.market_origin_id) ? input.market_origin_id : null,
+      event_origin_id: Number.isInteger(input.event_origin_id) ? input.event_origin_id : null,
+    }
+
+    const { data: post, error: postError } = await supabaseAdmin
+      .from("posts")
+      .insert(insertPayload)
+      .select()
+      .single()
+
+    if (postError) throw new Error(`投稿の保存に失敗しました: ${postError.message}`)
+
+    // 💡 品種 (Variety) 中間テーブルへの一括保存処理
+    if (input.variety_id) {
+      const varietyIds = input.variety_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
+      if (varietyIds.length > 0) {
+        const varietyPayload = varietyIds.map((vId: number) => ({
+          post_id: post.id,
+          variety_id: vId
+        }))
+        const { error: vError } = await supabaseAdmin.from("post_varieties").insert(varietyPayload)
+        if (vError) console.error("post_varieties insert error:", vError.message)
+      }
+    }
+
+    // 💡 精製方法 (Process) 中間テーブルへの一括保存処理
+    if (input.process_id) {
+      const processIds = input.process_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
+      if (processIds.length > 0) {
+        const processPayload = processIds.map((pId: number) => ({
+          post_id: post.id,
+          process_id: pId
+        }))
+        const { error: pError } = await supabaseAdmin.from("post_processes").insert(processPayload)
+        if (pError) console.error("post_processes insert error:", pError.message)
+      }
+    }
+
+    const gearIds = Array.from(new Set<number>(
+      (input.recipe_data || [])
+        .flatMap((recipe: any) => Array.isArray(recipe.gearIds) ? recipe.gearIds : [])
+        .filter((gearId: unknown): gearId is number => Number.isInteger(gearId))
+    ))
+    if (gearIds.length > 0) {
+      const { error: gearError } = await supabaseAdmin.from("post_gears").insert(
+        gearIds.map(gearId => ({ post_id: post.id, gear_id: gearId }))
+      )
+      if (gearError) throw new Error(`器具の保存に失敗しました: ${gearError.message}`)
+    }
+
+    if (input.recipe_data && Array.isArray(input.recipe_data)) {
+      for (const recipe of input.recipe_data) {
+        if (recipe.mode === "none") continue
+
+        let expertDisplayStatus: "approved" | "pending" = "approved"
+        if (recipe.baristaUserId) {
+          const { data: linkedExpert } = await supabaseAdmin
+            .from("experts")
+            .select("linked_posts_mode")
+            .eq("user_id", recipe.baristaUserId)
+            .maybeSingle()
+          expertDisplayStatus = linkedExpert?.linked_posts_mode === "review" ? "pending" : "approved"
+        }
+
+        const recipePayload = {
+          post_id: post.id,
+          mode: recipe.mode || "none",
+          temperature: recipe.waterTemp ? parseFloat(recipe.waterTemp) : null,
+          grind_size: recipe.grindSize || null,
+          brew_ratio: recipe.ratio ? parseFloat(recipe.ratio) : null,
+          tds: recipe.tdsInput ? parseFloat(recipe.tdsInput) : null,
+          bloom_time: recipe.bloomTime || null,
+          total_time: recipe.totalTime || null,
+          notes: recipe.notes || null,
+          shop_name: recipe.shopName || null,
+          shop_origin_id: recipe.shopOriginId || null,
+          serving_style: recipe.servingStyle || null,
+          ...(recipe.baristaName ? { barista_name: recipe.baristaName } : {}),
+          ...(recipe.baristaUserId ? {
+            barista_user_id: recipe.baristaUserId,
+            expert_display_status: expertDisplayStatus,
+          } : {})
+        }
+
+        const { error: recipeError } = await supabaseAdmin
+          .from("recipes")
+          .insert(recipePayload)
+
+        if (recipeError) {
+          console.error("Recipe insert error:", recipeError.message)
+          continue
+        }
+      }
+    }
+
+    if (input.flavor_tags && input.flavor_tags.length > 0) {
+      const validTags = input.flavor_tags.filter((tagId: any) => typeof tagId === "string" && uuidPattern.test(tagId))
+
+      if (validTags.length > 0) {
+        const tagPayload = validTags.map((tagId: string) => ({
+          post_id: post.id,
+          taste_id: tagId,
+        }))
+        const { error: tagError = null } = await supabaseAdmin.from("post_tastes").insert(tagPayload)
+        if (tagError) console.error("post_tastes insert error:", tagError.message)
+      }
+    }
+
+    return post
+  } catch (err: any) {
+    console.error("CreatePost Error:", err.message)
+    throw new Error(err.message)
+  }
+}
+
+// ==========================================
+// 2. 編集更新処理 (UPDATE)
+// ==========================================
+export async function updatePost(postId: string, input: any, userId: string) {
+  try {
+    console.log("=== UPDATE_POST START ===");
+    if (!postId) throw new Error("ポストIDが指定されていません")
+    
+    if (!uuidPattern.test(postId)) {
+      throw new Error(`フロントエンドから渡された postId が不正な形式です（UUIDではありません）: "${postId}"`)
+    }
+
+    if (!input.title?.trim()) throw new Error("タイトルは必須です")
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const permanentImageUrls = await Promise.all(
+      input.imageUrls.map((url: string) => serverMoveToPermanentStorage(url))
+    )
+
+    // 💡 image_urls をカンマ結合せず、配列 (string[]) のまま更新するように修正
+    const updatePayload = {
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      image_urls: permanentImageUrls, // ← ここを配列に変更
+      visibility: input.visibility || "public",
+      source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
+      market_origin_id: Number.isInteger(input.market_origin_id) ? input.market_origin_id : null,
+      event_origin_id: Number.isInteger(input.event_origin_id) ? input.event_origin_id : null,
+    }
+
+    const { data: updatedPostData, error: updateError } = await supabaseAdmin
+      .from("posts")
+      .update(updatePayload)
+      .eq("id", postId)
+      .eq("user_id", userId) 
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error("Supabase Update Error Detail:", updateError);
+      throw new Error(`投稿の更新に失敗しました: ${updateError.message}`)
+    }
+
+    // 💡 品種 (Variety) の更新ロジック (一度全削除してから再インサート)
+    if (input.variety_id !== undefined) {
+      await supabaseAdmin.from("post_varieties").delete().eq("post_id", postId)
+      
+      if (input.variety_id) {
+        const varietyIds = input.variety_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
+        if (varietyIds.length > 0) {
+          const varietyPayload = varietyIds.map((vId: number) => ({
+            post_id: postId,
+            variety_id: vId
+          }))
+          const { error: vError } = await supabaseAdmin.from("post_varieties").insert(varietyPayload)
+          if (vError) throw new Error(`品種の更新に失敗しました: ${vError.message}`)
+        }
+      }
+    }
+
+    // 💡 精製方法 (Process) の更新ロジック (一度全削除してから再インサート)
+    if (input.process_id !== undefined) {
+      await supabaseAdmin.from("post_processes").delete().eq("post_id", postId)
+      
+      if (input.process_id) {
+        const processIds = input.process_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
+        if (processIds.length > 0) {
+          const processPayload = processIds.map((pId: number) => ({
+            post_id: postId,
+            process_id: pId
+          }))
+          const { error: pError } = await supabaseAdmin.from("post_processes").insert(processPayload)
+          if (pError) throw new Error(`精製方法の更新に失敗しました: ${pError.message}`)
+        }
+      }
+    }
+
+    if (input.recipe_data !== undefined) {
+      const { error: deleteGearsError } = await supabaseAdmin.from("post_gears").delete().eq("post_id", postId)
+      if (deleteGearsError) throw new Error(`器具の更新準備に失敗しました: ${deleteGearsError.message}`)
+
+      const gearIds = Array.from(new Set<number>(
+        (input.recipe_data || [])
+          .flatMap((recipe: any) => Array.isArray(recipe.gearIds) ? recipe.gearIds : [])
+          .filter((gearId: unknown): gearId is number => Number.isInteger(gearId))
+      ))
+      if (gearIds.length > 0) {
+        const { error: gearError } = await supabaseAdmin.from("post_gears").insert(
+          gearIds.map(gearId => ({ post_id: postId, gear_id: gearId }))
+        )
+        if (gearError) throw new Error(`器具の更新に失敗しました: ${gearError.message}`)
+      }
+    }
+
+    if (input.selectedTags && Array.isArray(input.selectedTags)) {
+      await supabaseAdmin.from("post_tastes").delete().eq("post_id", postId)
+
+      const validTags = input.selectedTags.filter((tagId: any) => {
+        return typeof tagId === "string" && uuidPattern.test(tagId)
+      })
+
+      if (validTags.length > 0) {
+        const tagPayload = validTags.map((tagId: string) => ({
+          post_id: postId,
+          taste_id: tagId,
+        }))
+        
+        const { error: tagLinkError } = await supabaseAdmin
+          .from("post_tastes")
+          .insert(tagPayload)
+
+        if (tagLinkError) throw new Error(`タグの更新に失敗しました: ${tagLinkError.message}`)
+      }
+    }
+
+    return {
+      success: true,
+      imageUrls: permanentImageUrls
+    }
+  } catch (err: any) {
+    console.error("UpdatePost Error:", err.message)
+    throw new Error(err.message)
+  }
+}
+
+// ==========================================
+// 3. アバター画像アップロード処理
+// ==========================================
+export async function serverUploadAvatar(formData: FormData, userId: string): Promise<string> {
+  const file = formData.get("file") as File
+  if (!file) throw new Error("No file provided")
+
+  const fileExt = file.name.split('.').pop()
+  const destKey = `avatars/${userId}/avatar-${Date.now()}.${fileExt}`
+  const bucketName = process.env.R2_BUCKET_NAME
+
+  const bytes = await file.arrayBuffer()
+  const buffer = Buffer.from(bytes)
+
+  try {
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: destKey,
+        Body: buffer,
+        ContentType: file.type,
+      })
+    )
+
+    const origin = process.env.R2_PUBLIC_URL || new URL(process.env.R2_ENDPOINT!).origin
+    return `${origin}/${destKey}`
+  } catch (err) {
+    console.error("Failed to upload avatar to R2:", err)
+    throw new Error("Failed to upload image to storage")
+  }
+}

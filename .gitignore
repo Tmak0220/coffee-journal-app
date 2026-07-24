@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+out/
+build/
+.temp/
+supabase/.temp/
+*.tsbuildinfo
+.env
+.env*.local
+*.log
+.DS_Store
+.vscode/
+.idea/

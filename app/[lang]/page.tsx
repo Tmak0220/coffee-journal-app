@@ -1,0 +1,106 @@
+export const dynamic = "force-dynamic"
+
+import type { Metadata } from "next"
+import Link from "next/link"
+import HomeMembershipLink from "@/components/HomeMembershipLink"
+
+type Props = {
+  params: Promise<{
+    lang: string
+  }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { lang } = await params
+  const isEn = lang === "en"
+  
+  return {
+    title: isEn ? "COFFEE JOURNAL" : "COFFEE JOURNAL - コーヒージャーナル",
+    description: isEn ? "Comprehensive coffee platform" : "コーヒーの総合プラットフォーム",
+  }
+}
+
+const dict = {
+  ja: {
+    title: "COFFEE JOURNAL",
+    subtitle: "コーヒージャーナル",
+    membership: "MEMBERSHIP",
+    sections: [
+      { id: "origins", name: "ORIGINS", name_lang: "起源", description: "生産地・消費地から探す", slug: "origins" },
+      { id: "experts", name: "EXPERTS", name_lang: "人物", description: "生産者・ロースター・バリスタなどから探す", slug: "experts" },
+      { id: "search", name: "SEARCH", name_lang: "検索", description: "品種、精製方法、味わい、器具などから探す", slug: "search" },
+      { id: "journal", name: "JOURNAL", name_lang: "最新動向", description: "ニュースとタイムライン", slug: "journal" },
+    ]
+  },
+  en: {
+    title: "COFFEE JOURNAL",
+    subtitle: "",
+    membership: "MEMBERSHIP",
+    sections: [
+      { id: "origins", name: "ORIGINS", name_lang: "Origins", description: "Find by origins and destinations.", slug: "origins" },
+      { id: "experts", name: "EXPERTS", name_lang: "Experts", description: "Find by producers, roasters, and baristas.", slug: "experts" },
+      { id: "search", name: "SEARCH", name_lang: "Search", description: "Find by variety, process, taste, and gear.", slug: "search" },
+      { id: "journal", name: "JOURNAL", name_lang: "Journal", description: "News and timeline updates.", slug: "journal" },
+    ]
+  }
+}
+
+export default async function Home({ params }: Props) {
+  const { lang } = await params
+  const currentLang = lang === "en" ? "en" : "ja"
+  const t = dict[currentLang]
+
+  return (
+    <div className="journal-page-wrapper w-full bg-white">
+      <section className="relative z-10 mx-auto w-full max-w-6xl px-4 pt-6 sm:p-10 sm:pb-0 md:p-14 md:pb-0 lg:p-16 lg:pb-0">
+        <div className="flex min-h-[60px] items-start justify-end sm:min-h-[112px]">
+          <HomeMembershipLink lang={currentLang} />
+        </div>
+
+        <div className="mt-6 flex flex-col sm:mt-12">
+          <h1 className="text-3xl font-semibold leading-none tracking-tight text-neutral-850 sm:text-5xl md:text-6xl">
+            {t.title}
+          </h1>
+          {t.subtitle && (
+            <p className="mt-3 text-xs sm:text-sm tracking-[0.12em] text-neutral-500 font-medium">
+              {t.subtitle}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="relative z-10 mx-auto mb-10 mt-8 w-full max-w-6xl px-4 sm:mb-12 sm:mt-14 sm:px-10 md:px-14 lg:px-16">
+        <div className="mb-6 border-b border-neutral-200/50 sm:mb-10" />
+
+        <div className="journal-grid-container">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {t.sections.map((section) => (
+              <Link 
+                key={section.id} 
+                href={`/${currentLang}/${section.slug}`} 
+                className="friendly-card p-6 sm:p-8 group bg-white/50 hover:bg-white border border-neutral-200/50 hover:border-neutral-300 rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                <div className="flex flex-col h-full justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-wider text-neutral-900 group-hover:text-black transition duration-300 font-sans">
+                      {section.name}
+                    </h2>
+                    <p className="mt-1 text-[13px] font-normal tracking-wide text-neutral-500">
+                      {section.name_lang}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-5 border-t border-neutral-200/40 pt-4 transition duration-300 group-hover:border-neutral-300/80 sm:mt-8">
+                    <p className="text-sm md:text-[15px] leading-relaxed text-neutral-600 tracking-wide font-normal group-hover:text-neutral-900 transition duration-300">
+                      {section.description}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
