@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 export type ShopProduct = {
@@ -33,6 +33,7 @@ export default function ShopProductsSection({ userId, lang }: Props) {
   const [filterPlatform, setFilterPlatform] = useState<string>("all")
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([])
   const [shopifyDomain, setShopifyDomain] = useState("")
+  const handledCallback = useRef(false)
 
   const isEn = lang === "en"
 
@@ -91,6 +92,42 @@ export default function ShopProductsSection({ userId, lang }: Props) {
       setTimeout(() => setSyncStatus("idle"), 4000)
     }
   }
+
+  useEffect(() => {
+    const callbackUrl = new URL(window.location.href)
+    const status = callbackUrl.searchParams.get("integration")
+    const platform = callbackUrl.searchParams.get("platform")
+    if (
+      handledCallback.current ||
+      status !== "success" ||
+      !platform ||
+      !["base", "shopify", "square"].includes(platform)
+    ) return
+
+    handledCallback.current = true
+    const initialSync = async () => {
+      setSyncing(true)
+      setSyncStatus("idle")
+      try {
+        const response = await fetch(`/api/integrations/${platform}/sync`, { method: "POST" })
+        if (!response.ok) throw new Error("Initial sync failed")
+        await Promise.all([fetchProducts(), fetchConnections()])
+        setSyncStatus("success")
+      } catch (error) {
+        console.error(error)
+        setSyncStatus("error")
+      } finally {
+        setSyncing(false)
+        const cleanUrl = new URL(window.location.href)
+        cleanUrl.searchParams.delete("integration")
+        cleanUrl.searchParams.delete("platform")
+        window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}`)
+        setTimeout(() => setSyncStatus("idle"), 4000)
+      }
+    }
+
+    void initialSync()
+  }, [])
 
   const badgeStyle = "px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider rounded uppercase"
   const metaTagStyle = "inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-50 border border-neutral-100 rounded-lg text-[12px] text-neutral-600 font-normal transition-colors"

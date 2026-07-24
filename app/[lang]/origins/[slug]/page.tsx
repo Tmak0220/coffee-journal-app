@@ -98,8 +98,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: isEn 
-      ? `${name} Archive & Profile | COFFEE JOURNAL`
-      : `${name} 原産地アーカイブ＆プロフィール | COFFEE JOURNAL`,
+      ? `${name} Origin Profile | COFFEE JOURNAL`
+      : `${name} 原産地プロフィール | COFFEE JOURNAL`,
     description: typeof displayBio === "string" && displayBio.length > 0
       ? displayBio.slice(0, 120)
       : isEn

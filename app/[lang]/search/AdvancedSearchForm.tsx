@@ -177,26 +177,38 @@ export default function AdvancedSearchForm({ lang }: Props) {
     placeholder: string
   }) => (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold tracking-[0.08em] text-foreground/75">{title}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-xl border border-border bg-surface px-4 text-sm text-foreground outline-none transition focus:border-foreground/50"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => <option key={option.id} value={option.id}>{label(option)}</option>)}
-      </select>
+      <span className="mb-2.5 block text-xs font-semibold tracking-wider text-neutral-800">{title}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-12 w-full appearance-none rounded-2xl border border-neutral-200/80 bg-white px-4 text-sm font-medium text-neutral-800 shadow-sm transition-all hover:border-neutral-300 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+        >
+          <option value="">{placeholder}</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {label(option)}
+            </option>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400">
+          <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+          </svg>
+        </div>
+      </div>
     </label>
   )
 
   if (loading) {
-    return <div className="mt-10 h-80 animate-pulse rounded-[28px] bg-neutral-50" />
+    return <div className="mt-8 h-96 animate-pulse rounded-3xl bg-neutral-100/60 shadow-sm" />
   }
 
   return (
-    <section className="mt-10 border-t border-border pt-8">
+    <div className="journal-grid-container mt-8 rounded-3xl border border-neutral-200/60 bg-white/60 p-5 shadow-sm sm:p-8 md:p-10">
       <div className="space-y-8">
-        <div className="grid gap-5 sm:grid-cols-2 sm:gap-8">
+        {/* 品種 ＆ 精製方法 */}
+        <div className="grid gap-6 sm:grid-cols-2">
           <SelectField
             title={isEn ? "VARIETY" : "品種"}
             value={varietyId}
@@ -213,23 +225,29 @@ export default function AdvancedSearchForm({ lang }: Props) {
           />
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-8">
+        {/* 器具 ＆ フレーバー */}
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* 器具 */}
           <div>
-            <div className="mb-2 flex items-end justify-between">
-              <span className="text-xs font-semibold tracking-[0.08em] text-foreground/75">{isEn ? "GEAR" : "器具"}</span>
-              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-medium text-foreground/60">{isEn ? "Up to 3" : "最大3件"}</span>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold tracking-wider text-neutral-800">{isEn ? "GEAR" : "器具"}</span>
+              <span className="rounded-full bg-neutral-100 border border-neutral-200/50 px-2.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                {isEn ? "Up to 3" : "最大3件"}
+              </span>
             </div>
-            <div className="max-h-[390px] overflow-y-auto rounded-2xl border border-border bg-surface p-3">
-              <div className="space-y-6">
+            <div className="max-h-[380px] overflow-y-auto rounded-2xl border border-neutral-200/70 bg-white/80 p-3 shadow-inner">
+              <div className="space-y-5">
                 {groupedGears.map(({ group, items }) => (
-                  <div key={group} className="border-b border-border/60 pb-5 last:border-0 last:pb-0">
-                    <div className="sticky top-0 z-10 mb-2.5 flex items-center justify-between rounded-lg bg-neutral-100/95 px-3 py-2 backdrop-blur">
-                      <span className="text-[11px] font-semibold tracking-wide text-foreground/75">
+                  <div key={group} className="border-b border-neutral-100 pb-4 last:border-0 last:pb-0">
+                    <div className="sticky top-0 z-10 mb-2 flex items-center justify-between rounded-xl bg-neutral-100/90 px-3 py-1.5 backdrop-blur-sm">
+                      <span className="text-[11px] font-semibold text-neutral-700">
                         {gearGroupLabels[group] || group.replaceAll("_", " ")}
                       </span>
-                      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] text-subtle">{items.length}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] text-neutral-400 shadow-xs">
+                        {items.length}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                       {items.map((gear) => {
                         const selected = gearIds.includes(gear.id)
                         return (
@@ -238,16 +256,22 @@ export default function AdvancedSearchForm({ lang }: Props) {
                             type="button"
                             onClick={() => toggle(gear.id, gearIds, setGearIds, 3)}
                             disabled={!selected && gearIds.length >= 3}
-                            className={`flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-xs transition disabled:opacity-30 ${
+                            className={`group flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs transition-all duration-200 disabled:opacity-30 ${
                               selected
-                                ? "border-foreground bg-foreground font-semibold text-background shadow-sm"
-                                : "border-transparent bg-neutral-50/80 text-foreground/85 hover:border-border hover:bg-white"
+                                ? "border-neutral-900 bg-neutral-900 font-semibold text-white shadow-md"
+                                : "border-neutral-200/60 bg-white text-neutral-700 hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50/50 hover:shadow-sm"
                             }`}
                           >
                             <span className="block truncate font-medium">{label(gear)}</span>
-                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
-                              selected ? "border-white/50 bg-white text-black" : "border-neutral-300 text-transparent"
-                            }`}>✓</span>
+                            <span
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all ${
+                                selected
+                                  ? "border-white bg-white text-neutral-900 shadow-xs"
+                                  : "border-neutral-300 text-transparent group-hover:border-neutral-400"
+                              }`}
+                            >
+                              ✓
+                            </span>
                           </button>
                         )
                       })}
@@ -258,20 +282,29 @@ export default function AdvancedSearchForm({ lang }: Props) {
             </div>
           </div>
 
+          {/* フレーバー・味覚特性 */}
           <div>
-            <div className="mb-2 flex items-end justify-between">
-              <span className="text-xs font-semibold tracking-[0.08em] text-foreground/75">{isEn ? "FLAVOR & SENSORY" : "フレーバー・味覚特性"}</span>
-              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-medium text-foreground/60">{isEn ? "Up to 4" : "最大4件"}</span>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold tracking-wider text-neutral-800">
+                {isEn ? "FLAVOR & SENSORY" : "フレーバー・味覚特性"}
+              </span>
+              <span className="rounded-full bg-neutral-100 border border-neutral-200/50 px-2.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                {isEn ? "Up to 4" : "最大4件"}
+              </span>
             </div>
-            <div className="max-h-[390px] overflow-y-auto rounded-2xl border border-border bg-surface p-3">
-              <div className="space-y-6">
+            <div className="max-h-[380px] overflow-y-auto rounded-2xl border border-neutral-200/70 bg-white/80 p-3 shadow-inner">
+              <div className="space-y-5">
                 {groupedTastes.map(({ group, items }) => (
-                  <div key={group} className="border-b border-border/60 pb-5 last:border-0 last:pb-0">
-                    <div className="sticky top-0 z-10 mb-2.5 flex items-center justify-between rounded-lg bg-neutral-100/95 px-3 py-2 backdrop-blur">
-                      <span className="text-[11px] font-semibold tracking-wide text-foreground/75">{tasteGroupLabels[group] || group}</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] text-subtle">{items.length}</span>
+                  <div key={group} className="border-b border-neutral-100 pb-4 last:border-0 last:pb-0">
+                    <div className="sticky top-0 z-10 mb-2 flex items-center justify-between rounded-xl bg-neutral-100/90 px-3 py-1.5 backdrop-blur-sm">
+                      <span className="text-[11px] font-semibold text-neutral-700">
+                        {tasteGroupLabels[group] || group}
+                      </span>
+                      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] text-neutral-400 shadow-xs">
+                        {items.length}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                       {items.map((taste) => {
                         const selected = tasteIds.includes(taste.id)
                         return (
@@ -280,16 +313,22 @@ export default function AdvancedSearchForm({ lang }: Props) {
                             type="button"
                             onClick={() => toggle(taste.id, tasteIds, setTasteIds, 4)}
                             disabled={!selected && tasteIds.length >= 4}
-                            className={`flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-xs transition disabled:opacity-30 ${
+                            className={`group flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs transition-all duration-200 disabled:opacity-30 ${
                               selected
-                                ? "border-foreground bg-foreground font-semibold text-background shadow-sm"
-                                : "border-transparent bg-neutral-50/80 text-foreground/85 hover:border-border hover:bg-white"
+                                ? "border-neutral-900 bg-neutral-900 font-semibold text-white shadow-md"
+                                : "border-neutral-200/60 bg-white text-neutral-700 hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50/50 hover:shadow-sm"
                             }`}
                           >
                             <span className="block truncate font-medium">{label(taste)}</span>
-                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
-                              selected ? "border-white/50 bg-white text-black" : "border-neutral-300 text-transparent"
-                            }`}>✓</span>
+                            <span
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all ${
+                                selected
+                                  ? "border-white bg-white text-neutral-900 shadow-xs"
+                                  : "border-neutral-300 text-transparent group-hover:border-neutral-400"
+                              }`}
+                            >
+                              ✓
+                            </span>
                           </button>
                         )
                       })}
@@ -302,19 +341,30 @@ export default function AdvancedSearchForm({ lang }: Props) {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-subtle">
+      {/* フッターアクションバー */}
+      <div className="mt-8 flex flex-col gap-3 border-t border-neutral-200/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-medium text-neutral-500">
           {isEn ? `${selectedCount} filters selected` : `${selectedCount}件の条件を選択中`}
         </p>
-        <div className="flex gap-2">
-          <button type="button" onClick={reset} disabled={!canSearch} className="rounded-full border border-border px-5 py-3 text-xs font-medium text-foreground disabled:opacity-30">
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            onClick={reset}
+            disabled={!canSearch}
+            className="rounded-xl border border-neutral-200/80 bg-white px-5 py-2.5 text-xs font-semibold text-neutral-700 shadow-xs transition-all hover:bg-neutral-50 active:scale-[0.98] disabled:opacity-30 disabled:shadow-none"
+          >
             {isEn ? "Clear" : "クリア"}
           </button>
-          <button type="button" onClick={submit} disabled={!canSearch} className="rounded-full bg-foreground px-7 py-3 text-xs font-semibold text-background transition hover:opacity-80 disabled:opacity-30">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSearch}
+            className="rounded-xl bg-neutral-900 px-7 py-2.5 text-xs font-semibold text-white shadow-md transition-all hover:bg-black hover:shadow-lg active:scale-[0.98] disabled:opacity-30 disabled:shadow-none"
+          >
             {isEn ? "Search with filters" : "この条件で検索"}
           </button>
         </div>
       </div>
-    </section>
+    </div>
   )
 }

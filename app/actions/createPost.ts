@@ -51,6 +51,66 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
 // UUIDチェック用の正規表現
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
+  const [{ data: post, error: postError }, { data: recipeRows, error: recipeError }] = await Promise.all([
+    supabaseAdmin
+      .from("posts")
+      .select("source_origin_id, market_origin_id, event_origin_id")
+      .eq("id", postId)
+      .single(),
+    supabaseAdmin
+      .from("recipes")
+      .select("shop_origin_id")
+      .eq("post_id", postId)
+      .not("shop_origin_id", "is", null),
+  ])
+  if (postError) throw postError
+  if (recipeError) throw recipeError
+
+  const originIds = Array.from(new Set<number>([
+    post.source_origin_id,
+    post.market_origin_id,
+    post.event_origin_id,
+    ...(recipeRows || []).map((recipe: any) => recipe.shop_origin_id),
+  ].filter((id): id is number => Number.isInteger(id))))
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("origin_post_links")
+    .select("origin_id")
+    .eq("post_id", postId)
+  if (existingError) throw existingError
+
+  const existingIds = new Set<number>((existing || []).map((link: any) => link.origin_id))
+  const missingIds = originIds.filter((originId) => !existingIds.has(originId))
+
+  if (missingIds.length > 0) {
+    const { data: origins, error: originError } = await supabaseAdmin
+      .from("origins")
+      .select("id, user_id, linked_posts_mode")
+      .in("id", missingIds)
+    if (originError) throw originError
+
+    const { error: insertError } = await supabaseAdmin
+      .from("origin_post_links")
+      .insert((origins || []).map((origin: any) => ({
+        origin_id: origin.id,
+        post_id: postId,
+        display_status: origin.user_id && origin.linked_posts_mode === "review" ? "pending" : "approved",
+      })))
+    if (insertError) throw insertError
+  }
+
+  const staleIds = Array.from(existingIds).filter((originId) => !originIds.includes(originId))
+  if (staleIds.length > 0) {
+    const { error: deleteError } = await supabaseAdmin
+      .from("origin_post_links")
+      .delete()
+      .eq("post_id", postId)
+      .in("origin_id", staleIds)
+    if (deleteError) throw deleteError
+  }
+}
+
 // ==========================================
 // 1. 新規投稿作成処理 (INSERT)
 // ==========================================
@@ -189,6 +249,8 @@ export async function createPost(input: any, userId: string) {
       }
     }
 
+    await syncOriginPostLinks(supabaseAdmin, post.id)
+
     return post
   } catch (err: any) {
     console.error("CreatePost Error:", err.message)
@@ -314,6 +376,8 @@ export async function updatePost(postId: string, input: any, userId: string) {
         if (tagLinkError) throw new Error(`タグの更新に失敗しました: ${tagLinkError.message}`)
       }
     }
+
+    await syncOriginPostLinks(supabaseAdmin, postId)
 
     return {
       success: true,

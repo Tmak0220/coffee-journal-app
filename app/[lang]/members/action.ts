@@ -1,20 +1,11 @@
 "use server"
 
 import { createClient } from "@/lib/supabase-server"
-import { getStripeClient } from "@/lib/stripe-billing"
-
-// プラン名と請求サイクルに応じた Stripe Price ID のマッピング
-const PRICE_IDS: Record<string, string | undefined> = {
-  // USER プラン
-  user_monthly: process.env.STRIPE_USER_MONTHLY_PRICE_ID,
-  user_yearly: process.env.STRIPE_USER_YEARLY_PRICE_ID,
-  // PRO プラン
-  pro_monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
-  pro_yearly: process.env.STRIPE_PRO_YEARLY_PRICE_ID,
-  // OWNER プラン
-  owner_monthly: process.env.STRIPE_OWNER_MONTHLY_PRICE_ID,
-  owner_yearly: process.env.STRIPE_OWNER_YEARLY_PRICE_ID,
-}
+import {
+  getStripeClient,
+  isMembershipPlanKey,
+  validateMembershipPrice,
+} from "@/lib/stripe-billing"
 
 export async function createCheckoutSession(origin: string, planKey: string, lang: "ja" | "en") {
   try {
@@ -51,13 +42,14 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
       return { error: "Active Subscription Exists" }
     }
 
-    // 選択されたプランに対応する Price ID を取得
-    const priceId = PRICE_IDS[planKey]
-
-    if (!priceId) {
-      console.error(`Invalid planKey or missing Price ID for: ${planKey}`)
+    if (!isMembershipPlanKey(planKey)) {
+      console.error(`Invalid membership plan: ${planKey}`)
       return { error: "Invalid Plan" }
     }
+
+    // Checkoutを作る前に、公開環境の秘密鍵からPriceが参照できること、
+    // 有効な定期課金でありlive/testモードが一致することを検証する。
+    const price = await validateMembershipPrice(stripe, planKey)
 
     const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim()
     const returnOrigin = configuredOrigin
@@ -68,7 +60,7 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
       mode: "subscription",
       line_items: [
         {
-          price: priceId,
+          price: price.id,
           quantity: 1,
         },
       ],
@@ -91,8 +83,8 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
     })
 
     return { url: session.url }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Stripe Session Creation Error:", error)
-    return { error: error.message || "Stripe Error" }
+    return { error: "Checkout Configuration Error" }
   }
 }

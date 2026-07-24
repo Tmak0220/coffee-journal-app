@@ -117,7 +117,7 @@ declare
     'blog_bookmarks', 'blog_likes', 'blogs', 'bookmarks',
     'business_inquiries', 'calendar_memos',
     'cupping_modules', 'experts', 'follows', 'gears', 'lab_logs',
-    'likes', 'notifications', 'origin_follows', 'origins',
+    'likes', 'notifications', 'origin_follows', 'origin_post_links', 'origins',
     'post_gears', 'post_processes', 'post_tastes', 'post_varieties',
     'post_views', 'posts',
     'pro_recipe_bookmarks', 'pro_recipe_gears', 'pro_recipes',
@@ -481,6 +481,42 @@ using (
 -- Post relation tables: visibility follows the parent post; writes follow the
 -- parent owner. This closes the previous authenticated-user-can-edit-any-row gap.
 -- ---------------------------------------------------------------------------
+
+create policy "Read origin links through visible posts"
+on public.origin_post_links for select
+to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.posts p
+    where p.id = origin_post_links.post_id
+      and private.can_read_content(p.user_id, p.visibility)
+  )
+);
+
+create policy "Owners update linked origin posts"
+on public.origin_post_links for update
+to authenticated
+using (
+  private.is_admin()
+  or exists (
+    select 1
+    from public.origins o
+    where o.id = origin_post_links.origin_id
+      and o.user_id = (select auth.uid())
+      and private.is_business()
+  )
+)
+with check (
+  private.is_admin()
+  or exists (
+    select 1
+    from public.origins o
+    where o.id = origin_post_links.origin_id
+      and o.user_id = (select auth.uid())
+      and private.is_business()
+  )
+);
 
 create policy "Read post gears through visible posts"
 on public.post_gears for select

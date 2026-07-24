@@ -11,6 +11,8 @@ import { useAuthModal } from "@/context/AuthModalContext"
 import ProfileGearReviews from "@/components/ProfileGearReviews"
 import B2BInquiryPanel from "@/components/B2BInquiryPanel"
 import PeoplePostList from "@/components/PeoplePostList"
+import ProfileTimeline from "@/components/ProfileTimeline"
+import PublicShopProducts from "@/components/PublicShopProducts"
 
 type BranchItem = {
   name: string
@@ -160,6 +162,23 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     source: "SOURCE",
     event: "EVENT",
   }[origin.type || ""] || (origin.type ? origin.type.toUpperCase() : "ORIGINS")
+  const originAccent = {
+    market: {
+      badge: "border-amber-200/80 bg-amber-50 text-amber-900",
+      fallback: "from-stone-950 via-stone-800 to-amber-950",
+    },
+    source: {
+      badge: "border-emerald-200/80 bg-emerald-50 text-emerald-900",
+      fallback: "from-emerald-950 via-stone-900 to-teal-950",
+    },
+    event: {
+      badge: "border-rose-200/80 bg-rose-50 text-rose-900",
+      fallback: "from-rose-950 via-stone-900 to-orange-950",
+    },
+  }[origin.type || ""] || {
+    badge: "border-neutral-200 bg-neutral-50 text-neutral-800",
+    fallback: "from-neutral-950 via-neutral-800 to-neutral-700",
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -346,7 +365,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
             {origin.avatar_url ? (
               <Image src={origin.avatar_url} alt="" fill className="object-cover" />
             ) : (
-              <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-white font-mono text-3xl">
+              <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${originAccent.fallback} font-mono text-3xl text-white`}>
                 {origin.name ? origin.name[0] : "O"}
               </div>
             )}
@@ -354,7 +373,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           
           <div className="flex-1 text-center md:text-left space-y-3 pb-2">
             <div className="flex items-center justify-center md:justify-start gap-2.5 flex-wrap">
-              <span className="text-[10px] bg-zinc-100 text-zinc-700 font-mono font-bold tracking-widest px-2.5 py-1 rounded uppercase">
+              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${originAccent.badge}`}>
                 {originTypeLabel}
               </span>
               {origin.tags && origin.tags.length > 0 && origin.tags.map((tag, idx) => (
@@ -448,6 +467,12 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           )}
         </div>
 
+        <ProfileTimeline
+          items={notifications}
+          lang={lang}
+          isPremiumUser={isPremiumUser}
+        />
+
         <PublicProfileCalendar
           targetUserId={origin.owner_id}
           lang={lang}
@@ -477,75 +502,17 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           />
         </section>
 
+        <PublicShopProducts userId={origin.owner_id} lang={lang} />
+
         <ProfileGearReviews userId={origin.owner_id} profileType="owner" lang={lang} />
 
-        {origin.owner_id && (
-          <div className="mt-14">
-            <PeoplePostList
-              userId={origin.owner_id}
-              originId={origin.id}
-              targetType="origin"
-              lang={lang}
-            />
-          </div>
-        )}
-
-        {/* 公開済みのお知らせ・タイムラインセクション */}
-        <div className="mt-14 bg-surface border border-border/50 p-6 rounded-2xl">
-          <h2 className="text-sm font-bold tracking-wider uppercase mb-6 text-foreground border-b border-border/30 pb-2">
-            {dict.updatesTitleJa}
-          </h2>
-          
-          {!notifications || notifications.length === 0 ? (
-            <p className="text-xs text-subtle font-mono">{dict.noUpdates}</p>
-          ) : (
-            <div className="space-y-6">
-              {notifications.map((item) => {
-                const isRestricted = item.target_group === "premium" && !isPremiumUser
-
-                return (
-                  <div key={item.id} className="border-b border-border/30 pb-5 last:border-0 last:pb-0 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-subtle font-mono">
-                        {new Date(item.created_at).toLocaleDateString(lang === "en" ? "en-US" : "ja-JP")}
-                      </span>
-                      {item.target_group === "premium" && (
-                        <span className="text-[9px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded border border-amber-200/50">
-                          {dict.premiumBadge}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
-                    
-                    {!isRestricted ? (
-                      <>
-                        <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{item.content}</p>
-                        {item.link_url && (
-                          <div className="pt-1">
-                            <a 
-                              href={item.link_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-[11px] font-medium text-foreground hover:text-subtle underline underline-offset-4 gap-1"
-                            >
-                              {item.link_source || dict.openLink} →
-                            </a>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="bg-zinc-50/60 border border-dashed border-zinc-200 rounded-xl p-4 mt-2">
-                        <p className="text-xs text-subtle leading-relaxed flex items-center gap-2">
-                          🔒 {dict.premiumMaskText}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+        <div className="mt-14">
+          <PeoplePostList
+            userId={origin.owner_id || ""}
+            originId={origin.id}
+            targetType="origin"
+            lang={lang}
+          />
         </div>
 
       </div>

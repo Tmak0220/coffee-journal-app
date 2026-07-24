@@ -66,33 +66,23 @@ export default function RootLayout({
       <body>
         <AuthListener />
         <AppPopupProvider>
-        <AuthModalProvider>
-          
-          {/* 
-            💡 根本解決：背景専用レイヤー
-            グラデーションとノイズを完全に画面最背面に固定配置します。
-            これでコンテンツの長さや複雑なDOM階層に影響されなくなります。
-          */}
-          <div className="site-background-layer" aria-hidden="true" />
+          <AuthModalProvider>
+            <div className="site-background-layer" aria-hidden="true" />
 
-          {/* 
-            💡 コンテンツ専用コンテナ
-            背景は完全に透過（transparent）し、背後の固定グラデーションをシームレスに映します。
-          */}
-          <div className="site-content-container">
-            <Suspense fallback={<div className="h-[81px] border-b border-border" />}>
-              <Header />
-            </Suspense>
+            <div className="site-content-container">
+              <Suspense fallback={<div className="h-[81px] border-b border-border" />}>
+                <Header />
+              </Suspense>
+              
+              <main className="flex-1">
+                {children}
+              </main>
+              
+              <Footer />
+            </div>
             
-            <main className="flex-1">
-              {children}
-            </main>
-            
-            <Footer />
-          </div>
-          
-          <AuthModal />
-        </AuthModalProvider>
+            <AuthModal />
+          </AuthModalProvider>
         </AppPopupProvider>
       </body>
     </html>

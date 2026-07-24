@@ -84,7 +84,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       grindSize: "", 
       ratio: "" 
     },
-    baristaRecipe: { baristaName: "", shopName: "", shopOriginId: null as number | null },
+    baristaRecipe: { baristaName: "", baristaUserId: "", shopName: "", shopOriginId: null as number | null },
     recipeNotes: ""
   })
   
@@ -126,6 +126,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
 
       const isBaristaDataChanged = prev.recipeMode === "barista" && (
         String(prev.baristaRecipe.baristaName) !== String(r.baristaName || "") ||
+        String(prev.baristaRecipe.baristaUserId) !== String(r.baristaUserId || "") ||
         String(prev.baristaRecipe.shopName) !== String(r.shopName || "") ||
         prev.baristaRecipe.shopOriginId !== (r.shopOriginId || null) ||
         String(prev.recipeNotes) !== String(r.notes || "")
@@ -146,6 +147,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
           },
           baristaRecipe: {
             baristaName: r.baristaName || "",
+            baristaUserId: r.baristaUserId || "",
             shopName: r.shopName || "",
             shopOriginId: r.shopOriginId || null
           },
@@ -239,6 +241,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         recipeObj = {
           ...recipeObj,
           baristaName: recipeState.baristaRecipe.baristaName.trim(),
+          baristaUserId: recipeState.baristaRecipe.baristaUserId,
           shopName: recipeState.baristaRecipe.shopName.trim(),
           shopOriginId: recipeState.baristaRecipe.shopOriginId,
           servingStyle: "",
@@ -296,7 +299,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
           grindSize: "", 
           ratio: "" 
         },
-        baristaRecipe: { baristaName: "", shopName: "", shopOriginId: null },
+        baristaRecipe: { baristaName: "", baristaUserId: "", shopName: "", shopOriginId: null },
         recipeNotes: ""
       })
       
@@ -373,7 +376,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
             pourSteps: [{ id: "1", amount: "", time: "" }],
             notes: String(recipeState.recipeNotes),
             baristaName: String(recipeState.baristaRecipe.baristaName),
-            baristaUserId: "",
+            baristaUserId: String(recipeState.baristaRecipe.baristaUserId),
             shopName: String(recipeState.baristaRecipe.shopName),
             shopOriginId: recipeState.baristaRecipe.shopOriginId,
             servingStyle: ""

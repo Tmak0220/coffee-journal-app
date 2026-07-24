@@ -31,7 +31,7 @@ const dict = {
     title: "JOURNAL",
     subtitle: "ジャーナル",
     siteName: "コーヒージャーナル",
-    roleLabel: "管理人",
+    roleLabel: "運営者",
     bioFallback: "コーヒーに関する最新ニュースやイベント情報、コラム、このウェブサイトに関するお知らせなどをお届けします。",
     breadcrumbs: (lang: string) => [
       { label: "コーヒージャーナル", href: `/${lang}` },
@@ -92,7 +92,6 @@ export default async function JournalPage({ params }: Props) {
         
         <div className="relative w-full">
           
-          {/* 管理アカウント情報 */}
           {adminInfo && (
             <div className="absolute top-12 right-0 z-20 hidden md:block w-full max-w-sm">
               <Link 
@@ -121,7 +120,6 @@ export default async function JournalPage({ params }: Props) {
             </div>
           )}
 
-          {/* 左側：PageLayout */}
           <PageLayout
             title={t.title}
             subtitle={t.subtitle}
@@ -130,7 +128,6 @@ export default async function JournalPage({ params }: Props) {
             <section className="mt-12 mb-12 sm:mt-16 max-w-5xl">
               <div className="mb-8 border-b border-neutral-200 sm:mb-10" />
               
-              {/* 📱 モバイル表示 */}
               {adminInfo && (
                 <div className="block md:hidden mb-8">
                   <Link 
@@ -158,7 +155,6 @@ export default async function JournalPage({ params }: Props) {
               )}
 
               <div className="w-full">
-                {/* 🌐 修正点: 割り振られた言語を Props としてクライアントコンポーネントに渡す */}
                 <JournalPageClient lang={currentLang} />
               </div>
             </section>

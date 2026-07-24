@@ -2,11 +2,66 @@ import Stripe from "stripe"
 
 export type MembershipTier = "free" | "standard" | "pro" | "business"
 export type AccountRole = "user" | "barista" | "owner"
+export type MembershipPlanKey =
+  | "user_monthly"
+  | "user_yearly"
+  | "pro_monthly"
+  | "pro_yearly"
+  | "owner_monthly"
+  | "owner_yearly"
+
+const priceEnvironmentKeys: Record<MembershipPlanKey, string> = {
+  user_monthly: "STRIPE_USER_MONTHLY_PRICE_ID",
+  user_yearly: "STRIPE_USER_YEARLY_PRICE_ID",
+  pro_monthly: "STRIPE_PRO_MONTHLY_PRICE_ID",
+  pro_yearly: "STRIPE_PRO_YEARLY_PRICE_ID",
+  owner_monthly: "STRIPE_OWNER_MONTHLY_PRICE_ID",
+  owner_yearly: "STRIPE_OWNER_YEARLY_PRICE_ID",
+}
 
 export function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured")
   return new Stripe(secretKey)
+}
+
+export function isMembershipPlanKey(value: string): value is MembershipPlanKey {
+  return value in priceEnvironmentKeys
+}
+
+export function membershipPriceId(planKey: MembershipPlanKey) {
+  const environmentKey = priceEnvironmentKeys[planKey]
+  const priceId = process.env[environmentKey]?.trim()
+  if (!priceId) {
+    throw new Error(`${environmentKey} is not configured`)
+  }
+  return priceId
+}
+
+export async function validateMembershipPrice(
+  stripe: Stripe,
+  planKey: MembershipPlanKey
+) {
+  const priceId = membershipPriceId(planKey)
+  const price = await stripe.prices.retrieve(priceId)
+
+  if (!price.active) {
+    throw new Error(`Stripe Price for ${planKey} is inactive`)
+  }
+  if (!price.recurring) {
+    throw new Error(`Stripe Price for ${planKey} is not recurring`)
+  }
+  const expectedInterval = planKey.endsWith("_yearly") ? "year" : "month"
+  if (price.recurring.interval !== expectedInterval) {
+    throw new Error(`Stripe billing interval mismatch for ${planKey}`)
+  }
+
+  const secretIsLive = process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") === true
+  if (price.livemode !== secretIsLive) {
+    throw new Error(`Stripe mode mismatch for ${planKey}`)
+  }
+
+  return price
 }
 
 export function planAccess(planKey?: string | null): {
@@ -21,15 +76,11 @@ export function planAccess(planKey?: string | null): {
 
 export function planKeyFromPriceId(priceId?: string | null) {
   if (!priceId) return null
-  const entries = [
-    ["user_monthly", process.env.STRIPE_USER_MONTHLY_PRICE_ID],
-    ["user_yearly", process.env.STRIPE_USER_YEARLY_PRICE_ID],
-    ["pro_monthly", process.env.STRIPE_PRO_MONTHLY_PRICE_ID],
-    ["pro_yearly", process.env.STRIPE_PRO_YEARLY_PRICE_ID],
-    ["owner_monthly", process.env.STRIPE_OWNER_MONTHLY_PRICE_ID],
-    ["owner_yearly", process.env.STRIPE_OWNER_YEARLY_PRICE_ID],
-  ] as const
-  return entries.find(([, configuredPrice]) => configuredPrice === priceId)?.[0] || null
+  const planKeys = Object.keys(priceEnvironmentKeys) as MembershipPlanKey[]
+  return planKeys.find((planKey) => {
+    const environmentKey = priceEnvironmentKeys[planKey]
+    return process.env[environmentKey]?.trim() === priceId
+  }) || null
 }
 
 export function subscriptionPeriodEnd(subscription: Stripe.Subscription) {

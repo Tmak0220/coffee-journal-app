@@ -30,11 +30,11 @@ export async function generateMetadata({ params }: Props) {
   // 2. experts テーブルから直接データを取得して検証
   const { data: expertData } = await supabase
     .from("experts")
-    .select("is_public, display_name, display_name_en")
+    .select("is_approved, is_public, display_name, display_name_en")
     .eq("user_id", userData.id)
     .maybeSingle()
 
-  if (!expertData || !expertData.is_public) {
+  if (!expertData || !expertData.is_approved || !expertData.is_public) {
     return {
       title: isEn ? "Profile Not Found | Coffee Community" : "プロフィールが見つかりません | Coffee Community",
     }

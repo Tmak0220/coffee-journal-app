@@ -1,15 +1,21 @@
 create table if not exists public.shop_api_configs (
   id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id) on delete cascade,
   platform_type text not null check (platform_type in ('base','shopify','square')),
-  access_token text not null, refresh_token text, expires_at timestamptz, store_domain text, external_account_id text,
+  shop_url text, access_token text not null, refresh_token text, expires_at timestamptz,
+  refresh_token_expires_at timestamptz, store_domain text, external_account_id text,
   scopes text[] not null default '{}', created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  last_synced_at timestamptz, last_sync_error text,
   unique(user_id, platform_type)
 );
 alter table public.shop_api_configs add column if not exists expires_at timestamptz;
+alter table public.shop_api_configs add column if not exists shop_url text;
+alter table public.shop_api_configs add column if not exists refresh_token_expires_at timestamptz;
 alter table public.shop_api_configs add column if not exists store_domain text;
 alter table public.shop_api_configs add column if not exists external_account_id text;
 alter table public.shop_api_configs add column if not exists scopes text[] not null default '{}';
 alter table public.shop_api_configs add column if not exists updated_at timestamptz not null default now();
+alter table public.shop_api_configs add column if not exists last_synced_at timestamptz;
+alter table public.shop_api_configs add column if not exists last_sync_error text;
 create unique index if not exists shop_api_configs_user_platform_key on public.shop_api_configs(user_id, platform_type);
 alter table public.shop_api_configs enable row level security;
 -- OAuthトークンはservice role経由のみで扱い、ブラウザからは一切読み書きさせません。

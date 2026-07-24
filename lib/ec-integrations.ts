@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 export type EcPlatform = "base" | "shopify" | "square"
 export const isEcPlatform = (value: string): value is EcPlatform => ["base", "shopify", "square"].includes(value)
+export const SQUARE_API_VERSION = "2026-07-15"
 
 export function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL

@@ -10,6 +10,7 @@ import { useAuthModal } from "@/context/AuthModalContext"
 import { useRouter } from "next/navigation"
 import ProfileGearReviews from "@/components/ProfileGearReviews"
 import { ProfileSkeleton } from "@/components/ui/PageSkeletons"
+import ProfileTimeline from "@/components/ProfileTimeline"
 
 type BaristaProfile = {
   id: string
@@ -151,7 +152,12 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         .eq("user_id", userData.id)
         .maybeSingle()
 
-      if (expertError || !expertData || !expertData.is_public) {
+      if (
+        expertError ||
+        !expertData ||
+        !expertData.is_approved ||
+        !expertData.is_public
+      ) {
         if (expertError) console.error("Expert profile query error:", expertError)
         setProfile(null)
         setLoading(false)
@@ -307,6 +313,31 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
     const key = item.trim()
     return (specialtyLabels[key] || specialtyLabels[key.toLowerCase()])?.[isEn ? "en" : "ja"] || key
   })
+  const specialtyAccentKey: Record<string, string> = {
+    "バリスタ": "barista",
+    "ブリュワー": "brewer",
+    "ロースター": "roaster",
+    "バイヤー": "buyer",
+    "コーチ": "coach",
+    "カッパー": "cupper",
+    "テクニシャン": "technician",
+    "メディア": "media",
+    "アカデミック": "academic",
+    "ギーク": "geek",
+  }
+  const specialtyAccent = {
+    barista: "border-sky-200 bg-sky-50 text-sky-900",
+    brewer: "border-cyan-200 bg-cyan-50 text-cyan-900",
+    roaster: "border-amber-200 bg-amber-50 text-amber-900",
+    buyer: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    coach: "border-violet-200 bg-violet-50 text-violet-900",
+    cupper: "border-rose-200 bg-rose-50 text-rose-900",
+    technician: "border-slate-200 bg-slate-50 text-slate-900",
+    media: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-900",
+    academic: "border-indigo-200 bg-indigo-50 text-indigo-900",
+    geek: "border-lime-200 bg-lime-50 text-lime-950",
+  }[specialtyAccentKey[specialtyKey] || specialtyKey.toLowerCase()]
+    || "border-neutral-200 bg-neutral-50 text-neutral-800"
 
   // 💡 有料会員（standard, pro, business）判定用ヘルパー関数
   const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
@@ -335,7 +366,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           
           <div className="flex-1 text-center md:text-left space-y-3 pb-2">
             <div className="flex justify-center md:justify-start">
-              <span className="text-[10px] bg-zinc-100 text-zinc-700 font-mono font-bold tracking-widest px-2.5 py-1 rounded uppercase">
+              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${specialtyAccent}`}>
                 {specialty}
               </span>
             </div>
@@ -400,68 +431,11 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           className="mt-10"
         />
 
-        {/* お知らせ・タイムラインセクション */}
-        <div className="mt-14 bg-surface border border-border/50 p-6 rounded-2xl">
-          <h2 className="text-sm font-bold tracking-wider uppercase mb-6 text-zinc-800 border-b border-border/30 pb-2">
-            {t.updatesSectionTitle}
-          </h2>
-          
-          {!notifications || notifications.length === 0 ? (
-            <p className="text-xs text-subtle font-mono">{t.noUpdates}</p>
-          ) : (
-            <div className="space-y-6">
-              {notifications.map((item) => {
-                // 💡 閲覧制限の判定ロジック
-                // target_groupがpremium、かつ、閲覧者が有料会員でない（未ログイン or free）場合に制限をかける
-                const isRestricted = item.target_group === "premium" && !isPremiumUser
-
-                return (
-                  <div key={item.id} className="border-b border-border/30 pb-5 last:border-0 last:pb-0 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-subtle font-mono">
-                        {new Date(item.created_at).toLocaleDateString(lang === "en" ? "en-US" : "ja-JP")}
-                      </span>
-                      {item.target_group === "premium" && (
-                        <span className="text-[9px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded border border-amber-200/50">
-                          {t.premiumBadge}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* タイトルは全員に見せてフックにする（あるいはタイトルも隠す場合はここを条件分岐に変えてください） */}
-                    <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
-                    
-                    {/* 💡 閲覧権限があるか、全員配信のものだけ本文を表示 */}
-                    {!isRestricted ? (
-                      <>
-                        <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{item.content}</p>
-                        {item.link_url && (
-                          <div className="pt-1">
-                            <a 
-                              href={item.link_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-[11px] font-medium text-zinc-900 hover:text-zinc-600 underline underline-offset-4 gap-1"
-                            >
-                              {item.link_source || t.openLink} →
-                            </a>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* 💡 権限がない有料会員限定記事の場合は、コンテンツを隠してメッセージを表示 */
-                      <div className="bg-zinc-50/60 border border-dashed border-zinc-200 rounded-xl p-4 mt-2">
-                        <p className="text-xs text-subtle leading-relaxed flex items-center gap-2">
-                          🔒 {t.premiumMaskText}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <ProfileTimeline
+          items={notifications}
+          lang={isEn ? "en" : "ja"}
+          isPremiumUser={isPremiumUser}
+        />
 
         {/* レシピ・関連投稿セクション */}
         <div className="mt-14">
@@ -473,10 +447,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
 
         <ProfileGearReviews userId={profile.id} profileType="expert" lang={isEn ? "en" : "ja"} />
 
-        <div className="mt-16 pt-10 border-t border-border/40">
-          <h2 className="text-sm font-bold tracking-wider uppercase mb-6 text-zinc-800">
-            {t.servedPostsSectionTitle}
-          </h2>
+        <div className="mt-14">
           <PeoplePostList userId={profile.id} lang={lang} />
         </div>
 
