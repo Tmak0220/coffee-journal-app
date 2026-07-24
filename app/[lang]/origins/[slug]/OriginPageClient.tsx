@@ -13,6 +13,7 @@ import B2BInquiryPanel from "@/components/B2BInquiryPanel"
 import PeoplePostList from "@/components/PeoplePostList"
 import ProfileTimeline from "@/components/ProfileTimeline"
 import PublicShopProducts from "@/components/PublicShopProducts"
+import ProfileBlogList from "@/components/ProfileBlogList"
 
 type BranchItem = {
   name: string
@@ -87,7 +88,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
   const pathname = usePathname()
   const slug = (params.slug as string) || origin.slug
   
-  // Auth Modal Context が存在しない場合の安全対策
   const [following, setFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followLoading, setFollowLoading] = useState(false)
@@ -345,8 +345,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      
-      {/* 1. カバーイメージ */}
       <div className="w-full h-48 md:h-64 bg-zinc-100 relative overflow-hidden border-b border-border/30">
         {origin.cover_url ? (
           <Image src={origin.cover_url} alt="" fill className="object-cover" priority />
@@ -358,8 +356,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       </div>
 
       <div className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 py-6 sm:-mt-16 sm:p-12">
-        
-        {/* 2. プロフィール基本情報エリア */}
         <div className="flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-border/40 pb-10">
           <div className="relative w-32 h-32 rounded-3xl overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
             {origin.avatar_url ? (
@@ -408,7 +404,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           </div>
         </div>
 
-        {/* 3. ストーリー & 公式リンク (2カラムグリッド) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
           <div className="md:col-span-2 space-y-4">
             <h3 className="text-[10px] font-bold tracking-wider text-subtle uppercase font-mono">{dict.aboutTitleJa}</h3>
@@ -440,7 +435,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           </div>
         </div>
 
-        {/* 4. 活動拠点・アクセス */}
         <div className="mt-12">
           <h3 className="text-[10px] font-bold tracking-wider text-subtle uppercase font-mono mb-4">{dict.locationsTitleJa}</h3>
           {allLocations.length > 0 ? (
@@ -467,12 +461,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           )}
         </div>
 
-        <ProfileTimeline
-          items={notifications}
-          lang={lang}
-          isPremiumUser={isPremiumUser}
-        />
-
         <PublicProfileCalendar
           targetUserId={origin.owner_id}
           lang={lang}
@@ -480,6 +468,16 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         />
 
         <B2BInquiryPanel originId={origin.id} ownerId={origin.owner_id} currentUserId={currentUserId} currentUserTier={currentUserTier} lang={lang} mode="public" />
+
+        <ProfileTimeline
+          items={notifications}
+          lang={lang}
+          isPremiumUser={isPremiumUser}
+        />
+
+        <ProfileBlogList userId={origin.owner_id} target="origins" lang={lang} />
+
+        <ProfileGearReviews userId={origin.owner_id} profileType="owner" lang={lang} />
 
         <section className="mt-14">
           <div className="flex items-end justify-between border-b border-border/40 pb-3 mb-6">
@@ -503,8 +501,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         </section>
 
         <PublicShopProducts userId={origin.owner_id} lang={lang} />
-
-        <ProfileGearReviews userId={origin.owner_id} profileType="owner" lang={lang} />
 
         <div className="mt-14">
           <PeoplePostList

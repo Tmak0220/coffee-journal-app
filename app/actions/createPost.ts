@@ -55,7 +55,7 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
   const [{ data: post, error: postError }, { data: recipeRows, error: recipeError }] = await Promise.all([
     supabaseAdmin
       .from("posts")
-      .select("source_origin_id, market_origin_id, event_origin_id")
+      .select("user_id, source_origin_id, market_origin_id, event_origin_id")
       .eq("id", postId)
       .single(),
     supabaseAdmin
@@ -95,9 +95,30 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
       .insert((origins || []).map((origin: any) => ({
         origin_id: origin.id,
         post_id: postId,
-        display_status: origin.user_id && origin.linked_posts_mode === "review" ? "pending" : "approved",
+        display_status: origin.user_id && origin.user_id !== post.user_id && origin.linked_posts_mode === "review"
+          ? "pending"
+          : "approved",
       })))
     if (insertError) throw insertError
+  }
+
+  if (originIds.length > 0) {
+    const { data: ownedOrigins, error: ownedOriginError } = await supabaseAdmin
+      .from("origins")
+      .select("id")
+      .eq("user_id", post.user_id)
+      .in("id", originIds)
+    if (ownedOriginError) throw ownedOriginError
+
+    const ownedOriginIds = (ownedOrigins || []).map((origin: any) => origin.id)
+    if (ownedOriginIds.length > 0) {
+      const { error: approveOwnError } = await supabaseAdmin
+        .from("origin_post_links")
+        .update({ display_status: "approved", updated_at: new Date().toISOString() })
+        .eq("post_id", postId)
+        .in("origin_id", ownedOriginIds)
+      if (approveOwnError) throw approveOwnError
+    }
   }
 
   const staleIds = Array.from(existingIds).filter((originId) => !originIds.includes(originId))
@@ -196,7 +217,7 @@ export async function createPost(input: any, userId: string) {
         if (recipe.mode === "none") continue
 
         let expertDisplayStatus: "approved" | "pending" = "approved"
-        if (recipe.baristaUserId) {
+        if (recipe.baristaUserId && recipe.baristaUserId !== currentUserId) {
           const { data: linkedExpert } = await supabaseAdmin
             .from("experts")
             .select("linked_posts_mode")

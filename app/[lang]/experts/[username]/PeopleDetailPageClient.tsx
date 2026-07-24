@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import ProfileGearReviews from "@/components/ProfileGearReviews"
 import { ProfileSkeleton } from "@/components/ui/PageSkeletons"
 import ProfileTimeline from "@/components/ProfileTimeline"
+import ProfileBlogList from "@/components/ProfileBlogList"
 
 type BaristaProfile = {
   id: string
@@ -66,8 +67,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   const [following, setFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followLoading, setFollowLoading] = useState(false)
-
-  // 💡 追加: ページを「見ている人」の現在のプランを保持するステート
   const [currentUserTier, setCurrentUserTier] = useState<string | null>(null)
 
   const t = {
@@ -88,7 +87,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
     follow: isEn ? "Follow" : "フォローする",
     following: isEn ? "Following" : "フォロー中",
     followers: isEn ? "Followers" : "フォロワー",
-    // 💡 追加: 非会員向けのマスク表示テキスト
     premiumMaskText: isEn 
       ? "This content is exclusive to premium members. Please upgrade your plan to view." 
       : "このコンテンツは有料会員限定です。閲覧するにはプランのアップグレードが必要です。"
@@ -96,7 +94,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
 
   useEffect(() => {
     const fetchBaristaData = async () => {
-      // 💡 1. 閲覧者（いまページを開いている人）のプランを取得してセット
       const { data: sessionData } = await supabase.auth.getSession()
       const loginUid = sessionData?.session?.user?.id || null
       setCurrentUserId(loginUid)
@@ -111,10 +108,9 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         setCurrentUserTier(viewerData?.membership_tier || "free")
         viewerIsPremium = !!viewerData?.membership_tier && viewerData.membership_tier !== "free"
       } else {
-        setCurrentUserTier(null) // 未ログイン
+        setCurrentUserTier(null)
       }
 
-      // 2. プロフィール対象のユーザー情報を取得
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("id, username, display_name, avatar_url, cover_url")
@@ -128,7 +124,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         return
       }
 
-      // 3. 専門家プロフィールの取得
       const { data: expertData, error: expertError } = await supabase
         .from("experts")
         .select(`
@@ -203,7 +198,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
       setFollowersCount(count || 0)
       setFollowing(Boolean(followStatus.data))
 
-      // 4. 配信されたお知らせ一覧を取得
       const { data: noticeData } = await supabase
         .from("notifications")
         .select("id, title, content, link_url, link_source, target_group, created_at, lang")
@@ -216,7 +210,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         target_group: notice.target_group || "all",
       })))
 
-      // 5. 公開プロレシピの取得
       const { data: recipeData } = await supabase
         .from("pro_recipes")
         .select("id, recipe_title, bean_name, image_urls, selected_variables, log_purpose, log_process, log_conclusion, created_at")
@@ -339,12 +332,10 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   }[specialtyAccentKey[specialtyKey] || specialtyKey.toLowerCase()]
     || "border-neutral-200 bg-neutral-50 text-neutral-800"
 
-  // 💡 有料会員（standard, pro, business）判定用ヘルパー関数
   const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
-      {/* 共通のヘッダー・カバー画像エリア */}
       <div className="w-full h-48 md:h-64 bg-zinc-100 relative overflow-hidden border-b border-border/30">
         {profile.cover_url ? (
           <Image src={profile.cover_url} alt="" fill className="object-cover" priority />
@@ -354,7 +345,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
       </div>
 
       <div className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 py-6 sm:-mt-16 sm:p-12">
-        {/* プロフィール基本情報エリア */}
         <div className="flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-border/40 pb-10">
           <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
             {profile.avatar_url ? (
@@ -405,7 +395,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           </div>
         </div>
 
-        {/* 経歴・アワードエリア */}
         {hasExpertDetails && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
             {profile.achievements && (
@@ -437,15 +426,16 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           isPremiumUser={isPremiumUser}
         />
 
-        {/* レシピ・関連投稿セクション */}
+        <ProfileBlogList userId={profile.id} target="experts" lang={isEn ? "en" : "ja"} />
+
+        <ProfileGearReviews userId={profile.id} profileType="expert" lang={isEn ? "en" : "ja"} />
+
         <div className="mt-14">
           <h2 className="text-sm font-bold tracking-wider uppercase mb-6 text-zinc-800">
             {t.recipesSectionTitle} by {profile.display_name}
           </h2>
           <ProRecipeList recipes={labLogs || []} username={profile.username} lang={lang} t={t} />
         </div>
-
-        <ProfileGearReviews userId={profile.id} profileType="expert" lang={isEn ? "en" : "ja"} />
 
         <div className="mt-14">
           <PeoplePostList userId={profile.id} lang={lang} />
