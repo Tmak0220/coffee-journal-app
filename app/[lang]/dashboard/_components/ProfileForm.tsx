@@ -418,14 +418,13 @@ export default function ProfileForm({
       </div>
 
       {activeTab === "profile" && (
-        <div className="bg-white border border-neutral-200/60 pt-6 sm:pt-12 pb-10 sm:pb-16 px-6 sm:px-12 rounded-xl shadow-sm w-full space-y-12 animate-fade-in">
+        <div className="bg-white border border-neutral-200/60 pt-6 sm:pt-12 pb-10 sm:pb-16 px-6 sm:px-12 rounded-xl shadow-sm w-full space-y-12">
           <div>
             <h2 className="text-[18px] font-bold tracking-[0.05em] text-neutral-900 uppercase">{t.title}</h2>
             <p className="mt-1 text-[13px] font-normal tracking-wide text-neutral-400">{t.descTitle}</p>
           </div>
 
           <form onSubmit={handleUpdateProfile} className="space-y-10">
-            {/* アバター画像設定エリア */}
             <div className="space-y-2.5">
               <div>
                 <label className="text-[14px] font-bold tracking-[0.05em] text-neutral-900">{t.labelAvatar}</label>
@@ -434,7 +433,11 @@ export default function ProfileForm({
               <div className="flex items-center gap-5">
                 <div className="relative w-20 h-20 rounded-full overflow-hidden bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    <img 
+                      src={avatarUrl} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover block opacity-100" 
+                    />
                   ) : (
                     <span className="text-neutral-400 text-xs">No Image</span>
                   )}
@@ -491,7 +494,7 @@ export default function ProfileForm({
             
             <div className="pt-2 space-y-4">
               {statusMessage && activeTab === "profile" && (
-                <div className={`text-[13px] tracking-wide p-3.5 rounded-xl border w-full max-w-md transition-all duration-300 ${
+                <div className={`text-[13px] tracking-wide p-3.5 rounded-xl border w-full max-w-md ${
                   statusMessage.type === "error" 
                     ? "text-red-600 bg-red-50/40 border-red-200" 
                     : "text-neutral-700 bg-neutral-50/60 border-neutral-200"
@@ -509,7 +512,7 @@ export default function ProfileForm({
       )}
 
       {activeTab === "calendar" && (
-        <div className="space-y-10 w-full animate-fade-in">
+        <div className="space-y-10 w-full">
           
           <div className="bg-white border border-neutral-200/60 p-6 sm:p-10 rounded-xl shadow-sm">
             <MinimalCalendar 
@@ -613,7 +616,7 @@ export default function ProfileForm({
                 <div
                   role="status"
                   aria-live="polite"
-                  className={`text-[13px] tracking-wide p-4 rounded-xl border w-full text-center transition-all duration-300 ${
+                  className={`text-[13px] tracking-wide p-4 rounded-xl border w-full text-center ${
                     statusMessage.type === "error"
                       ? "text-red-700 bg-red-50 border-red-200"
                       : "text-emerald-700 bg-emerald-50 border-emerald-200"
@@ -652,7 +655,7 @@ export default function ProfileForm({
       )}
 
       {activeTab === "event" && (
-        <div className="w-full animate-fade-in">
+        <div className="w-full">
           <EventPostForm
             userId={userId}
             lang={currentLang}
