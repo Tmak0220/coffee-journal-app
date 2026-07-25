@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { FormSkeleton } from "@/components/ui/PageSkeletons"
-
-// 外部のサーバーアクションをインポート
 import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
-
 import HeroImageUploader from "@/app/[lang]/dashboard/_components/HeroImageUploader"
 import CoffeeBeansInfoForm from "@/app/[lang]/dashboard/_components/CoffeeBeansInfoForm"
 import BrewRecipeForm from "@/app/[lang]/dashboard/_components/BrewRecipeForm"
@@ -92,11 +89,9 @@ export default function EditPostPage({ params }: Props) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
-
-  // 1. COFFEE BEANS INFO ステート
   const [title, setTitle] = useState("")
-  const [varietyId, setVarietyId] = useState("") // カンマ区切り文字列
-  const [processId, setProcessId] = useState("") // カンマ区切り文字列
+  const [varietyId, setVarietyId] = useState("")
+  const [processId, setProcessId] = useState("")
   const [tastes, setTastes] = useState("")
   const [description, setDescription] = useState("")
   
@@ -110,7 +105,6 @@ export default function EditPostPage({ params }: Props) {
   const [marketInput, setMarketInput] = useState("")
   const [selectedMarket, setSelectedMarket] = useState<OriginSuggestion | null>(null)
   
-  // 2. BREW RECIPE 関連の統合ステート
   const [recipeState, setRecipeState] = useState({
     editingRecipeId: null as string | number | null,
     recipeMode: "none" as "self" | "barista" | "none",
@@ -124,7 +118,6 @@ export default function EditPostPage({ params }: Props) {
     recipeNotes: ""
   })
   
-  // 3. TASTE & FLAVOR TAGS ステート
   const [selectedTasteIds, setSelectedTasteIds] = useState<string[]>([])
   const [selectedGears, setSelectedGears] = useState<Array<{ id: string; name: string; gearId: number | null }>>([
     { id: "1", name: "", gearId: null }
@@ -351,7 +344,6 @@ export default function EditPostPage({ params }: Props) {
         imageUrls.map((url: string) => serverMoveToPermanentStorage(url))
       )
 
-      // 💡 複数選択に対応するため、posts テーブル本体から variety_id と process_id を除外
       const postPayload = {
         title: title.trim(),
         source_origin_id: selectedSource?.id || null,
@@ -369,7 +361,6 @@ export default function EditPostPage({ params }: Props) {
 
       if (postError) throw postError
 
-      // 💡 品種 (Variety) 中間テーブルの更新ロジック (全削除 -> 再構築)
       await supabase.from("post_varieties").delete().eq("post_id", postId)
       if (varietyId) {
         const varietyIds = varietyId.split(",").map(id => parseInt(id.trim(), 10)).filter(Boolean)
@@ -380,7 +371,6 @@ export default function EditPostPage({ params }: Props) {
         }
       }
 
-      // 💡 精製方法 (Process) 中間テーブルの更新ロジック (全削除 -> 再構築)
       await supabase.from("post_processes").delete().eq("post_id", postId)
       if (processId) {
         const processIds = processId.split(",").map(id => parseInt(id.trim(), 10)).filter(Boolean)
