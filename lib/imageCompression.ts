@@ -1,20 +1,36 @@
 import imageCompression from "browser-image-compression"
 
-export async function compressImage(file: File): Promise<File> {
+type CompressionOptions = {
+  maxSizeMB?: number
+  maxWidthOrHeight?: number
+}
+
+export async function compressImage(
+  file: File,
+  {
+    maxSizeMB = 1,
+    maxWidthOrHeight = 1200,
+  }: CompressionOptions = {},
+): Promise<File> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("画像ファイルを選択してください。")
+  }
+
   const options = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1200,
+    maxSizeMB,
+    maxWidthOrHeight,
     useWebWorker: true,
+    preserveExif: false,
   }
 
   try {
     // 1. 画像を圧縮する（この時点でライブラリの仕様によりファイル名がblob等に壊れることがあります）
     const compressedFile = await imageCompression(file, options)
 
-    const MAX_SIZE = 5 * 1024 * 1024
-    if (compressedFile.size > MAX_SIZE) {
+    const maxBytes = Math.max(maxSizeMB, 0.1) * 1024 * 1024
+    if (compressedFile.size > maxBytes * 1.15) {
       throw new Error(
-        "画像サイズが大きすぎます。5MB以下の画像を選択してください。"
+        "画像を指定されたサイズまで圧縮できませんでした。別の画像をお試しください。"
       )
     }
 
@@ -26,7 +42,7 @@ export async function compressImage(file: File): Promise<File> {
     const repairedFile = new File(
       [compressedFile], 
       `compressed-${Date.now()}.${originalExt}`, 
-      { type: compressedFile.type }
+      { type: compressedFile.type, lastModified: Date.now() }
     )
 
     // 修復したファイルを返す

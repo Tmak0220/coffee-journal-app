@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { serverUploadAvatar } from "@/app/actions/createPost"
+import { compressImage } from "@/lib/imageCompression"
 
 type Props = {
   userId: string
@@ -112,8 +113,12 @@ export default function AvatarUpload({
 
     let uploadedNewUrl: string | null = null
     try {
+      const compressedFile = await compressImage(file, {
+        maxSizeMB: 0.4,
+        maxWidthOrHeight: 512,
+      })
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", compressedFile)
 
       const publicUrl = await serverUploadAvatar(formData, userId)
       uploadedNewUrl = publicUrl

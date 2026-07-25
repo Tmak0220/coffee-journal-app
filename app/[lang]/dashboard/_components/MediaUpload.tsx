@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
+import { compressImage } from "@/lib/imageCompression"
 
 type Props = {
   userId: string
@@ -136,8 +137,11 @@ export default function MediaUpload({
     const oldUrl = currentUrl
 
     try {
+      const compressedFile = await compressImage(file, type === "avatar"
+        ? { maxSizeMB: 0.4, maxWidthOrHeight: 512 }
+        : { maxSizeMB: 1.2, maxWidthOrHeight: 1920 })
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", compressedFile)
       formData.append("folder", type === "avatar" ? "avatars" : "covers")
 
       const response = await fetch("/api/upload", { 
