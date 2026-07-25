@@ -48,8 +48,6 @@ const profileDict = {
     tabEvent: "イベント投稿",
     title: "PROFILE INFO",
     descTitle: "アカウントの基本設定",
-    labelAvatar: "AVATAR",
-    descAvatar: "アイコン画像",
     labelUsername: "USERNAME",
     descUsername: "ユーザーネーム (半角英数字・ハイフン)",
     noticeUsername: "※ユーザーネームはあなたのプロフィールURLや識別子として使用されます。一度設定すると後から変更することはできません。",
@@ -91,8 +89,6 @@ const profileDict = {
     tabEvent: "Event Post",
     title: "PROFILE INFO",
     descTitle: "Account Settings",
-    labelAvatar: "AVATAR",
-    descAvatar: "Avatar Image",
     labelUsername: "USERNAME",
     descUsername: "Username (Alphanumeric and hyphens)",
     noticeUsername: "* The username is used for your profile URL and identifier. Once set, it cannot be changed.",
@@ -150,8 +146,6 @@ export default function ProfileForm({
   const [username, setUsername] = useState(initialUsername?.toLowerCase() || "")
   const [displayName, setDisplayName] = useState(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
   const [bio, setBio] = useState(currentLang === "en" ? (initialBioEn || "") : (initialBio || ""))
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
@@ -178,8 +172,7 @@ export default function ProfileForm({
   useEffect(() => {
     setDisplayName(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
     setBio(currentLang === "en" ? (initialBioEn || "") : (initialBio || ""))
-    setAvatarUrl(initialAvatarUrl)
-  }, [currentLang, initialDisplayName, initialDisplayNameEn, initialBio, initialBioEn, initialAvatarUrl])
+  }, [currentLang, initialDisplayName, initialDisplayNameEn, initialBio, initialBioEn])
 
   useEffect(() => {
     let isMounted = true
@@ -238,34 +231,6 @@ export default function ProfileForm({
     return () => { isMounted = false }
   }, [userId, activeTab, currentLang])
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploadingAvatar(true)
-    setStatusMessage(null)
-
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("folder", "avatars")
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to upload image")
-
-      setAvatarUrl(data.url)
-    } catch (error: any) {
-      setStatusMessage({ text: t.errorMessage(error.message), type: "error" })
-    } finally {
-      setUploadingAvatar(false)
-    }
-  }
-
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -286,7 +251,6 @@ export default function ProfileForm({
 
     const updatePayload: Record<string, any> = {
       username: username.trim().toLowerCase() || null,
-      avatar_url: avatarUrl || null,
     }
 
     if (currentLang === "en") {
@@ -425,36 +389,6 @@ export default function ProfileForm({
           </div>
 
           <form onSubmit={handleUpdateProfile} className="space-y-10">
-            <div className="space-y-2.5">
-              <div>
-                <label className="text-[14px] font-bold tracking-[0.05em] text-neutral-900">{t.labelAvatar}</label>
-                <p className="text-[12px] font-normal tracking-wide text-neutral-400 mt-0.5">{t.descAvatar}</p>
-              </div>
-              <div className="flex items-center gap-5">
-                <div className="relative w-20 h-20 rounded-full overflow-hidden bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0">
-                  {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover block opacity-100" 
-                    />
-                  ) : (
-                    <span className="text-neutral-400 text-xs">No Image</span>
-                  )}
-                </div>
-                <label className="cursor-pointer bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[13px] font-medium px-4 py-2.5 rounded-xl transition-colors">
-                  {uploadingAvatar ? t.loading : "画像を選択"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                    disabled={uploadingAvatar}
-                  />
-                </label>
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
               <div className="space-y-2.5">
                 <div>

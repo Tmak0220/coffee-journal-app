@@ -434,8 +434,16 @@ export async function serverUploadAvatar(formData: FormData, userId: string): Pr
       })
     )
 
-    const origin = process.env.R2_PUBLIC_URL || new URL(process.env.R2_ENDPOINT!).origin
-    return `${origin}/${destKey}`
+    const publicOrigin = (
+      process.env.R2_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+    )?.replace(/\/$/, "")
+
+    if (!publicOrigin) {
+      throw new Error("R2 public URL is not configured")
+    }
+
+    return `${publicOrigin}/${destKey}`
   } catch (err) {
     console.error("Failed to upload avatar to R2:", err)
     throw new Error("Failed to upload image to storage")

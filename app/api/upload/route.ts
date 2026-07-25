@@ -76,7 +76,15 @@ export async function POST(req: Request) {
       })
     )
 
-    const baseUrl = process.env.R2_PUBLIC_URL?.replace(/\/$/, "")
+    const baseUrl = (
+      process.env.R2_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+    )?.replace(/\/$/, "")
+
+    if (!baseUrl) {
+      throw new Error("R2 public URL is not configured")
+    }
+
     const imageUrl = `${baseUrl}/${storageKey}`
 
     return NextResponse.json({
