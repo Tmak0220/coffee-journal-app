@@ -22,10 +22,19 @@ export default function ProfileGearSelector({ value, onChange, lang }: { value: 
     return [brand, name].filter(Boolean).join(" ")
   }
   const selected = gears.filter((gear) => value.includes(gear.id))
+  
   const suggestions = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     if (!normalized) return []
-    return gears.filter((gear) => !value.includes(gear.id) && [gear.name, gear.name_ja, gear.brand, gear.brand_ja, gear.search_keywords].filter(Boolean).join(" ").toLowerCase().includes(normalized)).slice(0, 8)
+    // 💡 .slice(0, 8) を削除し、ヒットするものを全件返すように変更
+    return gears.filter((gear) => 
+      !value.includes(gear.id) && 
+      [gear.name, gear.name_ja, gear.brand, gear.brand_ja, gear.search_keywords]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized)
+    )
   }, [gears, query, value])
 
   return (
@@ -37,9 +46,19 @@ export default function ProfileGearSelector({ value, onChange, lang }: { value: 
       {selected.length > 0 && <div className="flex flex-wrap gap-2">{selected.map((gear) => <button key={gear.id} type="button" onClick={() => onChange(value.filter((id) => id !== gear.id))} className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[12px] text-neutral-700 transition hover:border-neutral-400">{displayName(gear)} <span className="ml-1 text-neutral-400">×</span></button>)}</div>}
       <div className="relative">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={lang === "ja" ? "器具名・ブランド名で検索..." : "Search gear or brand..."} className="w-full rounded-xl border border-neutral-200/80 bg-neutral-50/30 px-4 py-3 text-[14px] text-neutral-900 outline-none transition focus:border-neutral-400 focus:bg-white" />
-        {query.trim() && <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl">
-          {suggestions.length > 0 ? suggestions.map((gear) => <button key={gear.id} type="button" onClick={() => { onChange([...value, gear.id]); setQuery("") }} className="block w-full border-b border-neutral-100 px-4 py-3 text-left text-[13px] text-neutral-700 transition last:border-0 hover:bg-neutral-50">{displayName(gear)}</button>) : <p className="px-4 py-3 text-[12px] text-neutral-400">{lang === "ja" ? "該当する登録器具がありません。" : "No registered gear found."}</p>}
-        </div>}
+        {query.trim() && (
+          <div className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl">
+            {suggestions.length > 0 ? (
+              suggestions.map((gear) => (
+                <button key={gear.id} type="button" onClick={() => { onChange([...value, gear.id]); setQuery("") }} className="block w-full border-b border-neutral-100 px-4 py-3 text-left text-[13px] text-neutral-700 transition last:border-0 hover:bg-neutral-50">
+                  {displayName(gear)}
+                </button>
+              ))
+            ) : (
+              <p className="px-4 py-3 text-[12px] text-neutral-400">{lang === "ja" ? "該当する登録器具がありません。" : "No registered gear found."}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

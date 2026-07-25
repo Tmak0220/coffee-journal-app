@@ -30,6 +30,12 @@ type Recipe = {
   water_profile: Record<string, unknown> | null
   roast_profile: Record<string, unknown> | null
   cupping_profile: Record<string, unknown> | null
+  verification_patterns?: Array<{
+    id: string
+    title: string
+    isBest?: boolean
+    modules: Array<Record<string, unknown> & { id: string; type: "recipe" | "water" | "roast" | "cupping" }>
+  }> | null
   visibility: string | null
   created_at: string
 }
@@ -92,6 +98,8 @@ const dict = {
     save: "保存する",
     saved: "保存済み",
     membershipRequired: "保存機能の利用には会員登録が必要です。",
+    patterns: "検証パターン",
+    bestPattern: "ベストパターン",
   },
   en: {
     badge: "VERIFICATION ARTICLE",
@@ -123,6 +131,8 @@ const dict = {
     save: "SAVE",
     saved: "SAVED",
     membershipRequired: "Membership is required to save this article.",
+    patterns: "Verification Patterns",
+    bestPattern: "Best Pattern",
   },
 }
 
@@ -180,6 +190,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
     { label: t.bloom, value: recipe.bloom_time },
     { label: t.total, value: recipe.total_time },
   ].filter((item) => item.value)
+  const hasVerificationPatterns = Array.isArray(recipe.verification_patterns) && recipe.verification_patterns.length > 0
   const profileEntries = (profile: Record<string, unknown> | null) => Object.entries(profile || {})
     .filter(([key, value]) => !["id", "type"].includes(key) && value !== null && value !== "" && (!Array.isArray(value) || value.length > 0))
 
@@ -225,14 +236,62 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
             </section>
           )}
 
-          {parameters.length > 0 && (
+          {hasVerificationPatterns && (
+            <section>
+              <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.patterns}</h2>
+              <div className="mt-5 space-y-5">
+                {recipe.verification_patterns!.map((pattern, patternIndex) => (
+                  <article key={pattern.id || patternIndex} className="rounded-3xl border border-neutral-200 bg-neutral-50/45 p-5 sm:p-7">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4">
+                      <h3 className="text-base font-semibold text-neutral-900">{pattern.title || `${t.patterns} ${patternIndex + 1}`}</h3>
+                      {pattern.isBest && <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold text-amber-700">{t.bestPattern}</span>}
+                    </div>
+                    <div className="mt-5 space-y-5">
+                      {(pattern.modules || []).map((module, moduleIndex) => {
+                        const entries = Object.entries(module).filter(([key, value]) =>
+                          !["id", "type", "gears", "pourSteps"].includes(key) &&
+                          value !== null && value !== "" && (!Array.isArray(value) || value.length > 0)
+                        )
+                        const pourSteps = Array.isArray(module.pourSteps) ? module.pourSteps as Array<{ amount?: string; time?: string }> : []
+                        const moduleLabel = module.type === "recipe" ? t.extraction : module.type === "water" ? t.water : module.type === "roast" ? t.roast : t.cupping
+                        return (
+                          <div key={module.id || moduleIndex} className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                            <h4 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">{moduleLabel}</h4>
+                            {entries.length > 0 && <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                              {entries.map(([key, value]) => (
+                                <div key={key}>
+                                  <dt className="text-[10px] uppercase tracking-wide text-neutral-400">{key.replaceAll(/([A-Z])/g, " $1").replaceAll("_", " ")}</dt>
+                                  <dd className="mt-1 whitespace-pre-wrap text-sm font-medium text-neutral-800">{typeof value === "object" ? JSON.stringify(value) : String(value)}</dd>
+                                </div>
+                              ))}
+                            </dl>}
+                            {pourSteps.length > 0 && <ol className="mt-4 space-y-2">
+                              {pourSteps.map((step, index) => (
+                                <li key={index} className="grid grid-cols-[2rem_1fr_auto] gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs">
+                                  <span className="font-mono text-neutral-400">{index + 1}</span>
+                                  <span>{step.amount || "—"}</span>
+                                  <span className="font-mono text-neutral-500">{step.time || "—"}</span>
+                                </li>
+                              ))}
+                            </ol>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!hasVerificationPatterns && parameters.length > 0 && (
             <section className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-white p-6 shadow-[0_18px_55px_-44px_rgba(14,116,144,0.4)] sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.extraction}</h2>
               <dl className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">{parameters.map((item) => <div key={item.label}><dt className="text-[10px] text-neutral-400">{item.label}</dt><dd className="mt-1 text-sm font-semibold text-neutral-900">{item.value}</dd></div>)}</dl>
             </section>
           )}
 
-          {recipe.pour_steps && recipe.pour_steps.length > 0 && (
+          {!hasVerificationPatterns && recipe.pour_steps && recipe.pour_steps.length > 0 && (
             <section>
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.pourSteps}</h2>
               <ol className="mt-4 space-y-2">
@@ -254,7 +313,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
             </section>
           )}
 
-          {(recipe.water_name || recipe.gh != null || recipe.kh != null || recipe.minerals || profileEntries(recipe.water_profile).length > 0) && (
+          {!hasVerificationPatterns && (recipe.water_name || recipe.gh != null || recipe.kh != null || recipe.minerals || profileEntries(recipe.water_profile).length > 0) && (
             <section className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-cyan-50/45 to-white p-6 sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.water}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-3">
@@ -274,7 +333,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
             </section>
           )}
 
-          {profileEntries(recipe.roast_profile).length > 0 && (
+          {!hasVerificationPatterns && profileEntries(recipe.roast_profile).length > 0 && (
             <section className="rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50/45 to-white p-6 sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.roast}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -290,7 +349,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
             </section>
           )}
 
-          {profileEntries(recipe.cupping_profile).length > 0 && (
+          {!hasVerificationPatterns && profileEntries(recipe.cupping_profile).length > 0 && (
             <section className="rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50/40 to-white p-6 sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.cupping}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-2">

@@ -16,6 +16,7 @@ type LinkItem = {
 type Props = {
   userId: string // users.id（UUID）
   initialOriginId?: number | null
+  initialSlug?: string | null
   initialUsername: string | null
   initialDisplayName: string | null
   initialDisplayNameEn?: string | null
@@ -118,6 +119,8 @@ const profileDict = {
     deselectStore: "選択を解除",
     requiredBadge: "（必須）",
     validationError: "申請には、BRAND NAME、ヘッドクオーター（本拠地・本店）の店舗名、BRAND BIOの入力が必須です。",
+    viewPublicPage: "公開ページを確認する ↗",
+    nameChangeWarning: "表示名を変更すると、反映には運営の再承認が必要になります。変更しますか？",
     labelOriginType: "カテゴリー",
     originTypeMarket: "店舗・ブランド",
     originTypeSource: "産地・生産者",
@@ -176,6 +179,8 @@ const profileDict = {
     deselectStore: "Deselect",
     requiredBadge: "(Required)",
     validationError: "BRAND NAME, the headquarters store name, and BRAND BIO are required to submit your application.",
+    viewPublicPage: "View Public Page ↗",
+    nameChangeWarning: "Changing your Display Name requires re-approval from administrators. Are you sure you want to change it?",
     labelOriginType: "CATEGORY",
     originTypeMarket: "Shop / Brand",
     originTypeSource: "Source / Producer",
@@ -215,6 +220,7 @@ function getStoreDisplayName(item: OriginSuggestion, lang: string): string {
 export default function OwnerProfileForm({ 
   userId, 
   initialOriginId = null,
+  initialSlug = null,
   initialUsername, 
   initialDisplayName, 
   initialDisplayNameEn = "", 
@@ -252,6 +258,7 @@ export default function OwnerProfileForm({
   const username = initialUsername?.toLowerCase() || ""
 
   const [displayName, setDisplayName] = useState(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
+  const isNameChanged = displayName !== (currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
   const [bio, setBio] = useState(currentLang === "en" ? (initialBioEn || "") : (initialBio || ""))
   const [headquarters, setHeadquarters] = useState<BranchLocation>(currentLang === "en" ? (initialHeadquartersEn || emptyLocation) : (initialHeadquarters || emptyLocation))
   const [branches, setBranches] = useState<BranchLocation[]>(currentLang === "en" ? (initialBranchesEn || []) : (initialBranches || []))
@@ -532,22 +539,18 @@ export default function OwnerProfileForm({
       const filteredLinks = links.filter(l => l.url.trim() !== "")
       const filteredBranches = branches.filter(b => b.name.trim() !== "")
 
-      const { error: userUpdateError } = await supabase
-        .from("users")
-        .update({
-          avatar_url: avatarUrl,
-          cover_url: coverUrl
-        })
-        .eq("id", userId)
-
-      if (userUpdateError) throw userUpdateError
+      if (!isProfileCompleted) {
+        const { error: userUpdateError } = await supabase
+          .from("users")
+          .update({ avatar_url: avatarUrl, cover_url: coverUrl })
+          .eq("id", userId)
+        if (userUpdateError) throw userUpdateError
+      }
 
       const existingOriginId = initialOriginId
 
-      const updatePayload: Record<string, any> = {
-        links: filteredLinks,
-        updated_at: new Date().toISOString()
-      }
+      const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
+      if (!isProfileCompleted) updatePayload.links = filteredLinks
 
       if (!isProfileCompleted) {
         updatePayload.is_profile_completed = true
@@ -560,26 +563,28 @@ export default function OwnerProfileForm({
       let requestedEn: string | null = null
 
       if (currentLang === "en") {
-        updatePayload.bio_en = bio.trim() || null
-        updatePayload.headquarters_en = headquarters
-        updatePayload.branches_en = filteredBranches
-
         const nextDisplayNameEn = displayName.trim() || null
         if (nextDisplayNameEn !== (initialDisplayNameEn || null)) {
           hasNameChanged = true
           requestedEn = nextDisplayNameEn
           updatePayload.pending_display_name_en = nextDisplayNameEn
         }
+        if (!isProfileCompleted) {
+          updatePayload.bio_en = bio.trim() || null
+          updatePayload.headquarters_en = headquarters
+          updatePayload.branches_en = filteredBranches
+        }
       } else {
-        updatePayload.bio = bio.trim() || null
-        updatePayload.headquarters = headquarters
-        updatePayload.branches = filteredBranches
-
         const nextDisplayNameJa = displayName.trim() || null
         if (nextDisplayNameJa !== (initialDisplayName || null)) {
           hasNameChanged = true
           requestedJa = nextDisplayNameJa
           updatePayload.pending_display_name = nextDisplayNameJa
+        }
+        if (!isProfileCompleted) {
+          updatePayload.bio = bio.trim() || null
+          updatePayload.headquarters = headquarters
+          updatePayload.branches = filteredBranches
         }
       }
 
@@ -654,11 +659,13 @@ export default function OwnerProfileForm({
         if (error) throw error
       }
 
-      const { error: deleteGearError } = await supabase.from("profile_gears").delete().eq("user_id", userId).eq("profile_type", "owner")
-      if (deleteGearError) throw deleteGearError
-      if (selectedGearIds.length > 0) {
-        const { error: insertGearError } = await supabase.from("profile_gears").insert(selectedGearIds.map((gearId) => ({ user_id: userId, profile_type: "owner", gear_id: gearId })))
-        if (insertGearError) throw insertGearError
+      if (!isProfileCompleted) {
+        const { error: deleteGearError } = await supabase.from("profile_gears").delete().eq("user_id", userId).eq("profile_type", "owner")
+        if (deleteGearError) throw deleteGearError
+        if (selectedGearIds.length > 0) {
+          const { error: insertGearError } = await supabase.from("profile_gears").insert(selectedGearIds.map((gearId) => ({ user_id: userId, profile_type: "owner", gear_id: gearId })))
+          if (insertGearError) throw insertGearError
+        }
       }
 
       if (!isProfileCompleted) {
@@ -723,10 +730,10 @@ export default function OwnerProfileForm({
 
       }
 
-      const replacedMediaUrls = [
+      const replacedMediaUrls = !isProfileCompleted ? [
         committedAvatarUrlRef.current && committedAvatarUrlRef.current !== avatarUrl ? committedAvatarUrlRef.current : null,
         committedCoverUrlRef.current && committedCoverUrlRef.current !== coverUrl ? committedCoverUrlRef.current : null,
-      ].filter((url): url is string => Boolean(url))
+      ].filter((url): url is string => Boolean(url)) : []
       await Promise.all(replacedMediaUrls.map(async (url) => {
         const response = await fetch("/api/delete-object", {
           method: "POST",
@@ -950,6 +957,20 @@ export default function OwnerProfileForm({
                 <p className="text-[11px] text-neutral-400/90 leading-normal px-1">
                   {t.noteUsername}
                 </p>
+                {isProfileCompleted && isApproved && isPublic && initialSlug ? (
+                  <a
+                    href={`/${currentLang}/origins/${initialSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block text-[12px] font-semibold text-neutral-600 underline underline-offset-2 transition-colors hover:text-neutral-900"
+                  >
+                    {t.viewPublicPage}
+                  </a>
+                ) : (
+                  <span className="block text-[12px] text-neutral-300">
+                    {t.viewPublicPage} ({currentLang === "ja" ? "未承認" : "Pending"})
+                  </span>
+                )}
               </div>
 
               {/* BRAND NAME & SEARCH SUGGESTIONS */}
@@ -979,7 +1000,6 @@ export default function OwnerProfileForm({
                     aria-expanded={showSuggestions && suggestions.length > 0}
                     aria-autocomplete="list"
                   />
-                  
                   {isSearching && (
                     <span className="absolute right-3 text-[11px] text-neutral-400 font-mono animate-pulse">
                       ...
@@ -999,6 +1019,11 @@ export default function OwnerProfileForm({
                     </button>
                   )}
                 </div>
+                {isProfileCompleted && isApproved && isNameChanged && (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50/80 p-2.5 text-[12px] font-medium leading-relaxed text-amber-700 animate-fade-in">
+                    {t.nameChangeWarning}
+                  </p>
+                )}
 
                 {/* 💡 ビジュアル切替: サジェスト選択時 */}
                 {selectedOrigin ? (

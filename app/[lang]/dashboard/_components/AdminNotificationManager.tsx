@@ -59,8 +59,8 @@ const ADMIN_DICT = {
       master_request: "データ追加申請",
       new_profile_activation: "プロ会員初回利用申請",
       new_owner_profile_activation: "オーナープロフィール利用申請",
-      expert_display_name_change: "プロ会員表示名変更申請",
-      owner_display_name_change: "オーナー会員表示名変更申請",
+      expert_display_name_change: "プロプロフィール変更申請",
+      owner_display_name_change: "オーナープロフィール変更申請",
       display_name_change: "オーナープロフィール審査申請",
       claim_origin: "店舗・ブランド紐付け申請",
       feature_request: "機能追加のリクエスト",
@@ -95,8 +95,8 @@ const ADMIN_DICT = {
       master_request: "Data Addition Request",
       new_profile_activation: "Professional Profile Application",
       new_owner_profile_activation: "Owner Profile Application",
-      expert_display_name_change: "Professional Display Name Change",
-      owner_display_name_change: "Owner Display Name Change",
+      expert_display_name_change: "Professional Profile Change",
+      owner_display_name_change: "Owner Profile Change",
       display_name_change: "Owner Profile Review",
       claim_origin: "Store or Brand Claim",
       feature_request: "Feature Request",
@@ -266,6 +266,68 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
 
   const updateRequestStatus = async (req: AdminIncomingRequest, newStatus: "approved" | "rejected") => {
     const commentToSend = inputComments[req.id]?.trim() || null
+    const requestPayload = req.request_payload || {}
+
+    const applyRequestedProfile = async (profileType: "expert" | "owner") => {
+      if (Object.keys(requestPayload).length === 0) return
+      const lang = requestPayload.lang === "en" ? "en" : "ja"
+      const userPayload: Record<string, unknown> = {}
+      if (typeof requestPayload.avatar_url === "string") userPayload.avatar_url = requestPayload.avatar_url
+      if (typeof requestPayload.cover_url === "string") userPayload.cover_url = requestPayload.cover_url
+      if (Object.keys(userPayload).length > 0) {
+        const { error } = await supabase.from("users").update(userPayload).eq("id", req.user_id)
+        if (error) throw error
+      }
+
+      const profilePayload: Record<string, unknown> = {}
+      if (profileType === "expert") {
+        if (lang === "en") {
+          profilePayload.bio_expert_en = requestPayload.bio ?? null
+          profilePayload.current_store_en = requestPayload.current_store ?? null
+          profilePayload.past_stores_en = requestPayload.past_stores ?? []
+          profilePayload.awards_en = requestPayload.awards ?? null
+          profilePayload.primary_specialty_en = requestPayload.primary_specialty ?? null
+          profilePayload.sub_specialties_en = requestPayload.sub_specialties ?? []
+        } else {
+          profilePayload.bio_expert = requestPayload.bio ?? null
+          profilePayload.current_store = requestPayload.current_store ?? null
+          profilePayload.past_stores = requestPayload.past_stores ?? []
+          profilePayload.awards = requestPayload.awards ?? null
+          profilePayload.primary_specialty = requestPayload.primary_specialty ?? null
+          profilePayload.sub_specialties = requestPayload.sub_specialties ?? []
+        }
+        const { error } = await supabase.from("experts").update(profilePayload).eq("user_id", req.user_id)
+        if (error) throw error
+      } else {
+        profilePayload.links = requestPayload.links ?? []
+        if (lang === "en") {
+          profilePayload.bio_en = requestPayload.bio ?? null
+          profilePayload.headquarters_en = requestPayload.headquarters ?? null
+          profilePayload.branches_en = requestPayload.branches ?? []
+        } else {
+          profilePayload.bio = requestPayload.bio ?? null
+          profilePayload.headquarters = requestPayload.headquarters ?? null
+          profilePayload.branches = requestPayload.branches ?? []
+        }
+        const originQuery = supabase.from("origins").update(profilePayload)
+        const { error } = requestPayload.origin_id
+          ? await originQuery.eq("id", requestPayload.origin_id)
+          : await originQuery.eq("user_id", req.user_id)
+        if (error) throw error
+      }
+
+      if (Array.isArray(requestPayload.gear_ids)) {
+        const { error: deleteError } = await supabase.from("profile_gears").delete().eq("user_id", req.user_id).eq("profile_type", profileType)
+        if (deleteError) throw deleteError
+        const gearIds = requestPayload.gear_ids.filter((id): id is number => typeof id === "number")
+        if (gearIds.length > 0) {
+          const { error: insertError } = await supabase.from("profile_gears").insert(
+            gearIds.map(gear_id => ({ user_id: req.user_id, profile_type: profileType, gear_id }))
+          )
+          if (insertError) throw insertError
+        }
+      }
+    }
 
     try {
       if (newStatus === "approved") {
@@ -338,6 +400,7 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
 
             if (originErr) throw originErr
           }
+          await applyRequestedProfile("owner")
         }
         else if (req.type === "new_profile_activation") {
           const expertPayload: Record<string, any> = { is_approved: true, is_public: true }
@@ -356,6 +419,7 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
             .eq("user_id", req.user_id)
 
           if (expertErr) throw expertErr
+          await applyRequestedProfile("expert")
         }
         else if (req.type === "expert_display_name_change") {
           const expertPayload: Record<string, any> = {
@@ -377,6 +441,7 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
             .eq("user_id", req.user_id)
 
           if (expertErr) throw expertErr
+          await applyRequestedProfile("expert")
         }
         else if (req.type === "new_owner_profile_activation") {
           const { data: originToApprove, error: originCheckError } = await supabase

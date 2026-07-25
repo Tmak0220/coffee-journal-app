@@ -35,8 +35,8 @@ type Props = {
 
 const logFormDict = {
   ja: {
-    mainTitle: "EDIT TASTING LOG & RECIPE",
-    mainDesc: "コーヒー豆のテイスティング記録と抽出レシピの編集",
+    mainTitle: "EDIT TASTING & RECIPE",
+    mainDesc: "コーヒーのテイスティング記録と抽出レシピの編集",
     imageRequiredError: "カバー画像のアップロードは必須です。",
     submitting: "変更を保存中...",
     submitButton: "変更を保存する",
@@ -52,7 +52,7 @@ const logFormDict = {
     deleteButton: "削除する"
   },
   en: {
-    mainTitle: "EDIT TASTING LOG & RECIPE",
+    mainTitle: "EDIT TASTING & RECIPE",
     mainDesc: "Edit your tasting notes and specific brewing recipe",
     imageRequiredError: "Hero image is required.",
     submitting: "Saving...",

@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { FormSkeleton } from "@/components/ui/PageSkeletons"
 import EventPostForm from "@/app/[lang]/dashboard/_components/EventPostForm"
@@ -21,6 +22,7 @@ export default function EditContentPageClient({
   params: Promise<{ lang: string; type: string; id: string }>
 }) {
   const { lang, type, id } = use(params)
+  const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const [userId, setUserId] = useState("")
   const [tier, setTier] = useState<MembershipTier>("free")
@@ -29,7 +31,7 @@ export default function EditContentPageClient({
   const [checked, setChecked] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState("")
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -83,9 +85,10 @@ export default function EditContentPageClient({
     )
   }
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
+    setShowDeleteModal(false)
+    setStatusMessage(null)
     setDeleting(true)
-    setDeleteError("")
     try {
       const response = await fetch("/api/delete-content", {
         method: "POST",
@@ -94,49 +97,86 @@ export default function EditContentPageClient({
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || "Delete failed")
-      window.location.assign(`/${currentLang}/dashboard`)
+      setStatusMessage({
+        text: currentLang === "en" ? "Post and images deleted." : "投稿と画像を削除しました",
+        type: "success",
+      })
+      window.setTimeout(() => {
+        router.push(`/${currentLang}/dashboard`)
+      }, 1000)
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : (currentLang === "en" ? "Failed to delete." : "削除に失敗しました。"))
+      setStatusMessage({
+        text: error instanceof Error ? error.message : (currentLang === "en" ? "Failed to delete." : "削除に失敗しました。"),
+        type: "error",
+      })
+    } finally {
       setDeleting(false)
     }
   }
 
   const title = currentLang === "en" ? "EDIT POST" : "投稿を編集"
+  const deleteAction = (
+    <button
+      type="button"
+      onClick={() => setShowDeleteModal(true)}
+      disabled={deleting}
+      className="w-full rounded-full border border-red-200 px-8 py-3.5 text-sm font-medium tracking-wider text-red-600 transition-all duration-300 hover:bg-red-50 disabled:opacity-40 sm:w-auto"
+    >
+      {deleting
+        ? (currentLang === "en" ? "Deleting..." : "削除中...")
+        : (currentLang === "en" ? "Delete" : "削除する")}
+    </button>
+  )
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
       <header className="mx-auto mb-8 max-w-5xl border-b border-neutral-200 pb-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-400">{type}</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">{title}</h1>
       </header>
-      {type === "event" && <EventPostForm userId={userId} lang={currentLang} editId={id} />}
-      {type === "gear" && <GearReviewForm lang={currentLang} editId={id} />}
-      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} onBlogCreated={() => undefined} />}
-      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} />}
-      <section className="mx-auto mt-10 max-w-5xl border-t border-neutral-200 pt-8">
-        <button type="button" onClick={() => setShowDeleteModal(true)} className="rounded-full border border-red-200 bg-white px-6 py-3 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50">
-          {currentLang === "en" ? "Delete post" : "投稿を削除する"}
-        </button>
-      </section>
+      {type === "event" && <EventPostForm userId={userId} lang={currentLang} editId={id} secondaryAction={deleteAction} />}
+      {type === "gear" && <GearReviewForm lang={currentLang} editId={id} secondaryAction={deleteAction} />}
+      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} onBlogCreated={() => undefined} secondaryAction={deleteAction} />}
+      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} secondaryAction={deleteAction} />}
+      {statusMessage && (
+        <section className="mx-auto mt-6 max-w-4xl">
+          <div className={`max-w-xl rounded-xl border p-4 text-xs transition-all duration-300 ${
+            statusMessage.type === "error"
+              ? "border-red-200 bg-red-50/40 text-red-600"
+              : "border-neutral-200 bg-neutral-50 text-neutral-900"
+          }`}>
+            {statusMessage.text}
+          </div>
+        </section>
+      )}
 
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-7 shadow-2xl sm:p-8">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-red-500">DELETE POST</p>
-            <h2 className="mt-3 text-xl font-semibold text-neutral-900">
-              {currentLang === "en" ? "Delete this post?" : "この投稿を削除しますか？"}
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-neutral-500">
-              {currentLang === "en"
-                ? "The post, related data, and uploaded images will be permanently deleted. This action cannot be undone."
-                : "投稿、関連データ、アップロード画像を完全に削除します。この操作は取り消せません。"}
-            </p>
-            {deleteError && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{deleteError}</p>}
-            <div className="mt-7 grid grid-cols-2 gap-3">
-              <button type="button" disabled={deleting} onClick={() => { setShowDeleteModal(false); setDeleteError("") }} className="rounded-xl border border-neutral-200 px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md space-y-6 rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl transition-all duration-300">
+            <div className="space-y-2">
+              <h3 className="text-base font-bold tracking-wide text-neutral-900">
+                {currentLang === "en" ? "Delete Post" : "投稿の削除"}
+              </h3>
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-neutral-500">
+                {currentLang === "en"
+                  ? "Are you sure you want to delete this post?\n(The associated images will also be permanently deleted. This action cannot be undone.)"
+                  : "この投稿を削除しますか？\n（アップロードされた画像も同時に完全に削除されます。この操作は取り消せません）"}
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="rounded-full border border-neutral-200 px-5 py-2.5 text-xs font-semibold tracking-wide text-neutral-600 transition-all duration-200 hover:bg-neutral-50"
+              >
                 {currentLang === "en" ? "Cancel" : "キャンセル"}
               </button>
-              <button type="button" disabled={deleting} onClick={handleDelete} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
-                {deleting ? (currentLang === "en" ? "Deleting..." : "削除中...") : (currentLang === "en" ? "Delete permanently" : "完全に削除する")}
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="rounded-full bg-red-600 px-6 py-2.5 text-xs font-semibold tracking-wide text-white shadow-sm transition-all duration-200 hover:bg-red-700"
+              >
+                {currentLang === "en" ? "Delete" : "削除する"}
               </button>
             </div>
           </div>

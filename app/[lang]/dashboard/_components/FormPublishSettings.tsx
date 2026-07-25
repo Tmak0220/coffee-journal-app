@@ -15,6 +15,7 @@ type Props = {
   submitting: boolean
   disabled?: boolean
   statusMessage: { type: "success" | "error"; text: string } | null
+  secondaryAction?: React.ReactNode
 }
 
 export default function FormPublishSettings({
@@ -26,7 +27,8 @@ export default function FormPublishSettings({
   setTargetCategory,
   submitting,
   disabled = false,
-  statusMessage
+  statusMessage,
+  secondaryAction,
 }: Props) {
   
   const getTabButtonStyle = (isSelected: boolean) => `
@@ -108,7 +110,7 @@ export default function FormPublishSettings({
         </div>
       )}
 
-      <div className="flex justify-end pt-2">
+      <div className="flex flex-col justify-end gap-3 pt-2 sm:flex-row sm:items-center">
         <button 
           type="submit" 
           disabled={submitting || disabled}
@@ -118,6 +120,7 @@ export default function FormPublishSettings({
             ? (dict?.submitting || "送信中...") 
             : (dict?.submitButton || "保存する")}
         </button>
+        {secondaryAction}
       </div>
     </div>
   )

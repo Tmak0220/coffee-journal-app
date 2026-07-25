@@ -50,6 +50,10 @@ export default function ProPostList({
   const [visibility, setVisibility] = useState<Visibility>("all")
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
 
+  // 削除対象のアイテムを保持するステート（モーダルの開閉管理用）
+  const [deleteTarget, setDeleteTarget] = useState<ProPostItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const t = isEn ? {
     title: destination === "origins" ? "OWNER POSTS" : "PRO POSTS",
     description: destination === "origins"
@@ -69,6 +73,12 @@ export default function ProPostList({
     empty: "No matching posts found.",
     view: "View",
     edit: "Edit",
+    delete: "Delete",
+    deleteConfirmTitle: "Delete Broadcast",
+    deleteConfirm: "Are you sure you want to delete this broadcast? It will also be removed from recipients.",
+    cancel: "Cancel",
+    confirmDelete: "Delete",
+    deleting: "Deleting...",
   } : {
     title: destination === "origins" ? "オーナー投稿" : "プロ投稿",
     description: destination === "origins"
@@ -88,6 +98,12 @@ export default function ProPostList({
     empty: "該当する投稿はありません。",
     view: "表示",
     edit: "編集",
+    delete: "削除",
+    deleteConfirmTitle: "配信の削除",
+    deleteConfirm: "この配信を削除しますか？受信者側の通知からも削除されます。",
+    cancel: "キャンセル",
+    confirmDelete: "削除する",
+    deleting: "削除中...",
   }
 
   useEffect(() => {
@@ -96,7 +112,7 @@ export default function ProPostList({
       setLoading(true)
       const [noticesResult, blogsResult, recipesResult] = await Promise.all([
         supabase.from("notifications").select("id, title, content, link_url, created_at, target_group, lang, author_type").eq("user_id", userId).eq("lang", lang).order("created_at", { ascending: false }),
-        supabase.from("blogs").select("id, title, content, image_urls, created_at, visibility, lang, author_type").eq("user_id", userId).eq("lang", lang).order("created_at", { ascending: false }),
+        supabase.from("blogs").select("id, title, content, image_urls, created_at, visibility, lang, author_type, publish_target").eq("user_id", userId).eq("lang", lang).order("created_at", { ascending: false }),
         supabase.from("pro_recipes").select("id, recipe_title, bean_name, image_urls, created_at, visibility, lang, target_category").eq("user_id", userId).eq("lang", lang).order("created_at", { ascending: false }),
       ])
 
@@ -115,7 +131,11 @@ export default function ProPostList({
         href: notice.link_url || null,
         editHref: null,
       }))
-      const blogs = (blogsResult.data || []).filter((blog: any) => matchesAuthorType(blog.author_type)).map((blog: any): ProPostItem => ({
+      const blogs = (blogsResult.data || [])
+        .filter((blog: any) => destination === "origins"
+          ? blog.publish_target === "origins" || blog.publish_target === "both" || (!blog.publish_target && blog.author_type === "owner")
+          : blog.publish_target === "experts" || blog.publish_target === "both" || (!blog.publish_target && blog.author_type !== "owner"))
+        .map((blog: any): ProPostItem => ({
         id: blog.id,
         category: "blog",
         title: blog.title || (isEn ? "Untitled article" : "無題の記事"),
@@ -125,7 +145,7 @@ export default function ProPostList({
         visibility: blog.visibility || "draft",
         href: `/${lang}/blogs/${blog.id}`,
         editHref: `/${lang}/edit/blog/${blog.id}`,
-      }))
+        }))
       const recipes = (recipesResult.data || [])
         .filter((recipe: any) => destination === "origins"
           ? recipe.target_category === "origins" || recipe.target_category === "both"
@@ -160,74 +180,146 @@ export default function ProPostList({
   const categoryLabel = (value: ProPostItem["category"]) => t[value]
   const visibilityLabel = (value: ProPostItem["visibility"]) => t[value]
 
-  return (
-    <section className="w-full max-w-5xl mx-auto space-y-8 rounded-xl border border-neutral-200 bg-white px-6 pb-10 pt-6 shadow-sm sm:px-10 sm:pb-16 sm:pt-10">
-      <div className="flex flex-col gap-5 border-b border-neutral-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-[15px] font-bold uppercase tracking-wider text-neutral-900">{t.title}</h2>
-          <p className="mt-1 text-[11px] tracking-wide text-neutral-400">{t.description}</p>
-          <p className="mt-1 font-mono text-[10px] tracking-wider text-neutral-400">TOTAL: {visibleItems.length}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select value={category} onChange={(event) => setCategory(event.target.value as Category)} className={selectClass}>
-            <option value="all">{t.all}</option>
-            <option value="notice">{t.notice}</option>
-            <option value="blog">{t.blog}</option>
-            <option value="verification">{t.verification}</option>
-          </select>
-          <select value={visibility} onChange={(event) => setVisibility(event.target.value as Visibility)} className={selectClass}>
-            <option value="all">{t.allVisibility}</option>
-            <option value="draft">{t.draft}</option>
-            <option value="private">{t.private}</option>
-            <option value="members">{t.members}</option>
-            <option value="public">{t.public}</option>
-          </select>
-          <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")} className={selectClass}>
-            <option value="newest">{t.newest}</option>
-            <option value="oldest">{t.oldest}</option>
-          </select>
-        </div>
-      </div>
+  // モーダルでの削除実行処理
+  const executeDelete = async () => {
+    if (!deleteTarget || deleteTarget.category !== "notice") return
+    setIsDeleting(true)
+    try {
+      const response = await fetch("/api/delete-broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteTarget.id }),
+      })
+      if (!response.ok) {
+        console.error("Failed to delete broadcast:", await response.text())
+        return
+      }
+      setItems(current => current.filter(candidate => !(candidate.category === "notice" && candidate.id === deleteTarget.id)))
+      setDeleteTarget(null)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
-      {loading ? (
-        <div aria-busy="true" className="grid animate-pulse grid-cols-1 gap-5 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-sm">
-              <div className="aspect-video bg-neutral-100" />
-              <div className="p-5">
-                <div className="h-3 w-24 rounded bg-neutral-100" />
-                <div className="mt-5 h-5 w-3/4 rounded bg-neutral-100" />
-                <div className="mt-3 h-3 w-full rounded bg-neutral-100" />
-              </div>
-            </div>
-          ))}
+  return (
+    <>
+      <section className="w-full max-w-5xl mx-auto space-y-8 rounded-xl border border-neutral-200 bg-white px-6 pb-10 pt-6 shadow-sm sm:px-10 sm:pb-16 sm:pt-10">
+        <div className="flex flex-col gap-5 border-b border-neutral-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-[15px] font-bold uppercase tracking-wider text-neutral-900">{t.title}</h2>
+            <p className="mt-1 text-[11px] tracking-wide text-neutral-400">{t.description}</p>
+            <p className="mt-1 font-mono text-[10px] tracking-wider text-neutral-400">TOTAL: {visibleItems.length}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select value={category} onChange={(event) => setCategory(event.target.value as Category)} className={selectClass}>
+              <option value="all">{t.all}</option>
+              <option value="notice">{t.notice}</option>
+              <option value="blog">{t.blog}</option>
+              <option value="verification">{t.verification}</option>
+            </select>
+            <select value={visibility} onChange={(event) => setVisibility(event.target.value as Visibility)} className={selectClass}>
+              <option value="all">{t.allVisibility}</option>
+              <option value="draft">{t.draft}</option>
+              <option value="private">{t.private}</option>
+              <option value="members">{t.members}</option>
+              <option value="public">{t.public}</option>
+            </select>
+            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")} className={selectClass}>
+              <option value="newest">{t.newest}</option>
+              <option value="oldest">{t.oldest}</option>
+            </select>
+          </div>
         </div>
-      ) : visibleItems.length === 0 ? (
-        <div className="py-20 text-center text-sm text-neutral-400">{t.empty}</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          {visibleItems.map(item => (
-            <article key={`${item.category}-${item.id}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md">
-              {item.imageUrl && <div className="aspect-video overflow-hidden border-b border-neutral-100 bg-neutral-50"><img src={item.imageUrl} alt="" className="h-full w-full object-cover" /></div>}
-              <div className="p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-neutral-500">{categoryLabel(item.category)}</span>
-                    <span className="text-[10px] font-mono text-neutral-400">{new Date(item.createdAt).toLocaleDateString(isEn ? "en-US" : "ja-JP")}</span>
-                  </div>
-                  <span className="whitespace-nowrap rounded-md bg-neutral-900 px-2.5 py-1 text-[9px] font-semibold tracking-wider text-white">{visibilityLabel(item.visibility)}</span>
+
+        {loading ? (
+          <div aria-busy="true" className="grid animate-pulse grid-cols-1 gap-5 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-sm">
+                <div className="aspect-video bg-neutral-100" />
+                <div className="p-5">
+                  <div className="h-3 w-24 rounded bg-neutral-100" />
+                  <div className="mt-5 h-5 w-3/4 rounded bg-neutral-100" />
+                  <div className="mt-3 h-3 w-full rounded bg-neutral-100" />
                 </div>
-                <h3 className="mt-4 line-clamp-1 text-[15px] font-semibold text-neutral-900">{item.title}</h3>
-                <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-neutral-500">{item.description}</p>
-                {(item.href || item.editHref) && <div className="mt-5 grid grid-cols-2 gap-2">
-                  {item.href && <Link href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel={item.href.startsWith("http") ? "noreferrer" : undefined} className="block rounded-xl border border-neutral-300 px-4 py-2.5 text-center text-xs font-medium text-neutral-800 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white">{t.view}</Link>}
-                  {item.editHref && <Link href={item.editHref} className="block rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-center text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900">{t.edit}</Link>}
-                </div>}
               </div>
-            </article>
-          ))}
+            ))}
+          </div>
+        ) : visibleItems.length === 0 ? (
+          <div className="py-20 text-center text-sm text-neutral-400">{t.empty}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {visibleItems.map(item => (
+              <article key={`${item.category}-${item.id}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md">
+                {item.imageUrl && <div className="aspect-video overflow-hidden border-b border-neutral-100 bg-neutral-50"><img src={item.imageUrl} alt="" className="h-full w-full object-cover" /></div>}
+                <div className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-neutral-500">{categoryLabel(item.category)}</span>
+                      <span className="text-[10px] font-mono text-neutral-400">{new Date(item.createdAt).toLocaleDateString(isEn ? "en-US" : "ja-JP")}</span>
+                    </div>
+                    <span className="whitespace-nowrap rounded-md bg-neutral-900 px-2.5 py-1 text-[9px] font-semibold tracking-wider text-white">{visibilityLabel(item.visibility)}</span>
+                  </div>
+                  <h3 className="mt-4 line-clamp-1 text-[15px] font-semibold text-neutral-900">{item.title}</h3>
+                  <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-neutral-500">{item.description}</p>
+                  {(item.href || item.editHref || item.category === "notice") && <div className="mt-5 grid grid-cols-2 gap-2">
+                    {item.href && <Link href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel={item.href.startsWith("http") ? "noreferrer" : undefined} className="block rounded-xl border border-neutral-300 px-4 py-2.5 text-center text-xs font-medium text-neutral-800 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white">{t.view}</Link>}
+                    {item.editHref && <Link href={item.editHref} className="block rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-center text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900">{t.edit}</Link>}
+                    {item.category === "notice" && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        className="col-span-2 rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-center text-xs font-medium text-red-600 transition hover:bg-red-50"
+                      >
+                        {t.delete}
+                      </button>
+                    )}
+                  </div>}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 削除確認ポップアップ (モーダル) */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* バックドロップ */}
+          <div
+            className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => !isDeleting && setDeleteTarget(null)}
+          />
+
+          {/* ポップアップ本体 */}
+          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-white p-6 shadow-xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-sm font-bold text-neutral-900">
+              {t.deleteConfirmTitle}
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-neutral-500">
+              {t.deleteConfirm}
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50 disabled:opacity-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={executeDelete}
+                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? t.deleting : t.confirmDelete}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </section>
+    </>
   )
 }

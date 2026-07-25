@@ -6,6 +6,10 @@ import { supabase } from "@/lib/supabase"
 import CoffeeBeanLikeIcon from "@/components/CoffeeBeanLikeIcon"
 import RelatedContent from "@/components/RelatedContent"
 import { ArticleSkeleton } from "@/components/ui/PageSkeletons"
+import Image from "next/image"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 
 type BlogArticle = {
   id: string
@@ -38,6 +42,7 @@ type BlogAuthor = {
   username: string | null
   display_name: string | null
   display_name_en: string | null
+  avatar_url: string | null
 }
 
 const VIEW_DICT = {
@@ -121,7 +126,7 @@ export default function BlogPageClient({
 
         const { data: authorData } = await supabase
           .from("users")
-          .select("username, display_name, display_name_en")
+          .select("username, display_name, display_name_en, avatar_url")
           .eq("id", blog.user_id)
           .maybeSingle()
         setAuthor(authorData)
@@ -129,7 +134,12 @@ export default function BlogPageClient({
         if (Array.isArray(blog.image_urls)) {
           setImageUrls(blog.image_urls.filter(Boolean))
         } else if (typeof blog.image_urls === "string" && blog.image_urls.trim() !== "") {
-          setImageUrls(blog.image_urls.split(",").map((s) => s.trim()).filter(Boolean))
+          try {
+            const parsed = JSON.parse(blog.image_urls)
+            setImageUrls(Array.isArray(parsed) ? parsed.filter((url): url is string => typeof url === "string" && Boolean(url)) : [])
+          } catch {
+            setImageUrls(blog.image_urls.startsWith("http") ? [blog.image_urls.trim()] : [])
+          }
         } else {
           setImageUrls([])
         }
@@ -259,99 +269,90 @@ export default function BlogPageClient({
   const isOwnPost = currentUserId === article.user_id
 
   return (
-    <article className="min-h-screen bg-[radial-gradient(circle_at_10%_3%,rgba(180,112,32,0.07),transparent_30%),radial-gradient(circle_at_88%_9%,rgba(71,127,151,0.055),transparent_27%)] px-4 py-8 text-left animate-fadeIn sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-5xl space-y-7 rounded-[22px] border border-white/80 bg-white/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.32)] backdrop-blur-sm sm:space-y-9 sm:rounded-[30px] sm:p-9 md:p-12">
-        
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-100 pb-5">
-          <div className="flex flex-wrap items-center gap-2">
-            {article.visibility === "draft" && (
-              <span className="text-[10px] font-bold tracking-wider px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-md uppercase">
-                {t.draftBadge}
-              </span>
-            )}
-            {article.visibility === "private" && (
-              <span className="text-[10px] font-bold tracking-wider px-2.5 py-1 bg-neutral-100 border border-neutral-300 text-neutral-600 rounded-md uppercase">
-                {t.privateBadge}
-              </span>
-            )}
-            {article.visibility === "members" && (
-              <span className="text-[10px] font-bold tracking-wider px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-md uppercase">
-                {t.membersOnlyBadge}
-              </span>
-            )}
-
-            <span className="text-[11px] font-mono font-medium text-neutral-400 bg-neutral-50 border border-neutral-200 px-2 py-0.5 rounded">
-              {article.author_type === "pro" ? t.authorPro : t.authorOwner}
-            </span>
-
-            <span className="text-[11px] font-mono font-medium text-neutral-400 bg-neutral-50 border border-neutral-200 px-2 py-0.5 rounded">
-              {article.publish_target === "experts" && t.targetExperts}
-              {article.publish_target === "origins" && t.targetOrigins}
-              {article.publish_target === "both" && t.targetBoth}
-            </span>
-          </div>
-
-          {!isOwnPost && (
-            <button
-              onClick={handleFollow} 
-              disabled={followLoading}
-              className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-semibold tracking-wide transition-all duration-200 sm:px-5 ${
-                following 
-                  ? "bg-neutral-100 text-neutral-500 border-neutral-200/80" 
-                  : "bg-white text-neutral-900 border-neutral-900 hover:bg-neutral-50"
-              }`}
-            >
-              {following ? t.btnFollowing : t.btnFollow}
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          <h1 className="text-2xl font-semibold leading-[1.2] tracking-[-0.025em] text-neutral-950 sm:text-4xl sm:tracking-[-0.035em] md:text-5xl">
-            {article.title}
-          </h1>
-          <p className="text-xs font-mono text-neutral-400">
-            {new Date(article.created_at).toLocaleDateString(currentLang === "ja" ? "ja-JP" : "en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit"
-            })}
-          </p>
-          {author && (
-            <Link
-              href={author.username ? `/${currentLang}/users/${author.username}` : "#"}
-              aria-disabled={!author.username}
-              className={`inline-flex items-center gap-2 text-xs font-semibold text-neutral-700 transition ${author.username ? "hover:text-neutral-400" : "pointer-events-none"}`}
-            >
-              <span className="text-[9px] font-medium uppercase tracking-[0.14em] text-neutral-400">
-                {currentLang === "en" ? "Author" : "投稿者"}
-              </span>
-              <span>{currentLang === "en" ? author.display_name_en || author.display_name || author.username : author.display_name || author.username}</span>
-            </Link>
-          )}
-        </div>
-
-        {imageUrls.length > 0 && (
-          <div className="w-full space-y-4 overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50 p-2 shadow-[0_20px_60px_-38px_rgba(0,0,0,0.35)]">
-            {imageUrls.map((url, index) => (
+    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_4%,rgba(180,112,32,0.07),transparent_28%),radial-gradient(circle_at_92%_12%,rgba(71,127,151,0.06),transparent_25%)] px-4 py-8 text-left animate-fadeIn sm:px-8 md:px-12 md:py-12 lg:px-16">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-start gap-9 lg:grid-cols-12 lg:gap-16">
+        <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:sticky lg:top-28 lg:col-span-6">
+          {imageUrls.length > 0 ? imageUrls.map((url, index) => (
+            <div key={`${url}-${index}`} className="w-full overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white shadow-[0_20px_60px_-35px_rgba(0,0,0,0.28)]">
               <img
-                key={index}
                 src={url}
-                alt={`${article.title} - ${index}`}
-                className="max-h-[680px] w-full rounded-[22px] object-cover"
-                loading="eager"
+                alt={`${article.title} - ${index + 1}`}
+                className="mx-auto block h-auto max-h-[80vh] w-full object-contain"
+                loading={index === 0 ? "eager" : "lazy"}
               />
-            ))}
-          </div>
-        )}
-
-        <div className="whitespace-pre-wrap break-words border-l-2 border-amber-300/70 py-2 pl-4 text-sm font-normal leading-7 tracking-wide text-neutral-700 sm:pl-8 sm:text-base sm:leading-8">
-          {article.content}
+            </div>
+          )) : (
+            <div className="flex aspect-[4/5] w-full items-center justify-center rounded-[28px] border border-dashed border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              No image
+            </div>
+          )}
         </div>
 
-        <div className="pt-8 border-t border-neutral-100 space-y-5">
+        <article className="space-y-8 rounded-[22px] border border-white/80 bg-white/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:space-y-10 sm:rounded-[28px] sm:p-8 lg:col-span-6 lg:p-10">
+          <header className="space-y-6 border-b border-neutral-100 pb-7">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-800">BLOG</span>
+                {article.visibility === "draft" && <span className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[10px] font-semibold text-amber-700">{t.draftBadge}</span>}
+                {article.visibility === "private" && <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[10px] font-semibold text-neutral-600">{t.privateBadge}</span>}
+                {article.visibility === "members" && <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold text-sky-700">{t.membersOnlyBadge}</span>}
+              </div>
+              {!isOwnPost && (
+                <button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-semibold tracking-wide transition-all sm:px-5 ${following ? "border-neutral-200 bg-neutral-100 text-neutral-500" : "border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-50"}`}
+                >
+                  {following ? t.btnFollowing : t.btnFollow}
+                </button>
+              )}
+            </div>
+
+            {author && (
+              <Link
+                href={author.username ? `/${currentLang}/users/${author.username}` : "#"}
+                aria-disabled={!author.username}
+                className={`flex w-fit items-center gap-3.5 transition ${author.username ? "hover:opacity-70" : "pointer-events-none"}`}
+              >
+                <div className="relative size-11 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-50">
+                  {author.avatar_url ? (
+                    <Image src={author.avatar_url} alt="" fill sizes="44px" className="object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center font-mono text-xs text-neutral-300">
+                      {(author.display_name || author.username || "CJ").slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">{currentLang === "en" ? "Author" : "投稿者"}</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-neutral-800">
+                    {currentLang === "en" ? author.display_name_en || author.display_name || author.username : author.display_name || author.username}
+                  </p>
+                </div>
+              </Link>
+            )}
+
+            <div>
+              <h1 className="text-3xl font-semibold leading-[1.15] tracking-[-0.035em] text-neutral-950 sm:text-4xl lg:text-5xl">{article.title}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <time className="font-mono text-[10px] text-neutral-400">
+                  {new Date(article.created_at).toLocaleDateString(currentLang === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
+                </time>
+                <span className="text-[10px] text-neutral-400">{article.author_type === "pro" ? t.authorPro : t.authorOwner}</span>
+                <span className="text-[10px] text-neutral-400">
+                  {article.publish_target === "experts" ? t.targetExperts : article.publish_target === "origins" ? t.targetOrigins : t.targetBoth}
+                </span>
+              </div>
+            </div>
+          </header>
+
+          <div className="prose-custom min-w-0 break-words border-l-2 border-amber-300/70 py-1 pl-5 text-sm leading-8 text-neutral-700 sm:pl-7 sm:text-base">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              {article.content}
+            </ReactMarkdown>
+          </div>
+
+          <div className="space-y-5 border-t border-neutral-100 pt-8">
           <div className="flex w-full items-center gap-2.5 sm:gap-4">
             
             <button 
@@ -393,8 +394,8 @@ export default function BlogPageClient({
               </Link>
             </div>
           )}
-        </div>
-
+          </div>
+        </article>
       </div>
       <RelatedContent
         source="blogs"
@@ -402,6 +403,6 @@ export default function BlogPageClient({
         authorId={article.user_id}
         lang={currentLang}
       />
-    </article>
+    </main>
   )
 }

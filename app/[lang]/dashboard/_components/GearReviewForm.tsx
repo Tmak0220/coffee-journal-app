@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
@@ -18,6 +18,7 @@ type GearSuggestion = {
 type Props = {
   lang?: "ja" | "en"
   editId?: string
+  secondaryAction?: ReactNode
 }
 
 const dict = {
@@ -92,7 +93,7 @@ function shouldShowRating(gear: GearSuggestion | null): boolean {
   return !hiddenTypes.includes(gear.type.toLowerCase())
 }
 
-export default function GearReviewForm({ lang = "ja", editId }: Props) {
+export default function GearReviewForm({ lang = "ja", editId, secondaryAction }: Props) {
   const router = useRouter()
   const isEn = lang === "en"
   const currentLang = isEn ? "en" : "ja"
@@ -428,7 +429,7 @@ export default function GearReviewForm({ lang = "ja", editId }: Props) {
           />
         </div>
 
-        <div className="pt-4 border-t border-neutral-100 flex justify-end">
+        <div className="pt-4 border-t border-neutral-100 flex flex-col justify-end gap-3 sm:flex-row sm:items-center">
           <button
             type="submit"
             disabled={submitting || !selectedGear}
@@ -436,6 +437,7 @@ export default function GearReviewForm({ lang = "ja", editId }: Props) {
           >
           {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
           </button>
+          {secondaryAction}
         </div>
       </form>
     </div>

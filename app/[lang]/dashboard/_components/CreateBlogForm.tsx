@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import FormPublishSettings from "./FormPublishSettings" // ✨ インポート
+import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
 
 type Props = { 
   onBlogCreated: () => void 
@@ -12,6 +13,7 @@ type Props = {
   authorType: "pro" | "owner"
   membership_tier: "free" | "standard" | "pro" | "business"
   editId?: string
+  secondaryAction?: ReactNode
 }
 
 type StatusMessage = {
@@ -77,7 +79,7 @@ const BLOG_FORM_DICT = {
   }
 } as const
 
-export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId }: Props) {
+export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId, secondaryAction }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = BLOG_FORM_DICT[currentLang]
@@ -161,6 +163,9 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       }
 
       const finalCategory = normalizedTier === "business" ? targetCategory : "experts"
+      const permanentImageUrls = await Promise.all(
+        imageUrls.map(url => serverMoveToPermanentStorage(url))
+      )
 
       const payload = {
         user_id: user.id,
@@ -168,7 +173,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         lang: currentLang,
         title: title.trim(),
         content: content.trim(),
-        image_urls: imageUrls,
+        image_urls: permanentImageUrls,
         visibility: visibility,         
         publish_target: finalCategory,
         membership_tier: normalizedTier
@@ -181,7 +186,8 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
         await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
       }
-      initialImagesRef.current = imageUrls
+      initialImagesRef.current = permanentImageUrls
+      setImageUrls(permanentImageUrls)
       setRemovedImageUrls([])
 
       setStatusMessage({ text: editId ? (currentLang === "en" ? "Article updated." : "ブログ記事を更新しました。") : t.successMessage, type: "success" })
@@ -289,6 +295,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
           submitting={submitting}
           disabled={isFormInvalid}
           statusMessage={statusMessage}
+          secondaryAction={secondaryAction}
         />
 
       </form>

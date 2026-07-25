@@ -746,7 +746,8 @@ export default function UnifiedDashboard({
                   <ProProfileForm 
                     userId={profile.id} 
                     initialUsername={profile.username} 
-                    initialDisplayName={expertData ? (formLanguage === "en" ? expertData.pending_display_name_en : expertData.pending_display_name) : profile.display_name} 
+                    initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? profile.display_name) : profile.display_name}
+                    initialDisplayNameEn={expertData ? (expertData.pending_display_name_en ?? expertData.display_name_en ?? null) : null}
                     initialBio={expertData ? expertData.bio_expert : profile.bio} 
                     initialBioEn={expertData ? expertData.bio_expert_en : null}
                     initialAvatarUrl={profile.avatar_url} 
@@ -820,9 +821,10 @@ export default function UnifiedDashboard({
                   <OwnerProfileForm
                     userId={profile.id}
                     initialOriginId={ownerData?.id ?? null}
+                    initialSlug={ownerData?.slug ?? null}
                     initialUsername={profile.username}
-                    initialDisplayName={ownerData?.display_name ?? profile.display_name}
-                    initialDisplayNameEn={ownerData?.display_name_en ?? null}
+                    initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? profile.display_name}
+                    initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null}
                     initialBio={ownerData?.bio ?? profile.bio}
                     initialBioEn={ownerData?.bio_en ?? null}
                     initialAvatarUrl={profile.avatar_url}

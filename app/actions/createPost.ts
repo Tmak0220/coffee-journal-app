@@ -44,7 +44,7 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
     return `${urlObj.origin}/${destKey}`
   } catch (err) {
     console.error(`Failed to move file to permanent storage: ${tmpUrl}`, err)
-    return tmpUrl
+    throw new Error("画像を一時保存領域から本保存領域へ移動できませんでした。")
   }
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
@@ -11,9 +11,10 @@ type Props = {
   isAdmin?: boolean
   onSuccess?: () => void
   editId?: string
+  secondaryAction?: ReactNode
 }
 
-export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess, editId }: Props) {
+export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess, editId, secondaryAction }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = currentLang === "en" ? {
@@ -183,7 +184,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
 
       <div className="pt-6 border-t border-neutral-100 space-y-4">
         {status && <div role="status" className={`text-[13px] p-4 rounded-xl border text-center ${status.type === "success" ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-red-700 bg-red-50 border-red-200"}`}>{status.text}</div>}
-        <div className="flex justify-end"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button></div>
+        <div className="flex flex-col justify-end gap-3 sm:flex-row sm:items-center"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button>{secondaryAction}</div>
       </div>
     </form>
   )

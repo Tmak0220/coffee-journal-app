@@ -82,9 +82,9 @@ const profileDict = {
     descAwards: "これまでの受賞歴や資格、実績などを入力してください",
     placeholderAwards: "Japan Barista Championship 優勝",
     loading: "処理中...",
-    submitButton: "変更を保存する",
+    submitButton: "変更を申請",
     submitRequestButton: "プロフィールを確定して運営に利用申請を送る",
-    successMessage: "プロフィールを更新しました。表示名の変更がある場合は運営の承認待ちとなります。",
+    successMessage: "プロフィールの変更申請を送信しました。運営の承認をお待ちください。",
     successRequestMessage: "プロフィールの登録と利用申請が完了しました。運営の承認をお待ちください。",
     errorMessage: (msg: string) => `保存に失敗しました: ${msg}`,
     validationError: "申請には、アバター画像、カバー画像、公開表示名、専門カテゴリー、プロフィールの入力が必須です。",
@@ -101,7 +101,8 @@ const profileDict = {
     visPublic: "公開 (全員に公開)",
     submitCalendarForm: "スケジュールを登録する",
     clearForm: "入力内容をクリア",
-    requiredBadge: "（必須）"
+    requiredBadge: "（必須）",
+    nameChangeWarning: "表示名を変更すると、反映には運営の再承認が必要になります。変更しますか？"
   },
   en: {
     tabProfile: "Profile Settings",
@@ -128,9 +129,9 @@ const profileDict = {
     descAwards: "Enter your past awards, certifications, or notable achievements",
     placeholderAwards: "Japan Barista Championship Winner",
     loading: "Processing...",
-    submitButton: "Save Changes",
+    submitButton: "Submit Changes for Review",
     submitRequestButton: "Confirm Profile & Submit Application to Admin",
-    successMessage: "Profile updated. Any display name changes are pending administrator approval.",
+    successMessage: "Your profile change request has been submitted for administrator review.",
     successRequestMessage: "Profile registered and application submitted successfully. Please wait for admin approval.",
     errorMessage: (msg: string) => `Failed to save: ${msg}`,
     validationError: "Avatar, Cover Image, DISPLAY NAME, EXPERT CATEGORIES, and EXPERT BIO are required to submit application.",
@@ -147,7 +148,8 @@ const profileDict = {
     visPublic: "Public (Everyone)",
     submitCalendarForm: "Save Schedule",
     clearForm: "Clear Form",
-    requiredBadge: "(Required)"
+    requiredBadge: "(Required)",
+    nameChangeWarning: "Changing your Display Name requires re-approval from administrators. Are you sure you want to change it?"
   }
 }
 
@@ -181,7 +183,6 @@ export default function ProProfileForm({
 
   const [activeTab, setActiveTab] = useState<"profile" | "calendar">("profile")
 
-  // 💡 ステート管理の初期値を定義
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl)
   const [coverUrl, setCoverUrl] = useState<string | null>(initialCoverUrl)
   const committedAvatarUrlRef = useRef<string | null>(initialAvatarUrl)
@@ -192,6 +193,7 @@ export default function ProProfileForm({
 
   const username = initialUsername?.toLowerCase() || ""
 
+  // 日本語用・英語用のそれぞれのステートを独立して管理
   const [displayName, setDisplayName] = useState(initialDisplayName || "")
   const [displayNameEn, setDisplayNameEn] = useState(initialDisplayNameEn || "")
 
@@ -218,7 +220,6 @@ export default function ProProfileForm({
   const subSpecialtiesKey = JSON.stringify(currentLang === "en" ? initialSubSpecialtiesEn : initialSubSpecialties)
   const primarySpecialtyKey = currentLang === "en" ? initialPrimarySpecialtyEn : initialPrimarySpecialty
 
-  // 💡 【重要修正】依存配列にアバター、カバー、承認状況の最新Propsを追加し、データ更新時に同期を固定
   useEffect(() => {
     supabase.from("profile_gears").select("gear_id").eq("user_id", userId).eq("profile_type", "expert").then(({ data, error }) => {
       if (error) console.error("Failed to load expert profile gears:", error)
@@ -239,7 +240,6 @@ export default function ProProfileForm({
       subs: normalizeExpertCategories(currentLang === "en" ? initialSubSpecialtiesEn : initialSubSpecialties)
     })
 
-    // 画像URLとステータス状態も再読み込み時に同期させて固定する
     setAvatarUrl(initialAvatarUrl)
     setCoverUrl(initialCoverUrl)
     setIsApproved(initialIsApproved)
@@ -255,10 +255,10 @@ export default function ProProfileForm({
     initialCurrentStoreEn, 
     initialAwards, 
     initialAwardsEn, 
-    initialAvatarUrl,         // 💡 追加
-    initialCoverUrl,          // 💡 追加
-    initialIsApproved,        // 💡 追加
-    initialIsProfileCompleted, // 💡 追加
+    initialAvatarUrl,
+    initialCoverUrl,
+    initialIsApproved,
+    initialIsProfileCompleted,
     pastStoresKey,   
     primarySpecialtyKey,
     subSpecialtiesKey    
@@ -319,6 +319,8 @@ export default function ProProfileForm({
     )
   }
 
+  const isNameChanged = (displayName !== (initialDisplayName || "")) || (displayNameEn !== (initialDisplayNameEn || ""))
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -336,8 +338,6 @@ export default function ProProfileForm({
     }
 
     try {
-      const isNameChanged = nextDisplayName !== initialDisplayName || nextDisplayNameEn !== initialDisplayNameEn
-
       const usersPayload: Record<string, any> = {
         avatar_url: avatarUrl,
         cover_url: coverUrl,
@@ -359,14 +359,14 @@ export default function ProProfileForm({
         expertsPayload.is_profile_completed = true
       }
 
-      if (lang === "en") {
+      if (!isProfileCompleted && lang === "en") {
         expertsPayload.bio_expert_en = bio.trim() || null
         expertsPayload.current_store_en = currentStore.trim() || null
         expertsPayload.past_stores_en = pastStores
         expertsPayload.awards_en = awards.trim() || null
         expertsPayload.primary_specialty_en = selectedCategories.main || null
         expertsPayload.sub_specialties_en = selectedCategories.subs
-      } else {
+      } else if (!isProfileCompleted) {
         expertsPayload.bio_expert = bio.trim() || null
         expertsPayload.current_store = currentStore.trim() || null
         expertsPayload.past_stores = pastStores
@@ -375,12 +375,13 @@ export default function ProProfileForm({
         expertsPayload.sub_specialties = selectedCategories.subs
       }
 
-      const { error: userUpdateError } = await supabase
-        .from("users")
-        .update(usersPayload)
-        .eq("id", userId)
-
-      if (userUpdateError) throw userUpdateError
+      if (!isProfileCompleted) {
+        const { error: userUpdateError } = await supabase
+          .from("users")
+          .update(usersPayload)
+          .eq("id", userId)
+        if (userUpdateError) throw userUpdateError
+      }
 
       const { error: expertUpdateError } = await supabase
         .from("experts")
@@ -388,14 +389,17 @@ export default function ProProfileForm({
         
       if (expertUpdateError) throw expertUpdateError
 
-      const { error: deleteGearError } = await supabase.from("profile_gears").delete().eq("user_id", userId).eq("profile_type", "expert")
-      if (deleteGearError) throw deleteGearError
-      if (selectedGearIds.length > 0) {
-        const { error: insertGearError } = await supabase.from("profile_gears").insert(selectedGearIds.map((gearId) => ({ user_id: userId, profile_type: "expert", gear_id: gearId })))
-        if (insertGearError) throw insertGearError
+      if (!isProfileCompleted) {
+        const { error: deleteGearError } = await supabase.from("profile_gears").delete().eq("user_id", userId).eq("profile_type", "expert")
+        if (deleteGearError) throw deleteGearError
+        if (selectedGearIds.length > 0) {
+          const { error: insertGearError } = await supabase.from("profile_gears").insert(selectedGearIds.map((gearId) => ({ user_id: userId, profile_type: "expert", gear_id: gearId })))
+          if (insertGearError) throw insertGearError
+        }
       }
 
-      if (!isProfileCompleted || isNameChanged) {
+      // 初回申請後は、表示名以外を含むプロフィール変更も毎回運営へ申請する。
+      {
         const { error: notifyError } = await supabase
           .from("admin_notifications")
           .insert({
@@ -425,10 +429,10 @@ export default function ProProfileForm({
         if (notifyError) throw notifyError
       }
 
-      const replacedMediaUrls = [
+      const replacedMediaUrls = !isProfileCompleted ? [
         committedAvatarUrlRef.current && committedAvatarUrlRef.current !== avatarUrl ? committedAvatarUrlRef.current : null,
         committedCoverUrlRef.current && committedCoverUrlRef.current !== coverUrl ? committedCoverUrlRef.current : null,
-      ].filter((url): url is string => Boolean(url))
+      ].filter((url): url is string => Boolean(url)) : []
       await Promise.all(replacedMediaUrls.map(async (url) => {
         const response = await fetch("/api/delete-object", {
           method: "POST",
@@ -485,8 +489,8 @@ export default function ProProfileForm({
         ) : (
           <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 text-neutral-600 text-[13px] leading-relaxed">
             {currentLang === "ja" 
-              ? "プロ会員アカウントが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィールの表示名（DISPLAY NAME）を今後変更する際は、都度運営への再申請と承認が必要になります。"
-              : "Your professional account has been approved. All post forms and features are fully accessible. *Any future changes to your DISPLAY NAME will require administrator re-approval."}
+              ? "プロ会員アカウントが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィールを今後変更する際は、都度運営への再申請と承認が必要になります。"
+              : "Your professional account has been approved. All post forms and features are fully accessible. *Any future profile changes will require administrator re-approval."}
           </div>
         )}
       </div>
@@ -600,7 +604,7 @@ export default function ProProfileForm({
                 </div>
               </div>
 
-              <div className="relative w-full">
+              <div className="relative w-full space-y-2">
                 <input 
                   type="text" 
                   value={currentLang === "en" ? displayNameEn : displayName} 
@@ -614,6 +618,11 @@ export default function ProProfileForm({
                   placeholder="COFFEE JOURNAL"
                   className={inputStyle} 
                 />
+                {isProfileCompleted && isApproved && isNameChanged && (
+                  <p className="text-[12px] font-medium text-amber-700 bg-amber-50/80 border border-amber-200 p-2.5 rounded-xl leading-relaxed animate-fade-in">
+                    {t.nameChangeWarning}
+                  </p>
+                )}
               </div>
             </div>
 

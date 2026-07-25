@@ -12,6 +12,7 @@ import LabLogSection from "./LabLogSection"
 import CoffeeBeansMetaForm from "./CoffeeBeansMetaForm"
 import FormPublishSettings from "./FormPublishSettings"
 import { useRouter } from "next/navigation"
+import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
 
 export type RecipeModuleData = {
   id: string
@@ -95,6 +96,7 @@ type Props = {
   authorType?: "pro" | "owner"
   membership_tier?: "free" | "standard" | "pro" | "business" | string
   editId?: string
+  secondaryAction?: React.ReactNode
 }
 
 type VisibilityType = "draft" | "private" | "members" | "public"
@@ -107,6 +109,7 @@ const RECIPE_FORM_DICT = {
     loginRequired: "ログインしてください",
     successMessage: "レシピを投稿しました。",
     errorMessage: "エラーが発生しました。",
+    imageRequiredError: "画像を1枚以上登録してください。",
     submitting: "処理中...",
     submitButton: "投稿する",
     labelVisibility: "公開設定",
@@ -123,6 +126,7 @@ const RECIPE_FORM_DICT = {
     loginRequired: "Please log in",
     successMessage: "Recipe published successfully.",
     errorMessage: "An error occurred.",
+    imageRequiredError: "Please add at least one image.",
     submitting: "Processing...",
     submitButton: "Publish",
     labelVisibility: "Visibility",
@@ -143,7 +147,8 @@ export default function PublishProRecipeForm({
   lang = "ja", 
   authorType = "pro", 
   membership_tier,
-  editId
+  editId,
+  secondaryAction,
 }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
@@ -246,11 +251,14 @@ export default function PublishProRecipeForm({
       if (recipe.cupping_profile) modules.push({ id: "cupping-edit", type: "cupping", ...recipe.cupping_profile })
       const urls = Array.isArray(recipe.image_urls) ? recipe.image_urls.filter((url: unknown): url is string => typeof url === "string") : []
       initialImagesRef.current = urls
+      const savedPatterns = Array.isArray(recipe.verification_patterns) && recipe.verification_patterns.length > 0
+        ? recipe.verification_patterns as VerificationPattern[]
+        : [{ id: editId, title: recipe.recipe_title || recipe.bean_name || "", isBest: Boolean(recipe.is_best_pattern), modules }]
       setData({
         heroImageUrl: urls[0] || "", heroImageUrls: urls,
         coffeeName: recipe.bean_name || "", coffeeLot: recipe.coffee_lot || "",
         coffeeUrl: recipe.coffee_url || "", roastDate: recipe.roast_date || "",
-        verifications: [{ id: editId, title: recipe.recipe_title || recipe.bean_name || "", isBest: Boolean(recipe.is_best_pattern), modules }],
+        verifications: savedPatterns,
         selectedVariables: recipe.selected_variables || [],
         logPurpose: recipe.log_purpose || "", logProcess: recipe.log_process || "", logConclusion: recipe.log_conclusion || "",
       })
@@ -528,81 +536,86 @@ export default function PublishProRecipeForm({
       const imageUrls = data.heroImageUrls?.length
         ? data.heroImageUrls
         : data.heroImageUrl ? [data.heroImageUrl] : []
+      if (imageUrls.length === 0) {
+        setStatusMessage({ type: "error", text: dict.imageRequiredError })
+        return
+      }
+      const permanentImageUrls = await Promise.all(
+        imageUrls.map(url => serverMoveToPermanentStorage(url))
+      )
       // business以外はUIを改変されてもorigins/bothへ投稿できないよう保存時にも固定する。
       const finalTargetCategory: TargetCategoryType =
         normalizedTier === "business" ? targetCategory : "experts"
 
-      const createdRecipeIds: string[] = []
-      for (const pattern of (editId ? data.verifications.slice(0, 1) : data.verifications)) {
-        const recipeModule = pattern.modules.find((module): module is RecipeModuleData => module.type === "recipe")
-        const waterModule = pattern.modules.find((module): module is WaterModuleData => module.type === "water")
-        const roastModule = pattern.modules.find((module): module is RoastModuleData => module.type === "roast")
-        const cuppingModule = pattern.modules.find((module): module is CuppingModuleData => module.type === "cupping")
+      const primaryPattern = data.verifications.find(pattern => pattern.isBest) || data.verifications[0]
+      const recipeModule = primaryPattern?.modules.find((module): module is RecipeModuleData => module.type === "recipe")
+      const waterModule = primaryPattern?.modules.find((module): module is WaterModuleData => module.type === "water")
+      const roastModule = primaryPattern?.modules.find((module): module is RoastModuleData => module.type === "roast")
+      const cuppingModule = primaryPattern?.modules.find((module): module is CuppingModuleData => module.type === "cupping")
+      const recipePayload = {
+        user_id: currentUserId,
+        recipe_title: data.coffeeName.trim(),
+        bean_name: data.coffeeName.trim(),
+        image_urls: permanentImageUrls.length ? permanentImageUrls : null,
+        verification_patterns: data.verifications,
+        water_name: waterModule?.name?.trim() || null,
+        gh: waterModule?.gh ? Number(waterModule.gh) : null,
+        kh: waterModule?.kh ? Number(waterModule.kh) : null,
+        minerals: waterModule?.minerals?.trim() || null,
+        selected_variables: data.selectedVariables || [],
+        log_purpose: data.logPurpose?.trim() || null,
+        log_process: data.logProcess?.trim() || null,
+        log_conclusion: data.logConclusion?.trim() || null,
+        temp: recipeModule?.temp ? Number(recipeModule.temp) : null,
+        grind_size: recipeModule?.grindSize?.trim() || null,
+        ratio: recipeModule?.ratio ? Number(recipeModule.ratio) : null,
+        tds: recipeModule?.tds ? Number(recipeModule.tds) : null,
+        bloom_time: recipeModule?.bloomTime?.trim() || null,
+        total_time: recipeModule?.totalTime?.trim() || null,
+        pour_steps: (recipeModule?.pourSteps || []).filter(step => step.amount.trim() || step.time.trim()),
+        water_profile: waterModule || null,
+        roast_profile: roastModule || null,
+        cupping_profile: cuppingModule || null,
+        coffee_lot: data.coffeeLot.trim() || null,
+        coffee_url: data.coffeeUrl?.trim() || null,
+        roast_date: data.roastDate || null,
+        is_best_pattern: Boolean(primaryPattern?.isBest),
+        visibility,
+        target_category: finalTargetCategory,
+        lang: currentLang,
+      }
+      const recipeQuery = editId
+        ? supabase.from("pro_recipes").update(recipePayload).eq("id", editId).eq("user_id", currentUserId)
+        : supabase.from("pro_recipes").insert(recipePayload)
+      const { data: proRecipe, error: recipeError } = await recipeQuery.select("id").single()
+      if (recipeError) throw recipeError
 
-        const recipePayload = {
-            user_id: currentUserId,
-            recipe_title: pattern.title.trim() || data.coffeeName.trim(),
-            bean_name: data.coffeeName.trim(),
-            image_urls: imageUrls.length ? imageUrls : null,
-            water_name: waterModule?.name?.trim() || null,
-            gh: waterModule?.gh ? Number(waterModule.gh) : null,
-            kh: waterModule?.kh ? Number(waterModule.kh) : null,
-            minerals: waterModule?.minerals?.trim() || null,
-            selected_variables: data.selectedVariables || [],
-            log_purpose: data.logPurpose?.trim() || null,
-            log_process: data.logProcess?.trim() || null,
-            log_conclusion: data.logConclusion?.trim() || null,
-            temp: recipeModule?.temp ? Number(recipeModule.temp) : null,
-            grind_size: recipeModule?.grindSize?.trim() || null,
-            ratio: recipeModule?.ratio ? Number(recipeModule.ratio) : null,
-            tds: recipeModule?.tds ? Number(recipeModule.tds) : null,
-            bloom_time: recipeModule?.bloomTime?.trim() || null,
-            total_time: recipeModule?.totalTime?.trim() || null,
-            pour_steps: (recipeModule?.pourSteps || [])
-              .filter((step) => step.amount.trim() || step.time.trim()),
-            water_profile: waterModule || null,
-            roast_profile: roastModule || null,
-            cupping_profile: cuppingModule || null,
-            coffee_lot: data.coffeeLot.trim() || null,
-            coffee_url: data.coffeeUrl?.trim() || null,
-            roast_date: data.roastDate || null,
-            is_best_pattern: Boolean(pattern.isBest),
-            visibility,
-            target_category: finalTargetCategory,
-            lang: currentLang
-          }
-        const recipeQuery = editId
-          ? supabase.from("pro_recipes").update(recipePayload).eq("id", editId).eq("user_id", currentUserId)
-          : supabase.from("pro_recipes").insert(recipePayload)
-        const { data: proRecipe, error: recipeError } = await recipeQuery.select("id").single()
-
-        if (recipeError) throw recipeError
-        createdRecipeIds.push(proRecipe.id)
-
-        if (editId) {
-          const { error: deleteGearError } = await supabase.from("pro_recipe_gears").delete().eq("pro_recipe_id", editId)
-          if (deleteGearError) throw deleteGearError
-        }
-        const gearIds = Array.from(new Set(
-          (recipeModule?.gears || []).map(gear => gear.gearId).filter((id): id is number => id !== null)
-        ))
-        if (gearIds.length > 0) {
-          const { error: gearError } = await supabase.from("pro_recipe_gears").insert(
-            gearIds.map(gearId => ({ pro_recipe_id: proRecipe.id, gear_id: gearId }))
-          )
-          if (gearError) throw gearError
-        }
+      const { error: deleteGearError } = await supabase.from("pro_recipe_gears").delete().eq("pro_recipe_id", proRecipe.id)
+      if (deleteGearError) throw deleteGearError
+      const gearIds = Array.from(new Set(
+        data.verifications.flatMap(pattern => pattern.modules)
+          .filter((module): module is RecipeModuleData => module.type === "recipe")
+          .flatMap(module => module.gears)
+          .map(gear => gear.gearId)
+          .filter((id): id is number => id !== null)
+      ))
+      if (gearIds.length > 0) {
+        const { error: gearError } = await supabase.from("pro_recipe_gears").insert(
+          gearIds.map((gearId, sort_order) => ({ pro_recipe_id: proRecipe.id, gear_id: gearId, sort_order }))
+        )
+        if (gearError) throw gearError
       }
 
-      for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
+      for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !permanentImageUrls.includes(url))) {
         await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
       }
-      initialImagesRef.current = imageUrls
+      initialImagesRef.current = permanentImageUrls
+      setData(previous => ({ ...previous, heroImageUrls: permanentImageUrls, heroImageUrl: permanentImageUrls[0] || "" }))
       setRemovedImageUrls([])
       setStatusMessage({ type: "success", text: editId ? (currentLang === "en" ? "Verification post updated." : "検証投稿を更新しました。") : dict.successMessage })
       if (onRecipeCreated) onRecipeCreated()
-      if (createdRecipeIds[0]) {
-        router.push(`/${currentLang}/recipes/${createdRecipeIds[0]}`)
+      if (proRecipe.id) {
+        router.push(`/${currentLang}/recipes/${proRecipe.id}`)
         router.refresh()
       }
     } catch (err: any) {
@@ -615,7 +628,8 @@ export default function PublishProRecipeForm({
 
   const ageingLabel = getAgeingDays(data.roastDate)
   const chartData = getCuppingDataForChart()
-  const isFormInvalid = !data.coffeeName.trim()
+  const hasImage = Boolean(data.heroImageUrls?.length || data.heroImageUrl)
+  const isFormInvalid = !data.coffeeName.trim() || !hasImage
 
   if (loadingInitial) return <div className="h-[720px] animate-pulse rounded-[24px] border border-neutral-100 bg-neutral-50" />
 
@@ -920,6 +934,7 @@ export default function PublishProRecipeForm({
         submitting={submitting}
         disabled={isFormInvalid}
         statusMessage={statusMessage}
+        secondaryAction={secondaryAction}
       />
     </form>
   )

@@ -21,7 +21,7 @@ const analyticsDict = {
     posts: "対象投稿",
     unit: "回",
     other: "その他",
-    titleVariety: "Coffee Varieties (品種)",
+    titleVariety: "Varieties (品種)",
     titleProcess: "Process (精製方法)",
     titleFlavor: "Favorite Tastes (テイスト)"
   },
@@ -31,8 +31,8 @@ const analyticsDict = {
     posts: "Posts analyzed",
     unit: "times",
     other: "Other",
-    titleVariety: "Coffee Varieties",
-    titleProcess: "Processing Methods",
+    titleVariety: "Varieties",
+    titleProcess: "Process",
     titleFlavor: "Favorite Tastes"
   }
 } as const
