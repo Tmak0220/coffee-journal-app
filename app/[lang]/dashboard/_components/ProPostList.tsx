@@ -16,6 +16,7 @@ type ProPostItem = {
   createdAt: string
   visibility: Exclude<Visibility, "all">
   href: string | null
+  editHref: string | null
 }
 
 const firstImage = (value: unknown): string | null => {
@@ -67,6 +68,7 @@ export default function ProPostList({
     oldest: "Oldest First",
     empty: "No matching posts found.",
     view: "View",
+    edit: "Edit",
   } : {
     title: destination === "origins" ? "オーナー投稿" : "プロ投稿",
     description: destination === "origins"
@@ -85,6 +87,7 @@ export default function ProPostList({
     oldest: "古い順",
     empty: "該当する投稿はありません。",
     view: "表示",
+    edit: "編集",
   }
 
   useEffect(() => {
@@ -110,6 +113,7 @@ export default function ProPostList({
         createdAt: notice.created_at,
         visibility: notice.target_group === "premium" ? "members" : "public",
         href: notice.link_url || null,
+        editHref: null,
       }))
       const blogs = (blogsResult.data || []).filter((blog: any) => matchesAuthorType(blog.author_type)).map((blog: any): ProPostItem => ({
         id: blog.id,
@@ -120,6 +124,7 @@ export default function ProPostList({
         createdAt: blog.created_at,
         visibility: blog.visibility || "draft",
         href: `/${lang}/blogs/${blog.id}`,
+        editHref: `/${lang}/edit/blog/${blog.id}`,
       }))
       const recipes = (recipesResult.data || [])
         .filter((recipe: any) => destination === "origins"
@@ -134,6 +139,7 @@ export default function ProPostList({
         createdAt: recipe.created_at,
         visibility: recipe.visibility || "draft",
         href: `/${lang}/recipes/${recipe.id}`,
+        editHref: `/${lang}/edit/verification/${recipe.id}`,
       }))
       setItems([...notices, ...blogs, ...recipes])
       setLoading(false)
@@ -213,11 +219,10 @@ export default function ProPostList({
                 </div>
                 <h3 className="mt-4 line-clamp-1 text-[15px] font-semibold text-neutral-900">{item.title}</h3>
                 <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-neutral-500">{item.description}</p>
-                {item.href && (
-                  <Link href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel={item.href.startsWith("http") ? "noreferrer" : undefined} className="mt-5 block rounded-xl border border-neutral-300 px-4 py-2.5 text-center text-xs font-medium text-neutral-800 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white">
-                    {t.view}
-                  </Link>
-                )}
+                {(item.href || item.editHref) && <div className="mt-5 grid grid-cols-2 gap-2">
+                  {item.href && <Link href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel={item.href.startsWith("http") ? "noreferrer" : undefined} className="block rounded-xl border border-neutral-300 px-4 py-2.5 text-center text-xs font-medium text-neutral-800 transition hover:border-neutral-900 hover:bg-neutral-900 hover:text-white">{t.view}</Link>}
+                  {item.editHref && <Link href={item.editHref} className="block rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-center text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900">{t.edit}</Link>}
+                </div>}
               </div>
             </article>
           ))}

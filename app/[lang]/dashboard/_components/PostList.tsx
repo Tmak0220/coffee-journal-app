@@ -218,6 +218,11 @@ export default function PostList({ userId, lang = "ja" }: PostListProps) {
 
   const selectBoxStyle = "text-[14px] font-normal border border-neutral-200 hover:border-neutral-400 rounded-xl px-4 py-2.5 bg-white text-neutral-800 focus:outline-none focus:border-neutral-900 focus:ring-4 focus:ring-neutral-100 cursor-pointer transition-all duration-300 pr-9 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%22%20fill%3D%22none%22%20stroke%3D%22%23737373%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:14px] bg-[right_12px_center] bg-no-repeat shadow-sm"
   const actionButtonStyle = "text-[13px] font-medium border rounded-xl py-2.5 transition-all duration-300 active:scale-[0.97] select-none text-center flex-1"
+  const getEditHref = (post: Post) => {
+    if (post.type === "event") return `/${currentLang}/edit/event/${post.id}`
+    if (post.type === "gear_review") return `/${currentLang}/edit/gear/${post.id}`
+    return `/${currentLang}/edit-post/${post.id}`
+  }
 
   return (
     <div className="bg-white border border-neutral-200 pt-6 sm:pt-10 pb-10 sm:pb-16 px-6 sm:px-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto space-y-8">
@@ -359,7 +364,7 @@ export default function PostList({ userId, lang = "ja" }: PostListProps) {
                         {t.btnView}
                       </Link>
                       <Link 
-                        href={`/${currentLang}/edit-post/${post.id}`} 
+                        href={getEditHref(post)}
                         className={`${actionButtonStyle} border-neutral-200 text-neutral-500 bg-neutral-50/40 hover:bg-neutral-100 hover:text-neutral-900 hover:border-neutral-300 group-hover:border-neutral-300`}
                       >
                         {t.btnEdit}

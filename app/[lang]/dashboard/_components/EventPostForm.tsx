@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 
@@ -9,9 +10,11 @@ type Props = {
   lang?: string
   isAdmin?: boolean
   onSuccess?: () => void
+  editId?: string
 }
 
-export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess }: Props) {
+export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess, editId }: Props) {
+  const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = currentLang === "en" ? {
     title: "EVENT REPORT",
@@ -31,6 +34,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
     submitting: "Posting...",
     success: "Event report posted.",
     error: "Failed to post the event report."
+    , updateSuccess: "Event report updated.", update: "Save changes", updating: "Saving..."
   } : {
     title: "EVENT REPORT",
     description: "イベントレポートを投稿し、カレンダーに追加します。",
@@ -49,6 +53,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
     submitting: "投稿中...",
     success: "イベントレポートを投稿しました。",
     error: "イベントレポートの投稿に失敗しました。"
+    , updateSuccess: "イベント投稿を更新しました。", update: "変更を保存する", updating: "保存中..."
   }
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -58,6 +63,38 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
   const [visibility, setVisibility] = useState<"draft" | "private" | "members" | "public">("draft")
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ text: string; type: "success" | "error" } | null>(null)
+  const [loadingInitial, setLoadingInitial] = useState(Boolean(editId))
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
+  const initialImagesRef = useRef<string[]>([])
+
+  useEffect(() => {
+    if (!editId) return
+    let active = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("user_id, type, title, description, event_date, end_date, image_urls, visibility")
+        .eq("id", editId)
+        .eq("user_id", userId)
+        .single()
+      if (!active) return
+      if (error || !data || data.type !== "event") {
+        setStatus({ text: currentLang === "en" ? "Event post not found." : "イベント投稿が見つかりません。", type: "error" })
+        setLoadingInitial(false)
+        return
+      }
+      const urls = Array.isArray(data.image_urls) ? data.image_urls.filter((url): url is string => typeof url === "string") : []
+      setTitle(data.title || "")
+      setDescription(data.description || "")
+      setStartDate(data.event_date || "")
+      setEndDate(data.end_date || "")
+      setImages(urls)
+      initialImagesRef.current = urls
+      setVisibility(data.visibility || "draft")
+      setLoadingInitial(false)
+    })()
+    return () => { active = false }
+  }, [currentLang, editId, userId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,7 +103,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
     setLoading(true)
 
     try {
-      const { error } = await supabase.from("posts").insert({
+      const payload = {
         user_id: userId,
         type: "event",
         title: title.trim(),
@@ -76,10 +113,23 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
         image_urls: images,
         visibility: visibility,
         lang: currentLang,
-      })
+      }
+      const { error } = editId
+        ? await supabase.from("posts").update(payload).eq("id", editId).eq("user_id", userId)
+        : await supabase.from("posts").insert(payload)
 
       if (error) throw error
-      setStatus({ text: t.success, type: "success" })
+      for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !images.includes(url))) {
+        await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
+      }
+      setRemovedImageUrls([])
+      initialImagesRef.current = images
+      setStatus({ text: editId ? t.updateSuccess : t.success, type: "success" })
+      if (editId) {
+        router.push(`/${currentLang}/posts/${editId}`)
+        router.refresh()
+        return
+      }
       setTitle("")
       setDescription("")
       setStartDate("")
@@ -94,6 +144,8 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
     }
   }
 
+  if (loadingInitial) return <div className="h-[520px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
+
   return (
     <form onSubmit={handleSubmit} className="bg-white border border-neutral-200/60 rounded-xl shadow-sm px-6 py-8 sm:px-12 sm:py-12 space-y-9">
       <div>
@@ -101,7 +153,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
         <p className="mt-1 text-[13px] text-neutral-400">{t.description}</p>
       </div>
 
-      <HeroImageUploader currentLang={currentLang} onImagesChanged={setImages} isAdmin={isAdmin} />
+      <HeroImageUploader currentLang={currentLang} initialImageUrls={images} onImagesChanged={setImages} deferDeletion={Boolean(editId)} onRemovedImagesChanged={setRemovedImageUrls} isAdmin={isAdmin} />
 
       <div className="space-y-2.5">
         <label className="text-[13px] font-bold text-neutral-900 tracking-wide">{t.titleLabel}</label>
@@ -131,7 +183,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
 
       <div className="pt-6 border-t border-neutral-100 space-y-4">
         {status && <div role="status" className={`text-[13px] p-4 rounded-xl border text-center ${status.type === "success" ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-red-700 bg-red-50 border-red-200"}`}>{status.text}</div>}
-        <div className="flex justify-end"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? t.submitting : t.submit}</button></div>
+        <div className="flex justify-end"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button></div>
       </div>
     </form>
   )

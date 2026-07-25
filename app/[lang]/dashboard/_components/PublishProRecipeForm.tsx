@@ -94,6 +94,7 @@ type Props = {
   lang?: string
   authorType?: "pro" | "owner"
   membership_tier?: "free" | "standard" | "pro" | "business" | string
+  editId?: string
 }
 
 type VisibilityType = "draft" | "private" | "members" | "public"
@@ -141,7 +142,8 @@ export default function PublishProRecipeForm({
   onRecipeCreated, 
   lang = "ja", 
   authorType = "pro", 
-  membership_tier 
+  membership_tier,
+  editId
 }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
@@ -190,10 +192,74 @@ export default function PublishProRecipeForm({
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [visibility, setVisibility] = useState<VisibilityType>("draft")
   const [targetCategory, setTargetCategory] = useState<TargetCategoryType>("experts")
+  const [loadingInitial, setLoadingInitial] = useState(Boolean(editId))
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
+  const initialImagesRef = React.useRef<string[]>([])
 
   useEffect(() => {
     return () => setStatusMessage(null)
   }, [])
+
+  useEffect(() => {
+    if (!editId) return
+    let active = true
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const currentUserId = userId || user?.id
+      if (!currentUserId) {
+        setStatusMessage({ type: "error", text: dict.loginRequired })
+        setLoadingInitial(false)
+        return
+      }
+      const { data: recipe, error } = await supabase.from("pro_recipes")
+        .select("*").eq("id", editId).eq("user_id", currentUserId).single()
+      if (!active) return
+      if (error || !recipe) {
+        setStatusMessage({ type: "error", text: currentLang === "en" ? "Verification post not found." : "検証投稿が見つかりません。" })
+        setLoadingInitial(false)
+        return
+      }
+      const { data: gearLinks } = await supabase.from("pro_recipe_gears").select("gear_id").eq("pro_recipe_id", editId)
+      const gearIds = (gearLinks || []).map(link => link.gear_id)
+      const gearResult = gearIds.length
+        ? await supabase.from("gears").select("id, name, name_ja").in("id", gearIds)
+        : { data: [] as Array<{ id: number; name: string; name_ja: string | null }> }
+      const recipeModule: RecipeModuleData = {
+        id: "recipe-edit", type: "recipe",
+        gears: (gearResult.data || []).map(gear => ({ gearId: gear.id, name: currentLang === "en" ? gear.name : (gear.name_ja || gear.name) })),
+        temp: recipe.temp == null ? "" : String(recipe.temp),
+        grindSize: recipe.grind_size || "",
+        ratio: recipe.ratio == null ? "" : String(recipe.ratio),
+        tds: recipe.tds == null ? "" : String(recipe.tds),
+        bloomTime: recipe.bloom_time || "",
+        totalTime: recipe.total_time || "",
+        pourSteps: Array.isArray(recipe.pour_steps)
+          ? recipe.pour_steps.map((step: any, index: number) => ({ id: `step-edit-${index}`, amount: String(step?.amount || ""), time: String(step?.time || "") }))
+          : [{ id: "step-edit-1", amount: "", time: "" }],
+      }
+      const modules: VerificationModule[] = [recipeModule]
+      if (recipe.water_profile || recipe.water_name || recipe.gh != null || recipe.kh != null) {
+        const water = recipe.water_profile || {}
+        modules.push({ id: "water-edit", type: "water", name: water.name || recipe.water_name || "", gh: String(water.gh ?? recipe.gh ?? ""), kh: String(water.kh ?? recipe.kh ?? ""), minerals: water.minerals || recipe.minerals || "" })
+      }
+      if (recipe.roast_profile) modules.push({ id: "roast-edit", type: "roast", ...recipe.roast_profile })
+      if (recipe.cupping_profile) modules.push({ id: "cupping-edit", type: "cupping", ...recipe.cupping_profile })
+      const urls = Array.isArray(recipe.image_urls) ? recipe.image_urls.filter((url: unknown): url is string => typeof url === "string") : []
+      initialImagesRef.current = urls
+      setData({
+        heroImageUrl: urls[0] || "", heroImageUrls: urls,
+        coffeeName: recipe.bean_name || "", coffeeLot: recipe.coffee_lot || "",
+        coffeeUrl: recipe.coffee_url || "", roastDate: recipe.roast_date || "",
+        verifications: [{ id: editId, title: recipe.recipe_title || recipe.bean_name || "", isBest: Boolean(recipe.is_best_pattern), modules }],
+        selectedVariables: recipe.selected_variables || [],
+        logPurpose: recipe.log_purpose || "", logProcess: recipe.log_process || "", logConclusion: recipe.log_conclusion || "",
+      })
+      setVisibility(recipe.visibility || "draft")
+      setTargetCategory(recipe.target_category || "experts")
+      setLoadingInitial(false)
+    })()
+    return () => { active = false }
+  }, [currentLang, dict.loginRequired, editId, userId])
 
   const presetVariables = currentLang === "en"
     ? ["Pour Rate", "Brew Temperature", "Grind Size", "Agitation Count", "GH", "KH", "Drum Speed"]
@@ -467,15 +533,13 @@ export default function PublishProRecipeForm({
         normalizedTier === "business" ? targetCategory : "experts"
 
       const createdRecipeIds: string[] = []
-      for (const pattern of data.verifications) {
+      for (const pattern of (editId ? data.verifications.slice(0, 1) : data.verifications)) {
         const recipeModule = pattern.modules.find((module): module is RecipeModuleData => module.type === "recipe")
         const waterModule = pattern.modules.find((module): module is WaterModuleData => module.type === "water")
         const roastModule = pattern.modules.find((module): module is RoastModuleData => module.type === "roast")
         const cuppingModule = pattern.modules.find((module): module is CuppingModuleData => module.type === "cupping")
 
-        const { data: proRecipe, error: recipeError } = await supabase
-          .from("pro_recipes")
-          .insert({
+        const recipePayload = {
             user_id: currentUserId,
             recipe_title: pattern.title.trim() || data.coffeeName.trim(),
             bean_name: data.coffeeName.trim(),
@@ -506,13 +570,19 @@ export default function PublishProRecipeForm({
             visibility,
             target_category: finalTargetCategory,
             lang: currentLang
-          })
-          .select("id")
-          .single()
+          }
+        const recipeQuery = editId
+          ? supabase.from("pro_recipes").update(recipePayload).eq("id", editId).eq("user_id", currentUserId)
+          : supabase.from("pro_recipes").insert(recipePayload)
+        const { data: proRecipe, error: recipeError } = await recipeQuery.select("id").single()
 
         if (recipeError) throw recipeError
         createdRecipeIds.push(proRecipe.id)
 
+        if (editId) {
+          const { error: deleteGearError } = await supabase.from("pro_recipe_gears").delete().eq("pro_recipe_id", editId)
+          if (deleteGearError) throw deleteGearError
+        }
         const gearIds = Array.from(new Set(
           (recipeModule?.gears || []).map(gear => gear.gearId).filter((id): id is number => id !== null)
         ))
@@ -524,7 +594,12 @@ export default function PublishProRecipeForm({
         }
       }
 
-      setStatusMessage({ type: "success", text: dict.successMessage })
+      for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
+        await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
+      }
+      initialImagesRef.current = imageUrls
+      setRemovedImageUrls([])
+      setStatusMessage({ type: "success", text: editId ? (currentLang === "en" ? "Verification post updated." : "検証投稿を更新しました。") : dict.successMessage })
       if (onRecipeCreated) onRecipeCreated()
       if (createdRecipeIds[0]) {
         router.push(`/${currentLang}/recipes/${createdRecipeIds[0]}`)
@@ -542,6 +617,8 @@ export default function PublishProRecipeForm({
   const chartData = getCuppingDataForChart()
   const isFormInvalid = !data.coffeeName.trim()
 
+  if (loadingInitial) return <div className="h-[720px] animate-pulse rounded-[24px] border border-neutral-100 bg-neutral-50" />
+
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-10 shadow-sm font-sans text-neutral-900">
       
@@ -551,7 +628,9 @@ export default function PublishProRecipeForm({
         onImagesChanged={(urls) => {
           handleFieldChange("heroImageUrls", urls)
           handleFieldChange("heroImageUrl", urls[0] || "")
-        }} 
+        }}
+        deferDeletion={Boolean(editId)}
+        onRemovedImagesChanged={setRemovedImageUrls}
       />
 
       <CoffeeBeansMetaForm 

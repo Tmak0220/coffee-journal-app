@@ -44,6 +44,12 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
 
       setRequestValue("")
       setMessage({ text: isEn ? "Request submitted successfully." : "リクエストを送信しました。", type: "success" })
+
+      setTimeout(() => {
+        setIsOpen(false)
+        setMessage(null)
+      }, 1200)
+
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : (isEn ? "Failed to submit request." : "送信に失敗しました。"), type: "error" })
     } finally {

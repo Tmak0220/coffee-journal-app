@@ -151,8 +151,14 @@ export default function HeroImageUploader({
 
       let nextUrls: string[] = []
       if (targetIndex !== null) {
+        const replacedUrl = currentList[targetIndex]
         nextUrls = [...currentList]
         nextUrls[targetIndex] = data.url
+        if (deferDeletion && replacedUrl && replacedUrl !== data.url) {
+          const nextRemoved = [...removedImages.filter((item) => item.url !== replacedUrl), { url: replacedUrl, index: targetIndex }]
+          setRemovedImages(nextRemoved)
+          onRemovedImagesChanged?.(nextRemoved.map((item) => item.url))
+        }
       } else {
         nextUrls = [...currentList, data.url]
       }

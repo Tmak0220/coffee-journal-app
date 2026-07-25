@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import FormPublishSettings from "./FormPublishSettings" // ✨ インポート
@@ -10,6 +11,7 @@ type Props = {
   lang?: string
   authorType: "pro" | "owner"
   membership_tier: "free" | "standard" | "pro" | "business"
+  editId?: string
 }
 
 type StatusMessage = {
@@ -75,7 +77,8 @@ const BLOG_FORM_DICT = {
   }
 } as const
 
-export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier }: Props) {
+export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId }: Props) {
+  const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = BLOG_FORM_DICT[currentLang]
 
@@ -90,6 +93,9 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
   const [submitting, setSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
   const [_, setIsAdmin] = useState(false)
+  const [loadingInitial, setLoadingInitial] = useState(Boolean(editId))
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
+  const initialImagesRef = useRef<string[]>([])
 
   useEffect(() => {
     async function checkUserRole() {
@@ -101,6 +107,32 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
     checkUserRole()
     return () => setStatusMessage(null)
   }, [])
+
+  useEffect(() => {
+    if (!editId) return
+    let active = true
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data, error } = await supabase.from("blogs")
+        .select("title, content, image_urls, visibility, publish_target, author_type")
+        .eq("id", editId).eq("user_id", user.id).single()
+      if (!active) return
+      if (error || !data) {
+        setStatusMessage({ text: currentLang === "en" ? "Article not found." : "ブログ記事が見つかりません。", type: "error" })
+      } else {
+        const urls = Array.isArray(data.image_urls) ? data.image_urls.filter((url): url is string => typeof url === "string") : []
+        setTitle(data.title || "")
+        setContent(data.content || "")
+        setImageUrls(urls)
+        initialImagesRef.current = urls
+        setVisibility(data.visibility || "draft")
+        setTargetCategory(data.publish_target || "experts")
+      }
+      setLoadingInitial(false)
+    })()
+    return () => { active = false }
+  }, [currentLang, editId])
 
   const isTitleInvalid = !title.trim() || title.length > 100
   const isContentInvalid = !content.trim() || content.length > 10000
@@ -130,7 +162,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
 
       const finalCategory = normalizedTier === "business" ? targetCategory : "experts"
 
-      const { error } = await supabase.from("blogs").insert({
+      const payload = {
         user_id: user.id,
         author_type: authorType,
         lang: currentLang,
@@ -140,11 +172,24 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         visibility: visibility,         
         publish_target: finalCategory,
         membership_tier: normalizedTier
-      })
+      }
+      const { error } = editId
+        ? await supabase.from("blogs").update(payload).eq("id", editId).eq("user_id", user.id)
+        : await supabase.from("blogs").insert(payload)
 
       if (error) throw error
+      for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
+        await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
+      }
+      initialImagesRef.current = imageUrls
+      setRemovedImageUrls([])
 
-      setStatusMessage({ text: t.successMessage, type: "success" })
+      setStatusMessage({ text: editId ? (currentLang === "en" ? "Article updated." : "ブログ記事を更新しました。") : t.successMessage, type: "success" })
+      if (editId) {
+        router.push(`/${currentLang}/blogs/${editId}`)
+        router.refresh()
+        return
+      }
       
       setTimeout(() => setStatusMessage(null), 4000)
 
@@ -161,6 +206,8 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       setSubmitting(false)
     }
   }
+
+  if (loadingInitial) return <div className="h-[620px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
 
   return (
     <div className="bg-white border border-neutral-200 p-4 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto text-left transition-all duration-300">
@@ -179,6 +226,8 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
           currentLang={currentLang} 
           initialImageUrls={imageUrls}
           onImagesChanged={setImageUrls} 
+          deferDeletion={Boolean(editId)}
+          onRemovedImagesChanged={setRemovedImageUrls}
           isAdmin={currentLang === "ja"} 
         />
 

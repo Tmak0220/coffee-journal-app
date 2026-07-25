@@ -14,6 +14,8 @@ export default function robots(): MetadataRoute.Robots {
         "/en/dashboard",
         "/ja/edit-post",
         "/en/edit-post",
+        "/ja/edit",
+        "/en/edit",
         "/ja/bookmarks",
         "/en/bookmarks",
         "/ja/login",

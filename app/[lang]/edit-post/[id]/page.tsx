@@ -532,12 +532,12 @@ export default function EditPostPage({ params }: Props) {
     setDeleting(true)
 
     try {
-      const res = await fetch("/api/delete-post", {
+      const res = await fetch("/api/delete-content", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify({ id: postId, type: "tasting" }),
       })
 
       if (!res.ok) {

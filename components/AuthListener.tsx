@@ -13,7 +13,7 @@ export function AuthListener() {
       if (event === "SIGNED_OUT") {
         const lang = pathname.startsWith("/en/") || pathname === "/en" ? "en" : "ja"
         const pathWithoutLang = pathname.replace(/^\/(ja|en)(?=\/|$)/, "") || "/"
-        const protectedRoutes = ["/dashboard", "/bookmarks", "/edit-post"]
+        const protectedRoutes = ["/dashboard", "/bookmarks", "/edit-post", "/edit"]
         const isProtectedRoute = protectedRoutes.some((route) => pathWithoutLang === route || pathWithoutLang.startsWith(`${route}/`))
 
         if (isProtectedRoute) {
