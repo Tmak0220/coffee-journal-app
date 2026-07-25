@@ -15,7 +15,7 @@ type Props = {
 const formDict = {
   ja: {
     title: "BROADCAST NOTIFICATION",
-    desc: "フォロワーや顧客に向けた新着情報・重要お知らせの発信",
+    desc: "新着情報・重要お知らせの発信",
     labelType: "通知タイプ",
     labelTitle: "タイトル",
     labelContent: "配信内容 (メッセージ)",
@@ -29,7 +29,7 @@ const formDict = {
     btnSuccess: "配信完了",
     btnFailed: "配信失敗",
     targetAll: "全員に配信",
-    targetAllDesc: "すべてのフォロワー・顧客",
+    targetAllDesc: "すべての閲覧者・顧客",
     targetPremium: "有料会員限定",
     targetPremiumDesc: "有料会員のみ",
     badgeLocked: "有料会員のみ利用可能",
@@ -56,7 +56,7 @@ const formDict = {
     btnSuccess: "Successfully Sent",
     btnFailed: "Failed to Send",
     targetAll: "Broadcast to Everyone",
-    targetAllDesc: "All followers and customers",
+    targetAllDesc: "All viewers and customers",
     targetPremium: "Paid Members Only",
     targetPremiumDesc: "Paid members only",
     badgeLocked: "Paid members only",

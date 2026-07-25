@@ -422,7 +422,7 @@ export default function RecipeItemForm({
                   </span>
                 </div>
                 <div className="bg-neutral-900 border border-neutral-900 rounded-[12px] p-3 text-white">
-                  <span className="text-[11px] text-neutral-400 block uppercase font-medium">Corrected Value (補正式)</span>
+                  <span className="text-[11px] text-neutral-400 block uppercase font-medium">Corrected Value (補正値)</span>
                   <span className="text-xl font-mono font-bold text-white mt-1 block">
                     {!isRatioInvalid && !isTdsInvalid && br > 0 && tds > 0 ? `${correctedEy.toFixed(2)}%` : "—"}
                   </span>

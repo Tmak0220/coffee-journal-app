@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useRef, type ReactNode } from "react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
@@ -96,7 +96,7 @@ type Props = {
   authorType?: "pro" | "owner"
   membership_tier?: "free" | "standard" | "pro" | "business" | string
   editId?: string
-  secondaryAction?: React.ReactNode
+  secondaryAction?: ReactNode
 }
 
 type VisibilityType = "draft" | "private" | "members" | "public"
@@ -106,10 +106,12 @@ const ADMIN_EMAIL = "rivu65622252@gmail.com"
 
 const RECIPE_FORM_DICT = {
   ja: {
+    mainTitle: "PUBLISH RECIPE",
+    mainDesc: "検証レシピの記録",
     loginRequired: "ログインしてください",
     successMessage: "レシピを投稿しました。",
     errorMessage: "エラーが発生しました。",
-    imageRequiredError: "画像を1枚以上登録してください。",
+    imageRequiredError: "カバー画像のアップロードは必須です。",
     submitting: "処理中...",
     submitButton: "投稿する",
     labelVisibility: "公開設定",
@@ -123,10 +125,12 @@ const RECIPE_FORM_DICT = {
     targetBoth: "両方のカテゴリー"
   },
   en: {
+    mainTitle: "PUBLISH RECIPE",
+    mainDesc: "Verification Recipe Log",
     loginRequired: "Please log in",
     successMessage: "Recipe published successfully.",
     errorMessage: "An error occurred.",
-    imageRequiredError: "Please add at least one image.",
+    imageRequiredError: "Hero image is required.",
     submitting: "Processing...",
     submitButton: "Publish",
     labelVisibility: "Visibility",
@@ -154,7 +158,6 @@ export default function PublishProRecipeForm({
   const currentLang = lang === "en" ? "en" : "ja"
   const dict = RECIPE_FORM_DICT[currentLang]
   
-  // membership_tier を小文字化・整形して判定用に保持
   const normalizedTier = useMemo(() => membership_tier?.trim().toLowerCase(), [membership_tier])
 
   const [data, setData] = useState<RecipeFormData>({
@@ -199,7 +202,7 @@ export default function PublishProRecipeForm({
   const [targetCategory, setTargetCategory] = useState<TargetCategoryType>("experts")
   const [loadingInitial, setLoadingInitial] = useState(Boolean(editId))
   const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
-  const initialImagesRef = React.useRef<string[]>([])
+  const initialImagesRef = useRef<string[]>([])
 
   useEffect(() => {
     return () => setStatusMessage(null)
@@ -333,7 +336,7 @@ export default function PublishProRecipeForm({
     setData(previous => ({
       ...previous,
       verifications: previous.verifications.map((pattern, index) => {
-        const isDefaultTitle = /^(検証パターン|Verification Pattern) [A-J]( \\((コピー|Copy)\\))?$/.test(pattern.title)
+        const isDefaultTitle = /^(検証パターン|Verification Pattern) [A-J]( \((コピー|Copy)\))?$/.test(pattern.title)
         if (!isDefaultTitle) return pattern
         const suffix = pattern.title.includes("コピー") || pattern.title.includes("Copy") ? t.copySuffix : ""
         return {
@@ -517,7 +520,6 @@ export default function PublishProRecipeForm({
     setCustomVariableInput("")
   }
 
-  // DB保存処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatusMessage(null)
@@ -538,12 +540,12 @@ export default function PublishProRecipeForm({
         : data.heroImageUrl ? [data.heroImageUrl] : []
       if (imageUrls.length === 0) {
         setStatusMessage({ type: "error", text: dict.imageRequiredError })
+        setSubmitting(false)
         return
       }
       const permanentImageUrls = await Promise.all(
         imageUrls.map(url => serverMoveToPermanentStorage(url))
       )
-      // business以外はUIを改変されてもorigins/bothへ投稿できないよう保存時にも固定する。
       const finalTargetCategory: TargetCategoryType =
         normalizedTier === "business" ? targetCategory : "experts"
 
@@ -631,311 +633,324 @@ export default function PublishProRecipeForm({
   const hasImage = Boolean(data.heroImageUrls?.length || data.heroImageUrl)
   const isFormInvalid = !data.coffeeName.trim() || !hasImage
 
-  if (loadingInitial) return <div className="h-[720px] animate-pulse rounded-[24px] border border-neutral-100 bg-neutral-50" />
+  if (loadingInitial) return <div className="h-[620px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 bg-white border border-neutral-200 rounded-[24px] p-6 sm:p-10 shadow-sm font-sans text-neutral-900">
+    <div className="bg-white border border-neutral-200 p-4 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto text-left transition-all duration-300">
       
-      <HeroImageUploader 
-        currentLang={currentLang}
-        initialImageUrls={data.heroImageUrls?.length ? data.heroImageUrls : data.heroImageUrl ? [data.heroImageUrl] : []} 
-        onImagesChanged={(urls) => {
-          handleFieldChange("heroImageUrls", urls)
-          handleFieldChange("heroImageUrl", urls[0] || "")
-        }}
-        deferDeletion={Boolean(editId)}
-        onRemovedImagesChanged={setRemovedImageUrls}
-      />
+      {/* デザインをブログ作成フォームと完全統一したヘッダー部 */}
+      <div>
+        <h2 className="text-base sm:text-lg font-bold tracking-wider text-neutral-900 uppercase">
+          {dict.mainTitle}
+        </h2>
+        <p className="mt-1 text-xs sm:text-[13px] font-normal tracking-wide text-neutral-500">
+          {dict.mainDesc}
+        </p>
+      </div>
 
-      <CoffeeBeansMetaForm 
-        data={data} 
-        handleFieldChange={handleFieldChange} 
-        ageingLabel={ageingLabel} 
-        currentLang={currentLang}
-      />
+      <form onSubmit={handleSubmit} className="mt-6 sm:mt-10 space-y-6 sm:space-y-10">
+        
+        <HeroImageUploader 
+          currentLang={currentLang}
+          initialImageUrls={data.heroImageUrls?.length ? data.heroImageUrls : data.heroImageUrl ? [data.heroImageUrl] : []} 
+          onImagesChanged={(urls) => {
+            handleFieldChange("heroImageUrls", urls)
+            handleFieldChange("heroImageUrl", urls[0] || "")
+          }}
+          deferDeletion={Boolean(editId)}
+          onRemovedImagesChanged={setRemovedImageUrls}
+        />
 
-      {data.verifications?.map((slot, sIdx) => {
-        return (
-          <div 
-            key={slot.id} 
-            className={`border rounded-[20px] p-6 bg-white transition-all duration-300 space-y-6 relative ${
-              slot.isBest 
-                ? "border-neutral-900 shadow-[0_4px_24px_rgba(0,0,0,0.03)] ring-1 ring-neutral-900" 
-                : "border-neutral-200 shadow-[0_4px_30px_rgba(0,0,0,0.005)]"
-            }`}
-          >
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-neutral-100 pb-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
-                  {slot.title.includes("コピー") || slot.title.includes("Copy") ? "COPY" : "PATTERN"}
-                </span>
-                <input 
-                  type="text" 
-                  value={slot.title} 
-                  onChange={(e) => setData(p => ({
-                    ...p,
-                    verifications: p.verifications.map(s => s.id === slot.id ? { ...s, title: e.target.value } : s)
-                  }))} 
-                  className="text-xs border border-neutral-200 rounded-xl px-2.5 py-1 font-sans font-medium text-neutral-700 focus:outline-none focus:border-neutral-400 bg-neutral-50/50 min-w-[140px]" 
-                />
-                
-                <button
-                  type="button"
-                  onClick={() => handleToggleBestPattern(slot.id)}
-                  className={`text-[11px] px-2.5 py-1 rounded-lg font-bold transition-all border ${
-                    slot.isBest
-                      ? "bg-neutral-950 text-white border-neutral-950 shadow-sm"
-                      : "bg-white text-neutral-400 border-neutral-200 hover:text-neutral-995 hover:border-neutral-300"
-                  }`}
-                >
-                  {slot.isBest ? t.bestActive : t.bestSet}
-                </button>
-              </div>
+        <CoffeeBeansMetaForm 
+          data={data} 
+          handleFieldChange={handleFieldChange} 
+          ageingLabel={ageingLabel} 
+          currentLang={currentLang}
+        />
 
-              <div className="flex items-center gap-4 self-end sm:self-auto">
-                <button 
-                  type="button" 
-                  onClick={() => handleDuplicatePattern(slot)}
-                  className="text-[11px] font-bold text-neutral-400 hover:text-neutral-950 transition-colors"
-                >
-                  {t.duplicateBtn}
-                </button>
-                
-                <button type="button" className="text-[11px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">
-                  {t.saveTemplateBtn}
-                </button>
-                
-                {data.verifications.length > 1 && (
+        {data.verifications?.map((slot, sIdx) => {
+          return (
+            <div 
+              key={slot.id} 
+              className={`border rounded-[20px] p-6 bg-white transition-all duration-300 space-y-6 relative ${
+                slot.isBest 
+                  ? "border-neutral-900 shadow-[0_4px_24px_rgba(0,0,0,0.03)] ring-1 ring-neutral-900" 
+                  : "border-neutral-200 shadow-[0_4px_30px_rgba(0,0,0,0.005)]"
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-neutral-100 pb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
+                    {slot.title.includes("コピー") || slot.title.includes("Copy") ? "COPY" : "PATTERN"}
+                  </span>
+                  <input 
+                    type="text" 
+                    value={slot.title} 
+                    onChange={(e) => setData(p => ({
+                      ...p,
+                      verifications: p.verifications.map(s => s.id === slot.id ? { ...s, title: e.target.value } : s)
+                    }))} 
+                    className="text-xs border border-neutral-200 rounded-xl px-2.5 py-1 font-sans font-medium text-neutral-700 focus:outline-none focus:border-neutral-400 bg-neutral-50/50 min-w-[140px]" 
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleToggleBestPattern(slot.id)}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg font-bold transition-all border ${
+                      slot.isBest
+                        ? "bg-neutral-950 text-white border-neutral-950 shadow-sm"
+                        : "bg-white text-neutral-400 border-neutral-200 hover:text-neutral-950 hover:border-neutral-300"
+                    }`}
+                  >
+                    {slot.isBest ? t.bestActive : t.bestSet}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4 self-end sm:self-auto">
                   <button 
                     type="button" 
-                    onClick={() => handleRemovePattern(slot.id)}
-                    className="text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors"
+                    onClick={() => handleDuplicatePattern(slot)}
+                    className="text-[11px] font-bold text-neutral-400 hover:text-neutral-950 transition-colors"
                   >
-                    {t.remove}
+                    {t.duplicateBtn}
                   </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {(slot.modules || []).map((module) => {
-                if (module.type === "recipe") {
-                  return (
-                    <div key={module.id} className="space-y-2">
-                      <RecipeModuleForm 
-                        slotId={slot.id}
-                        module={module}
-                        lang={currentLang}
-                        diffClasses={{
-                          temp: getDiffClass(sIdx, "recipe", "temp", module.temp),
-                          grindSize: getDiffClass(sIdx, "recipe", "grindSize", module.grindSize),
-                          ratio: getDiffClass(sIdx, "recipe", "ratio", module.ratio),
-                          tds: getDiffClass(sIdx, "recipe", "tds", module.tds),
-                          bloomTime: getDiffClass(sIdx, "recipe", "bloomTime", module.bloomTime),
-                          totalTime: getDiffClass(sIdx, "recipe", "totalTime", module.totalTime),
-                          gears: getDiffClass(sIdx, "recipe", "gears", module.gears),
-                          pourSteps: getDiffClass(sIdx, "recipe", "pourSteps", module.pourSteps)
-                        }}
-                        onUpdate={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)}
-                        onRemove={() => handleRemoveModuleFromPattern(slot.id, module.id)}
-                      />
-                    </div>
-                  )
-                }
-
-                if (module.type === "water") {
-                  return (
-                    <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
-                      <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
-                        <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">WATER COMPONENT</span>
-                        <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
-                      </div>
-                      <WaterProfileForm 
-                        module={module}
-                        lang={currentLang}
-                        diffClasses={{
-                          name: getDiffClass(sIdx, "water", "name", module.name),
-                          gh: getDiffClass(sIdx, "water", "gh", module.gh),
-                          kh: getDiffClass(sIdx, "water", "kh", module.kh),
-                          minerals: getDiffClass(sIdx, "water", "minerals", module.minerals)
-                        }}
-                        onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)}
-                        placeholderWaterName={t.placeholderWaterName}
-                      />
-                    </div>
-                  )
-                }
-
-                if (module.type === "cupping") {
-                  return (
-                    <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
-                      <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
-                        <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">CUPPING COMPONENT</span>
-                        <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
-                      </div>
-                      <CuppingLogForm 
-                        module={module} 
-                        lang={currentLang}
-                        diffClasses={{
-                          aroma: getDiffClass(sIdx, "cupping", "aroma", module.aroma),
-                          flavor: getDiffClass(sIdx, "cupping", "flavor", module.flavor),
-                          aftertaste: getDiffClass(sIdx, "cupping", "aftertaste", module.aftertaste),
-                          acidity: getDiffClass(sIdx, "cupping", "acidity", module.acidity),
-                          body: getDiffClass(sIdx, "cupping", "body", module.body),
-                          balance: getDiffClass(sIdx, "cupping", "balance", module.balance),
-                          overall: getDiffClass(sIdx, "cupping", "overall", module.overall),
-                          notes: getDiffClass(sIdx, "cupping", "notes", module.notes)
-                        }}
-                        onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)} 
-                      />
-                    </div>
-                  )
-                }
-
-                if (module.type === "roast") {
-                  return (
-                    <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
-                      <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
-                        <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">ROASTING COMPONENT</span>
-                        <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
-                      </div>
-                      <RoastingProfileForm 
-                        module={module} 
-                        lang={currentLang}
-                        diffClasses={{
-                          roasterMachine: getDiffClass(sIdx, "roast", "roasterMachine", module.roasterMachine),
-                          batchSize: getDiffClass(sIdx, "roast", "batchSize", module.batchSize),
-                          chargeTemp: getDiffClass(sIdx, "roast", "chargeTemp", module.chargeTemp),
-                          ror: getDiffClass(sIdx, "roast", "ror", module.ror),
-                          drumSpeed: getDiffClass(sIdx, "roast", "drumSpeed", module.drumSpeed),
-                          firstCrack: getDiffClass(sIdx, "roast", "firstCrack", module.firstCrack),
-                          dropTemp: getDiffClass(sIdx, "roast", "dropTemp", module.dropTemp),
-                          totalTime: getDiffClass(sIdx, "roast", "totalTime", module.totalTime),
-                          dtr: getDiffClass(sIdx, "roast", "dtr", module.dtr),
-                          roastDegree: getDiffClass(sIdx, "roast", "roastDegree", module.roastDegree),
-                          notes: getDiffClass(sIdx, "roast", "notes", module.notes)
-                        }}
-                        onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)} 
-                      />
-                    </div>
-                  )
-                }
-                return null
-              })}
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-4 border-t border-neutral-100">
-              <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "recipe")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                {t.addModuleRecipe}
-              </button>
-              <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "water")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                {t.addModuleWater}
-              </button>
-              <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "cupping")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                {t.addModuleCupping}
-              </button>
-              <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "roast")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                {t.addModuleRoasting}
-              </button>
-            </div>
-          </div>
-        )
-      })}
-
-      <div className="text-center pt-1">
-        <button
-          type="button"
-          onClick={handleAddPattern}
-          disabled={data.verifications.length >= 10}
-          className="w-full sm:w-auto px-8 py-3.5 border border-dashed border-neutral-300 rounded-xl text-[14px] font-medium text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 bg-white hover:bg-neutral-50/50 transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {t.addVerificationBtn}
-        </button>
-      </div>
-
-      <div className="p-5 border border-neutral-200 rounded-[20px] bg-neutral-50/50 space-y-4">
-        <div className="flex justify-between items-center border-b border-neutral-200 pb-2">
-          <h4 className="text-[11px] font-mono font-bold tracking-widest text-neutral-400 uppercase">VISUALIZATION COMPONENT DATA</h4>
-          <span className="text-[10px] text-neutral-400 font-medium font-mono">SYNC ACTIVE</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {chartData.map((cd, index) => (
-            <div key={index} className="p-4 bg-white border border-neutral-200 rounded-xl space-y-3 flex flex-col justify-between min-h-[220px]">
-              <div className="flex justify-between items-center font-bold text-neutral-800 text-xs">
-                <span className="tracking-wide">{cd.title}</span>
-                {cd.isBest && <span className="text-[9px] bg-neutral-950 text-white px-2 py-0.5 rounded-lg uppercase font-mono tracking-wider font-bold">Optimal</span>}
-              </div>
-              
-              {cd.chartList ? (
-                <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full justify-center">
-                  <div className="w-full sm:w-40 h-36 flex items-center justify-center shrink-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={cd.chartList}>
-                        <PolarGrid stroke="#f5f5f5" />
-                        <PolarAngleAxis 
-                          dataKey="subject" 
-                          tick={{ fill: "#a3a3a3", fontSize: 9, fontFamily: "monospace", fontWeight: "600" }} 
-                        />
-                        <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
-                        <Radar
-                          name="Scores"
-                          dataKey="value"
-                          stroke="#171717"
-                          fill="#171717"
-                          fillOpacity={0.04}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
                   
-                  {cd.rawScores && (
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-neutral-500 font-mono flex-1 w-full border-t sm:border-t-0 sm:border-l border-neutral-100 pt-2 sm:pt-0 sm:pl-3">
-                      <div>Aroma: {cd.rawScores.aroma}</div>
-                      <div>Flavor: {cd.rawScores.flavor}</div>
-                      <div>After: {cd.rawScores.aftertaste}</div>
-                      <div>Acid: {cd.rawScores.acidity}</div>
-                      <div>Body: {cd.rawScores.body}</div>
-                      <div>Bal: {cd.rawScores.balance}</div>
-                    </div>
+                  <button type="button" className="text-[11px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">
+                    {t.saveTemplateBtn}
+                  </button>
+                  
+                  {data.verifications.length > 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemovePattern(slot.id)}
+                      className="text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors"
+                    >
+                      {t.remove}
+                    </button>
                   )}
                 </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-neutral-400 text-[11px] italic h-36 border border-dashed border-neutral-100 rounded-xl bg-neutral-50/40">
-                  {t.noCupping}
-                </div>
-              )}
+              </div>
+
+              <div className="space-y-5">
+                {(slot.modules || []).map((module) => {
+                  if (module.type === "recipe") {
+                    return (
+                      <div key={module.id} className="space-y-2">
+                        <RecipeModuleForm 
+                          slotId={slot.id}
+                          module={module}
+                          lang={currentLang}
+                          diffClasses={{
+                            temp: getDiffClass(sIdx, "recipe", "temp", module.temp),
+                            grindSize: getDiffClass(sIdx, "recipe", "grindSize", module.grindSize),
+                            ratio: getDiffClass(sIdx, "recipe", "ratio", module.ratio),
+                            tds: getDiffClass(sIdx, "recipe", "tds", module.tds),
+                            bloomTime: getDiffClass(sIdx, "recipe", "bloomTime", module.bloomTime),
+                            totalTime: getDiffClass(sIdx, "recipe", "totalTime", module.totalTime),
+                            gears: getDiffClass(sIdx, "recipe", "gears", module.gears),
+                            pourSteps: getDiffClass(sIdx, "recipe", "pourSteps", module.pourSteps)
+                          }}
+                          onUpdate={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)}
+                          onRemove={() => handleRemoveModuleFromPattern(slot.id, module.id)}
+                        />
+                      </div>
+                    )
+                  }
+
+                  if (module.type === "water") {
+                    return (
+                      <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
+                          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">WATER COMPONENT</span>
+                          <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
+                        </div>
+                        <WaterProfileForm 
+                          module={module}
+                          lang={currentLang}
+                          diffClasses={{
+                            name: getDiffClass(sIdx, "water", "name", module.name),
+                            gh: getDiffClass(sIdx, "water", "gh", module.gh),
+                            kh: getDiffClass(sIdx, "water", "kh", module.kh),
+                            minerals: getDiffClass(sIdx, "water", "minerals", module.minerals)
+                          }}
+                          onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)}
+                          placeholderWaterName={t.placeholderWaterName}
+                        />
+                      </div>
+                    )
+                  }
+
+                  if (module.type === "cupping") {
+                    return (
+                      <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
+                          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">CUPPING COMPONENT</span>
+                          <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
+                        </div>
+                        <CuppingLogForm 
+                          module={module} 
+                          lang={currentLang}
+                          diffClasses={{
+                            aroma: getDiffClass(sIdx, "cupping", "aroma", module.aroma),
+                            flavor: getDiffClass(sIdx, "cupping", "flavor", module.flavor),
+                            aftertaste: getDiffClass(sIdx, "cupping", "aftertaste", module.aftertaste),
+                            acidity: getDiffClass(sIdx, "cupping", "acidity", module.acidity),
+                            body: getDiffClass(sIdx, "cupping", "body", module.body),
+                            balance: getDiffClass(sIdx, "cupping", "balance", module.balance),
+                            overall: getDiffClass(sIdx, "cupping", "overall", module.overall),
+                            notes: getDiffClass(sIdx, "cupping", "notes", module.notes)
+                          }}
+                          onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)} 
+                        />
+                      </div>
+                    )
+                  }
+
+                  if (module.type === "roast") {
+                    return (
+                      <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
+                          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">ROASTING COMPONENT</span>
+                          <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
+                        </div>
+                        <RoastingProfileForm 
+                          module={module} 
+                          lang={currentLang}
+                          diffClasses={{
+                            roasterMachine: getDiffClass(sIdx, "roast", "roasterMachine", module.roasterMachine),
+                            batchSize: getDiffClass(sIdx, "roast", "batchSize", module.batchSize),
+                            chargeTemp: getDiffClass(sIdx, "roast", "chargeTemp", module.chargeTemp),
+                            ror: getDiffClass(sIdx, "roast", "ror", module.ror),
+                            drumSpeed: getDiffClass(sIdx, "roast", "drumSpeed", module.drumSpeed),
+                            firstCrack: getDiffClass(sIdx, "roast", "firstCrack", module.firstCrack),
+                            dropTemp: getDiffClass(sIdx, "roast", "dropTemp", module.dropTemp),
+                            totalTime: getDiffClass(sIdx, "roast", "totalTime", module.totalTime),
+                            dtr: getDiffClass(sIdx, "roast", "dtr", module.dtr),
+                            roastDegree: getDiffClass(sIdx, "roast", "roastDegree", module.roastDegree),
+                            notes: getDiffClass(sIdx, "roast", "notes", module.notes)
+                          }}
+                          onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)} 
+                        />
+                      </div>
+                    )
+                  }
+                  return null
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-neutral-100">
+                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "recipe")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
+                  {t.addModuleRecipe}
+                </button>
+                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "water")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
+                  {t.addModuleWater}
+                </button>
+                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "cupping")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
+                  {t.addModuleCupping}
+                </button>
+                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "roast")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
+                  {t.addModuleRoasting}
+                </button>
+              </div>
             </div>
-          ))}
+          )
+        })}
+
+        <div className="text-center pt-1">
+          <button
+            type="button"
+            onClick={handleAddPattern}
+            disabled={data.verifications.length >= 10}
+            className="w-full sm:w-auto px-8 py-3.5 border border-dashed border-neutral-300 rounded-xl text-[14px] font-medium text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 bg-white hover:bg-neutral-50/50 transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {t.addVerificationBtn}
+          </button>
         </div>
-      </div>
 
-      <hr className="border-neutral-200/60 my-6" />
+        <div className="p-5 border border-neutral-200 rounded-[20px] bg-neutral-50/50 space-y-4">
+          <div className="flex justify-between items-center border-b border-neutral-200 pb-2">
+            <h4 className="text-[11px] font-mono font-bold tracking-widest text-neutral-400 uppercase">VISUALIZATION COMPONENT DATA</h4>
+            <span className="text-[10px] text-neutral-400 font-medium font-mono">SYNC ACTIVE</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {chartData.map((cd, index) => (
+              <div key={index} className="p-4 bg-white border border-neutral-200 rounded-xl space-y-3 flex flex-col justify-between min-h-[220px]">
+                <div className="flex justify-between items-center font-bold text-neutral-800 text-xs">
+                  <span className="tracking-wide">{cd.title}</span>
+                  {cd.isBest && <span className="text-[9px] bg-neutral-950 text-white px-2 py-0.5 rounded-lg uppercase font-mono tracking-wider font-bold">Optimal</span>}
+                </div>
+                
+                {cd.chartList ? (
+                  <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full justify-center">
+                    <div className="w-full sm:w-40 h-36 flex items-center justify-center shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="65%" data={cd.chartList}>
+                          <PolarGrid stroke="#f5f5f5" />
+                          <PolarAngleAxis 
+                            dataKey="subject" 
+                            tick={{ fill: "#a3a3a3", fontSize: 9, fontFamily: "monospace", fontWeight: "600" }} 
+                          />
+                          <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+                          <Radar
+                            name="Scores"
+                            dataKey="value"
+                            stroke="#171717"
+                            fill="#171717"
+                            fillOpacity={0.04}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    {cd.rawScores && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-neutral-500 font-mono flex-1 w-full border-t sm:border-t-0 sm:border-l border-neutral-100 pt-2 sm:pt-0 sm:pl-3">
+                        <div>Aroma: {cd.rawScores.aroma}</div>
+                        <div>Flavor: {cd.rawScores.flavor}</div>
+                        <div>After: {cd.rawScores.aftertaste}</div>
+                        <div>Acid: {cd.rawScores.acidity}</div>
+                        <div>Body: {cd.rawScores.body}</div>
+                        <div>Bal: {cd.rawScores.balance}</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-neutral-400 text-[11px] italic h-36 border border-dashed border-neutral-100 rounded-xl bg-neutral-50/40">
+                    {t.noCupping}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <LabLogSection
-        data={data}
-        currentUserEmail={ADMIN_EMAIL}
-        onChangeField={handleFieldChange}
-        onToggleVariableTag={handleToggleVariableTag}
-        onAddCustomVariableTag={handleAddCustomVariableTag}
-        customVariableInput={customVariableInput}
-        setCustomVariableInput={setCustomVariableInput}
-        presetVariables={presetVariables}
-        t={t}
-        lang={currentLang}
-      />
+        <hr className="border-neutral-200/60 my-6" />
 
-      <FormPublishSettings 
-        dict={dict}
-        normalizedTier={normalizedTier}
-        visibility={visibility}
-        setVisibility={setVisibility}
-        targetCategory={targetCategory}
-        setTargetCategory={setTargetCategory}
-        submitting={submitting}
-        disabled={isFormInvalid}
-        statusMessage={statusMessage}
-        secondaryAction={secondaryAction}
-      />
-    </form>
+        <LabLogSection
+          data={data}
+          currentUserEmail={ADMIN_EMAIL}
+          onChangeField={handleFieldChange}
+          onToggleVariableTag={handleToggleVariableTag}
+          onAddCustomVariableTag={handleAddCustomVariableTag}
+          customVariableInput={customVariableInput}
+          setCustomVariableInput={setCustomVariableInput}
+          presetVariables={presetVariables}
+          t={t}
+          lang={currentLang}
+        />
+
+        <FormPublishSettings 
+          dict={dict}
+          normalizedTier={normalizedTier}
+          visibility={visibility}
+          setVisibility={setVisibility}
+          targetCategory={targetCategory}
+          setTargetCategory={setTargetCategory}
+          submitting={submitting}
+          disabled={isFormInvalid}
+          statusMessage={statusMessage}
+          secondaryAction={secondaryAction}
+        />
+      </form>
+    </div>
   )
 }

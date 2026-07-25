@@ -325,7 +325,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
                 )}
                 {correctedEY && (
                   <div className="border-l border-neutral-100 pl-4">
-                    <div className="text-[10px] text-neutral-400 font-medium">補正式 (Corrected)</div>
+                    <div className="text-[10px] text-neutral-400 font-medium">補正値 (Corrected)</div>
                     <div className="text-sm font-bold mt-0.5 text-neutral-900">{correctedEY}</div>
                   </div>
                 )}

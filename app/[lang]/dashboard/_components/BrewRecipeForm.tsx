@@ -149,7 +149,7 @@ export default function BrewRecipeForm({
       labelEyCard: "Extraction Yield (EY) 計算結果",
       formulaTitle: "【計算式】",
       formulaApprox: "近似値 = TDS × BR",
-      formulaCorrected: "補正式 = TDS × BR / (1 − TDS)",
+      formulaCorrected: "補正値 = TDS × BR / (1 − TDS)",
       labelBloomTime: "Bloom Time",
       descBloomTime: "蒸らし時間を入力してください",
       placeholderBloomTime: "例: 30秒, 45秒など",
