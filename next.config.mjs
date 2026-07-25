@@ -6,13 +6,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'pub-209f68c742e44b3cbaa204d8b155f525.r2.dev',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'real-coffee.net',
+        hostname: 'images.coffee-journal-app.com',
         port: '',
         pathname: '/**',
       },
