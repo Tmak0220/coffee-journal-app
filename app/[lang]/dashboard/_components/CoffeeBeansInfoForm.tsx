@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
-// 💡 外部インポートを削除し、同じファイル内で完結させます
-
 export type OriginSuggestion = {
   id: number
   slug: string
@@ -427,12 +425,10 @@ export default function CoffeeBeansInfoForm({
             type="text" 
             placeholder={t.placeholderSource} 
             value={sourceInput} 
-            onChange={(e) => onChangeSourceInput(e.target.value)} 
-            onBlur={() => {
-              setTimeout(() => {
-                if (!selectedSource) onChangeSourceInput("")
-              }, 200)
-            }}
+            onChange={(e) => {
+              onChangeSourceInput(e.target.value)
+              if (selectedSource) onSelectSource(null)
+            }} 
             className={inputStyle} 
           />
           {sourceSuggestions.length > 0 && (
@@ -442,7 +438,7 @@ export default function CoffeeBeansInfoForm({
                 return (
                   <li 
                     key={item.id} 
-                    onClick={() => { 
+                    onMouseDown={() => { 
                       onSelectSource(item) 
                       onChangeSourceInput(displayName)
                       setSourceSuggestions([]) 
@@ -468,12 +464,10 @@ export default function CoffeeBeansInfoForm({
             type="text" 
             placeholder={t.placeholderMarket} 
             value={marketInput} 
-            onChange={(e) => onChangeMarketInput(e.target.value)} 
-            onBlur={() => {
-              setTimeout(() => {
-                if (!selectedMarket) onChangeMarketInput("")
-              }, 200)
-            }}
+            onChange={(e) => {
+              onChangeMarketInput(e.target.value)
+              if (selectedMarket) onSelectMarket(null)
+            }} 
             className={inputStyle} 
           />
           {marketSuggestions.length > 0 && (
@@ -483,7 +477,7 @@ export default function CoffeeBeansInfoForm({
                 return (
                   <li 
                     key={item.id} 
-                    onClick={() => { 
+                    onMouseDown={() => { 
                       onSelectMarket(item)
                       onChangeMarketInput(displayName)
                       setMarketSuggestions([]) 
@@ -701,7 +695,7 @@ export default function CoffeeBeansInfoForm({
         </div>
       </div>
 
-      {/* 同居させたインラインモーダルコンポーネントの呼び出し */}
+      {/* モーダルコンポーネント */}
       <MasterRequestModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -712,9 +706,6 @@ export default function CoffeeBeansInfoForm({
   )
 }
 
-// ==========================================
-// 💡 同一ファイル内に書き戻したモーダルコンポーネント
-// ==========================================
 type MasterRequestModalProps = {
   isOpen: boolean
   onClose: () => void
@@ -745,13 +736,12 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
         return
       }
 
-      // 💡 テーブル名を admin_notifications に統一し、管理画面が読める形に格納します
       const { error } = await supabase
         .from("admin_notifications")
         .insert({
           user_id: user.id,
-          type: "master_request", // 新しいタイプ
-          requested_display_name: `[${requestType.toUpperCase()}] ${requestValue.trim()}`, // 項目がわかるようにプレフィックスを付与
+          type: "master_request",
+          requested_display_name: `[${requestType.toUpperCase()}] ${requestValue.trim()}`,
           status: "pending",
           created_at: new Date().toISOString()
         })

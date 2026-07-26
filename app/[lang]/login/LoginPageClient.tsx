@@ -31,7 +31,7 @@ export default function LoginPageClient({ lang }: Props) {
     ja: {
       pageLabel: "ACCOUNT",
       pageTitle: "ログイン・新規登録",
-      pageDescription: "メールアドレスとパスワードだけで始められます。プロフィールは登録後にダッシュボードから設定できます。",
+      pageDescription: "メールアドレスとパスワードだけで登録できます。プロフィールは登録後にダッシュボードから設定できます。",
       loginSubtitle: "既にアカウントをお持ちの方",
       loginBtn: "ログイン",
       loginLoading: "ログイン中...",
@@ -42,11 +42,12 @@ export default function LoginPageClient({ lang }: Props) {
       signupLoading: "登録中...",
       signupSuccess: "確認メールを送信しました。メール内のリンクから登録を完了してください。",
       signupComplete: "アカウントを作成しました。",
+      signupNote: "※PRO予定の方は業務用（フリー可）、OWNER予定の方は事業用のメールアドレス（または代替アドレス）でのご登録を推奨します。",
     },
     en: {
       pageLabel: "ACCOUNT",
       pageTitle: "Log in or sign up",
-      pageDescription: "Get started with only your email address and password. You can complete your profile later from the dashboard.",
+      pageDescription: "You can register with only your email address and password. You can complete your profile later from the dashboard.",
       loginSubtitle: "Already have an account",
       loginBtn: "LOG IN",
       loginLoading: "Logging in...",
@@ -57,6 +58,7 @@ export default function LoginPageClient({ lang }: Props) {
       signupLoading: "Creating account...",
       signupSuccess: "We sent you a confirmation email. Open the link in the email to complete registration.",
       signupComplete: "Your account has been created.",
+      signupNote: "*PRO plan: Work email recommended (free email allowed). OWNER plan: Business email recommended (or alternative if inactive/not started).",
     },
   }[lang]
 
@@ -148,7 +150,7 @@ export default function LoginPageClient({ lang }: Props) {
   }
 
   const inputClass = "w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/5"
-  const buttonClass = "mt-8 w-full rounded-2xl border border-neutral-900 bg-neutral-900 px-6 py-4 text-xs font-semibold tracking-[0.12em] text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+  const buttonClass = "w-full rounded-2xl border border-neutral-900 bg-neutral-900 px-6 py-4 text-xs font-semibold tracking-[0.12em] text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
 
   return (
     <main className="min-h-[calc(100vh-120px)] px-4 py-8 sm:px-10 sm:py-16 md:px-14 lg:px-16">
@@ -166,29 +168,40 @@ export default function LoginPageClient({ lang }: Props) {
         )}
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 md:gap-8">
-          <form onSubmit={handleLogin} className="flex h-full flex-col rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">LOGIN</p>
-            <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.loginSubtitle}</h2>
-            <div className="mt-8 space-y-4">
-              <input type="email" autoComplete="email" placeholder="EMAIL" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required className={inputClass} />
-              <input type="password" autoComplete="current-password" placeholder="PASSWORD" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} required className={inputClass} />
+          <form onSubmit={handleLogin} className="flex h-full flex-col justify-between rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">LOGIN</p>
+              <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.loginSubtitle}</h2>
+              <div className="mt-8 space-y-4">
+                <input type="email" autoComplete="email" placeholder="EMAIL" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required className={inputClass} />
+                <input type="password" autoComplete="current-password" placeholder="PASSWORD" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} required className={inputClass} />
+              </div>
             </div>
-            <button type="submit" disabled={loginLoading} className={buttonClass}>{loginLoading ? t.loginLoading : t.loginBtn}</button>
-            <div className="mt-5 text-center">
-              <Link href={`${prefix}/forgot-password`} className="text-xs font-medium tracking-[0.04em] text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition hover:text-neutral-900">
-                {t.forgotPassword}
-              </Link>
+            <div className="mt-8">
+              <button type="submit" disabled={loginLoading} className={buttonClass}>{loginLoading ? t.loginLoading : t.loginBtn}</button>
+              <div className="mt-4 text-center">
+                <Link href={`${prefix}/forgot-password`} className="text-xs font-medium tracking-[0.04em] text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition hover:text-neutral-900">
+                  {t.forgotPassword}
+                </Link>
+              </div>
             </div>
           </form>
 
-          <form onSubmit={handleSignup} className="flex h-full flex-col rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">SIGN UP</p>
-            <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.signupSubtitle}</h2>
-            <div className="mt-8 space-y-4">
-              <input type="email" autoComplete="email" placeholder="EMAIL" value={signupEmail} onChange={(event) => setSignupEmail(event.target.value)} required className={inputClass} />
-              <input type="password" autoComplete="new-password" minLength={6} placeholder="PASSWORD" value={signupPassword} onChange={(event) => setSignupPassword(event.target.value)} required className={inputClass} />
+          <form onSubmit={handleSignup} className="flex h-full flex-col justify-between rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">SIGN UP</p>
+              <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.signupSubtitle}</h2>
+              <div className="mt-8 space-y-4">
+                <input type="email" autoComplete="email" placeholder="EMAIL" value={signupEmail} onChange={(event) => setSignupEmail(event.target.value)} required className={inputClass} />
+                <input type="password" autoComplete="new-password" minLength={6} placeholder="PASSWORD" value={signupPassword} onChange={(event) => setSignupPassword(event.target.value)} required className={inputClass} />
+              </div>
             </div>
-            <button type="submit" disabled={signupLoading} className={buttonClass}>{signupLoading ? t.signupLoading : t.signupBtn}</button>
+            <div className="mt-8">
+              <button type="submit" disabled={signupLoading} className={buttonClass}>{signupLoading ? t.signupLoading : t.signupBtn}</button>
+              <p className="mt-4 text-[11px] leading-relaxed text-neutral-400">
+                {t.signupNote}
+              </p>
+            </div>
           </form>
         </div>
       </div>

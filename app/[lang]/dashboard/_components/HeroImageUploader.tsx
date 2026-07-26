@@ -19,6 +19,8 @@ const uploaderDict = {
     placeholder: "画像をアップロード、またはドラッグ＆ドロップ",
     changeImage: "変更",
     deleteImage: "削除",
+    moveLeft: "左へ移動",
+    moveRight: "右へ移動",
     restoreImage: "復元する",
     pendingDeletion: "保存すると削除される画像",
     compressing: "アップロード中...",
@@ -31,6 +33,8 @@ const uploaderDict = {
     placeholder: "Upload Image or Drag & Drop",
     changeImage: "Change",
     deleteImage: "Delete",
+    moveLeft: "Move Left",
+    moveRight: "Move Right",
     restoreImage: "Restore",
     pendingDeletion: "Images to be deleted when saved",
     compressing: "Uploading...",
@@ -40,8 +44,10 @@ const uploaderDict = {
   }
 } as const
 
-const parseSafeUrls = (input: string[]): string[] =>
-  input.map(url => url.trim()).filter(url => url.startsWith("http")).slice(0, 3)
+const parseSafeUrls = (input: string[], isAdmin = false): string[] => {
+  const filtered = input.map(url => url.trim()).filter(url => url.startsWith("http"))
+  return isAdmin ? filtered : filtered.slice(0, 3)
+}
 
 export default function HeroImageUploader({ 
   currentLang = "ja", 
@@ -52,11 +58,10 @@ export default function HeroImageUploader({
   onRemovedImagesChanged,
   isAdmin = false
 }: Props) {
-  // langが未知の値や undefined の場合でも安全に "en" か "ja" にフォールバックする
   const langKey = currentLang === "en" ? "en" : "ja"
   const t = uploaderDict[langKey]
   
-  const [uploadedUrls, setUploadedUrls] = useState<string[]>(() => parseSafeUrls(initialImageUrls))
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>(() => parseSafeUrls(initialImageUrls, isAdmin))
   const [uploading, setUploading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
@@ -66,11 +71,11 @@ export default function HeroImageUploader({
   const replaceIndexRef = useRef<number | null>(null)
   const urlsRef = useRef<string[]>([])
   
-  const initialUrlsRef = useRef<string[]>(parseSafeUrls(initialImageUrls))
+  const initialUrlsRef = useRef<string[]>(parseSafeUrls(initialImageUrls, isAdmin))
   const capturedInitialUrlsRef = useRef(initialUrlsRef.current.length > 0)
 
   useEffect(() => {
-    const nextUrls = parseSafeUrls(initialImageUrls)
+    const nextUrls = parseSafeUrls(initialImageUrls, isAdmin)
     if (deferDeletion && capturedInitialUrlsRef.current) return
     const currentSerialized = JSON.stringify(uploadedUrls)
     const nextSerialized = JSON.stringify(nextUrls)
@@ -80,7 +85,7 @@ export default function HeroImageUploader({
       initialUrlsRef.current = nextUrls
       if (nextUrls.length > 0) capturedInitialUrlsRef.current = true
     }
-  }, [deferDeletion, initialImageUrls, uploadedUrls])
+  }, [deferDeletion, initialImageUrls, uploadedUrls, isAdmin])
 
   useEffect(() => {
     urlsRef.current = uploadedUrls || []
@@ -109,9 +114,23 @@ export default function HeroImageUploader({
     }
   }
 
+  // 順序入れ替え処理
+  const moveImage = (index: number, direction: "left" | "right", e: React.MouseEvent) => {
+    e.stopPropagation()
+    const targetIndex = direction === "left" ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= uploadedUrls.length) return
+
+    const nextUrls = [...uploadedUrls]
+    const [movedItem] = nextUrls.splice(index, 1)
+    nextUrls.splice(targetIndex, 0, movedItem)
+
+    setUploadedUrls(nextUrls)
+    notifyParent(nextUrls)
+  }
+
   const triggerUpload = (index: number | null) => {
     if (uploading) return
-    if (index === null && safeRenderUrls.length >= 3) {
+    if (!isAdmin && index === null && safeRenderUrls.length >= 3) {
       setErrorMessage(t.maxAlert)
       return
     }
@@ -120,7 +139,7 @@ export default function HeroImageUploader({
   }
 
   const processFile = async (file: File, targetIndex: number | null) => {
-    if (targetIndex === null && (uploadedUrls || []).length >= 3) {
+    if (!isAdmin && targetIndex === null && (uploadedUrls || []).length >= 3) {
       setErrorMessage(t.maxAlert)
       return
     }
@@ -202,7 +221,7 @@ export default function HeroImageUploader({
       const file = e.dataTransfer.files[0]
       if (!file.type.startsWith("image/")) return
 
-      if (safeRenderUrls.length >= 3) {
+      if (!isAdmin && safeRenderUrls.length >= 3) {
         setErrorMessage(t.maxAlert)
         return
       }
@@ -250,7 +269,7 @@ export default function HeroImageUploader({
   }
 
   const restoreImage = (url: string) => {
-    if (uploadedUrls.length >= 3) {
+    if (!isAdmin && uploadedUrls.length >= 3) {
       setErrorMessage(t.maxAlert)
       return
     }
@@ -265,9 +284,9 @@ export default function HeroImageUploader({
     notifyParent(nextUrls)
   }
 
-  const safeRenderUrls = parseSafeUrls(uploadedUrls)
+  const safeRenderUrls = parseSafeUrls(uploadedUrls, isAdmin)
   const currentLength = safeRenderUrls.length
-  const showUploadButton = currentLength < 3
+  const showUploadButton = isAdmin || currentLength < 3
 
   return (
     <div 
@@ -280,7 +299,11 @@ export default function HeroImageUploader({
       onDrop={handleDrop}
     >
       <span className="text-[15px] font-semibold tracking-wider text-neutral-900 uppercase block mb-4">
-        {t.sectionTitle} ({currentLength}{langKey === "ja" ? "枚 / 最大3枚" : " / Max 3 images"})
+        {t.sectionTitle} (
+        {isAdmin 
+          ? `${currentLength}${langKey === "ja" ? "枚" : " images"}`
+          : `${currentLength}${langKey === "ja" ? "枚 / 最大3枚" : " / Max 3 images"}`}
+        )
       </span>
       
       <input 
@@ -304,23 +327,59 @@ export default function HeroImageUploader({
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" 
             />
             
-            <div className="absolute inset-0 bg-neutral-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => triggerUpload(index)}
-                disabled={uploading}
-                className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-medium tracking-wider px-3 py-1.5 rounded-md transition-all duration-200"
-              >
-                {t.changeImage}
-              </button>
-              <button
-                type="button"
-                onClick={(e) => removeImage(index, e)}
-                disabled={uploading}
-                className="bg-red-600 hover:bg-red-500 text-white text-xs font-medium tracking-wider px-3 py-1.5 rounded-md transition-all duration-200"
-              >
-                {t.deleteImage}
-              </button>
+            {/* メインのホバー操作UI */}
+            <div className="absolute inset-0 bg-neutral-900/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-2 gap-2">
+              
+              {/* 移動ボタンエリア（2枚以上ある場合のみ表示） */}
+              {safeRenderUrls.length > 1 && (
+                <div className="flex items-center gap-1.5 bg-neutral-900/80 p-1 rounded-lg border border-white/20 mb-1">
+                  <button
+                    type="button"
+                    onClick={(e) => moveImage(index, "left", e)}
+                    disabled={index === 0 || uploading}
+                    title={t.moveLeft}
+                    className="p-1 text-white hover:text-amber-300 disabled:opacity-30 disabled:hover:text-white transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                  </button>
+                  <span className="text-[11px] text-neutral-300 font-medium px-1 select-none">
+                    {index + 1} / {safeRenderUrls.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => moveImage(index, "right", e)}
+                    disabled={index === safeRenderUrls.length - 1 || uploading}
+                    title={t.moveRight}
+                    className="p-1 text-white hover:text-amber-300 disabled:opacity-30 disabled:hover:text-white transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* 変更・削除ボタン */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => triggerUpload(index)}
+                  disabled={uploading}
+                  className="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-medium tracking-wider px-3 py-1.5 rounded-md transition-all duration-200 border border-white/10"
+                >
+                  {t.changeImage}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => removeImage(index, e)}
+                  disabled={uploading}
+                  className="bg-red-600 hover:bg-red-500 text-white text-xs font-medium tracking-wider px-3 py-1.5 rounded-md transition-all duration-200"
+                >
+                  {t.deleteImage}
+                </button>
+              </div>
             </div>
           </div>
         ))}

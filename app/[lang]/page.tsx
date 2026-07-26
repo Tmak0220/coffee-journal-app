@@ -24,6 +24,9 @@ const dict = {
   ja: {
     title: "COFFEE JOURNAL",
     subtitle: "コーヒージャーナル",
+    guidePrefix: "初めに",
+    guideLinkText: "使い方",
+    guideSuffix: "を必ずお読みください。",
     membership: "MEMBERSHIP",
     sections: [
       { id: "origins", name: "ORIGINS", name_lang: "起源", description: "生産地・消費地から探す", slug: "origins" },
@@ -35,6 +38,9 @@ const dict = {
   en: {
     title: "COFFEE JOURNAL",
     subtitle: "",
+    guidePrefix: "Please be sure to read the ",
+    guideLinkText: "User Guide",
+    guideSuffix: " first.",
     membership: "MEMBERSHIP",
     sections: [
       { id: "origins", name: "ORIGINS", name_lang: "Origins", description: "Find by origins and destinations.", slug: "origins" },
@@ -66,10 +72,23 @@ export default async function Home({ params }: Props) {
               {t.subtitle}
             </p>
           )}
+
+          <div className="mt-6 inline-flex items-center gap-1.5 rounded-xl border border-rose-200/60 bg-rose-50/40 px-4 py-2.5 text-xs sm:text-sm font-medium text-rose-800 w-fit">
+            <span>* {t.guidePrefix}</span>
+            <Link
+              href={`/${currentLang}/guide`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold underline decoration-rose-400 decoration-1 underline-offset-4 hover:text-rose-950 hover:decoration-rose-600 transition-all"
+            >
+              {t.guideLinkText}
+            </Link>
+            <span>{t.guideSuffix}</span>
+          </div>
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto mb-10 mt-8 w-full max-w-6xl px-4 sm:mb-12 sm:mt-14 sm:px-10 md:px-14 lg:px-16">
+      <section className="relative z-10 mx-auto mb-10 mt-8 w-full max-w-6xl px-4 sm:mb-12 sm:mt-10 sm:px-10 md:px-14 lg:px-16">
         <div className="mb-6 border-b border-neutral-200/50 sm:mb-10" />
 
         <div className="journal-grid-container">
