@@ -22,6 +22,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { data: userData } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("id", user.id)
+      .single()
+
+    const customUserId = userData?.user_id || user.id
+
     const formData = await req.formData()
     const file = formData.get("file") as File
     const requestedFolder = String(formData.get("folder") || "uploads")
@@ -64,8 +72,8 @@ export async function POST(req: Request) {
     const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExtension}`
     
     const storageKey = folder === "uploads"
-      ? `${folder}/${user.id}/${year}/${month}/${fileName}`
-      : `${folder}/${user.id}/${fileName}`
+      ? `${customUserId}/${year}/${month}/${fileName}`
+      : `${folder}/${customUserId}/${fileName}`
 
     await r2.send(
       new PutObjectCommand({
