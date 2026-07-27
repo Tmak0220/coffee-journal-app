@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import MinimalCalendar from "./MinimalCalendar"
-import EventPostForm from "./EventPostForm"
 import { useAppPopup } from "@/context/AppPopupContext"
 
 type Props = {
@@ -33,19 +32,12 @@ type CalendarEventItem = {
   visibility?: VisibilityType
 }
 
-type OriginEventOption = {
-  id: string
-  name?: string | null
-  name_ja?: string | null
-}
-
 type VisibilityType = "draft" | "private" | "members" | "public"
 
 const profileDict = {
   ja: {
     tabProfile: "プロフィール設定",
     tabCalendar: "カレンダー",
-    tabEvent: "イベント投稿",
     title: "PROFILE INFO",
     descTitle: "アカウントの基本設定",
     labelUsername: "USERNAME",
@@ -62,19 +54,13 @@ const profileDict = {
     successMessage: "プロフィールを更新しました。",
     errorMessage: (msg: string) => `保存に失敗しました: ${msg}`,
     formTypeMemo: "簡易メモを追加",
-    formTypeReport: "イベントレポを投稿",
     labelGeneralTitle: "タイトル",
     placeholderMemoTitle: "コーヒー店に行く",
-    placeholderReportTitle: "1日目レポート",
-    labelReportSelect: "関連するイベント・個別ページ",
-    placeholderReportSelect: "-- イベントページを選択してください --",
     labelStartDate: "開始日",
     labelEndDate: "終了日",
     placeholderDate: "年/月/日",
     labelGeneralBody: "メモ内容",
     placeholderMemoBody: "メモの詳細（任意）",
-    placeholderReportBody: "メモを入力",
-    labelImage: "カバー画像",
     labelVisibility: "公開設定",
     clearForm: "クリア",
     visDraft: "下書き",
@@ -86,7 +72,6 @@ const profileDict = {
   en: {
     tabProfile: "Profile Settings",
     tabCalendar: "Calendar",
-    tabEvent: "Event Post",
     title: "PROFILE INFO",
     descTitle: "Account Settings",
     labelUsername: "USERNAME",
@@ -103,19 +88,13 @@ const profileDict = {
     successMessage: "Profile updated successfully.",
     errorMessage: (msg: string) => `Failed to save changes: ${msg}`,
     formTypeMemo: "Add Memo",
-    formTypeReport: "Post Event Report",
     labelGeneralTitle: "Title",
     placeholderMemoTitle: "Go to a coffee shop",
-    placeholderReportTitle: "Day 1 Report",
-    labelReportSelect: "Related Event Page",
-    placeholderReportSelect: "-- Please select an event page --",
     labelStartDate: "Start Date",
     labelEndDate: "End Date",
     placeholderDate: "yyyy-mm-dd",
     labelGeneralBody: "Memo",
     placeholderMemoBody: "Memo details (Optional)",
-    placeholderReportBody: "Enter memo...",
-    labelImage: "Cover Image",
     labelVisibility: "Visibility",
     clearForm: "Clear",
     visDraft: "Draft",
@@ -141,7 +120,7 @@ export default function ProfileForm({
   const t = profileDict[currentLang]
   const { confirmPopup } = useAppPopup()
 
-  const [activeTab, setActiveTab] = useState<"profile" | "calendar" | "event">("profile")
+  const [activeTab, setActiveTab] = useState<"profile" | "calendar">("profile")
 
   const [username, setUsername] = useState(initialUsername?.toLowerCase() || "")
   const [displayName, setDisplayName] = useState(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
@@ -150,22 +129,16 @@ export default function ProfileForm({
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
 
-  const [formType, setFormType] = useState<"memo" | "report">("memo")
-  
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
 
   const [inputTitle, setInputTitle] = useState("")
   const [inputMemo, setInputMemo] = useState("")
-  const [uploadedImages, setUploadedImages] = useState<string[]>([])
   
-  const [eventOrigins, setEventOrigins] = useState<OriginEventOption[]>([])
-  const [selectedEventOriginId, setSelectedEventOriginId] = useState("")
   const [visibility, setVisibility] = useState<VisibilityType>("draft")
 
   const [calendarItems, setCalendarItems] = useState<CalendarEventItem[]>([])
   const [formLoading, setFormLoading] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   const isUsernameDisabled = !!initialUsername
 
@@ -178,11 +151,6 @@ export default function ProfileForm({
     let isMounted = true
 
     async function initCalendarData() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user && isMounted) {
-        setIsAdmin(user.email === "rivu65622252@gmail.com")
-      }
-      
       const [{ data: memos }, { data: eventPosts }] = await Promise.all([
         supabase
           .from("calendar_memos")
@@ -197,23 +165,16 @@ export default function ProfileForm({
           .eq("lang", currentLang)
       ])
 
-      const { data: originsData } = await supabase
-        .from("origins")
-        .select("id, name, name_ja")
-        .eq("type", "event")
-        .order("name", { ascending: true })
-
       if (isMounted) {
-        if (originsData) setEventOrigins(originsData)
         const memoItems: CalendarEventItem[] = (memos || []).map(m => ({
-            id: m.id, 
-            title: m.title, 
-            event_date: m.start_date, 
-            end_date: m.end_date || null,
-            memo: m.memo || null,
-            visibility: m.visibility as VisibilityType,
-            type: "memo"
-          }))
+          id: m.id, 
+          title: m.title, 
+          event_date: m.start_date, 
+          end_date: m.end_date || null,
+          memo: m.memo || null,
+          visibility: m.visibility as VisibilityType,
+          type: "memo"
+        }))
         const reportItems: CalendarEventItem[] = (eventPosts || []).map(post => ({
           id: post.id,
           title: post.title || "Untitled",
@@ -286,7 +247,7 @@ export default function ProfileForm({
       setStatusMessage({ text: currentLang === "ja" ? "開始日を選択してください。" : "Please select a start date.", type: "error" })
       return
     }
-    if (formType === "memo" && !inputTitle.trim()) {
+    if (!inputTitle.trim()) {
       setStatusMessage({ text: currentLang === "ja" ? "タイトルを入力してください。" : "Please enter a title.", type: "error" })
       return
     }
@@ -302,41 +263,37 @@ export default function ProfileForm({
     setFormLoading(true)
 
     try {
-      if (formType === "memo") {
-        const { data, error } = await supabase
-          .from("calendar_memos")
-          .insert({
-            user_id: userId,
-            title: inputTitle.trim(),
-            start_date: startDate,
-            end_date: endDate || null,
-            memo: inputMemo.trim() || null,
-            visibility: visibility,
-            lang: currentLang 
-          })
-          .select()
+      const { data, error } = await supabase
+        .from("calendar_memos")
+        .insert({
+          user_id: userId,
+          title: inputTitle.trim(),
+          start_date: startDate,
+          end_date: endDate || null,
+          memo: inputMemo.trim() || null,
+          visibility: visibility,
+          lang: currentLang 
+        })
+        .select()
 
-        if (error) throw error
-        if (data) {
-          setCalendarItems(prev => [...prev, { 
-            id: data[0].id, 
-            title: data[0].title, 
-            event_date: data[0].start_date, 
-            end_date: data[0].end_date, 
-            memo: data[0].memo || null,
-            visibility: data[0].visibility as VisibilityType,
-            type: "memo" 
-          }])
-        }
-        setStatusMessage({ text: currentLang === "ja" ? "メモを登録しました。" : "Memo added.", type: "success" })
+      if (error) throw error
+      if (data) {
+        setCalendarItems(prev => [...prev, { 
+          id: data[0].id, 
+          title: data[0].title, 
+          event_date: data[0].start_date, 
+          end_date: data[0].end_date, 
+          memo: data[0].memo || null,
+          visibility: data[0].visibility as VisibilityType,
+          type: "memo" 
+        }])
       }
+      setStatusMessage({ text: currentLang === "ja" ? "メモを登録しました。" : "Memo added.", type: "success" })
 
       setInputTitle("")
       setInputMemo("")
       setStartDate("")
       setEndDate("")
-      setSelectedEventOriginId("")
-      setUploadedImages([])
       setVisibility("draft")
       setTimeout(() => setStatusMessage(null), 4000)
     } catch (error: any) {
@@ -369,15 +326,6 @@ export default function ProfileForm({
           }`}
         >
           {t.tabCalendar}
-        </button>
-        <button
-          type="button"
-          onClick={() => { setActiveTab("event"); setStatusMessage(null); }}
-          className={`pb-4 text-[14px] font-medium tracking-wide whitespace-nowrap transition-all border-b-2 relative top-[1px] ${
-            activeTab === "event" ? "border-neutral-900 text-neutral-900 font-semibold" : "border-transparent text-neutral-400 hover:text-neutral-600"
-          }`}
-        >
-          {t.tabEvent}
         </button>
       </div>
 
@@ -519,7 +467,7 @@ export default function ProfileForm({
 
               <div className="pt-2 space-y-3">
                 <label className="text-[13px] font-bold text-neutral-900 tracking-wide block">{t.labelVisibility}</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full">
                   {(["draft", "private", "members", "public"] as VisibilityType[]).map((type) => {
                     const labelMap = {
                       draft: t.visDraft,
@@ -533,13 +481,13 @@ export default function ProfileForm({
                         key={type}
                         type="button"
                         onClick={() => setVisibility(type)}
-                        className={`w-full px-3 py-3 text-[12px] sm:text-[13px] font-semibold rounded-xl border text-center transition-all duration-200 select-none flex items-center justify-center min-h-[46px] ${
+                        className={`w-full px-1.5 sm:px-3 py-3 text-[11px] sm:text-[12px] font-semibold rounded-xl border text-center transition-all duration-200 select-none flex items-center justify-center min-h-[46px] leading-tight ${
                           isSelected
                             ? "bg-white border-neutral-900 text-neutral-900 shadow-sm ring-1 ring-neutral-900"
                             : "bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50/50"
                         }`}
                       >
-                        <span className="truncate">{labelMap[type]}</span>
+                        <span className="whitespace-nowrap">{labelMap[type]}</span>
                       </button>
                     )
                   })}
@@ -585,17 +533,6 @@ export default function ProfileForm({
             </div>
           </form>
 
-        </div>
-      )}
-
-      {activeTab === "event" && (
-        <div className="w-full">
-          <EventPostForm
-            userId={userId}
-            lang={currentLang}
-            isAdmin={isAdmin}
-            onSuccess={() => setActiveTab("calendar")}
-          />
         </div>
       )}
     </div>
