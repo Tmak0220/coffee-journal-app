@@ -32,8 +32,11 @@ export async function POST(req: Request) {
 
     const formData = await req.formData()
     const file = formData.get("file") as File
+    
+    // 💡 許可するフォルダに "tmp" を追加
     const requestedFolder = String(formData.get("folder") || "uploads")
-    const folder = requestedFolder === "avatars" || requestedFolder === "covers"
+    const allowedFolders = ["avatars", "covers", "tmp"]
+    const folder = allowedFolders.includes(requestedFolder)
       ? requestedFolder
       : "uploads"
 
@@ -71,9 +74,15 @@ export async function POST(req: Request) {
 
     const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExtension}`
     
-    const storageKey = folder === "uploads"
-      ? `${customUserId}/${year}/${month}/${fileName}`
-      : `${folder}/${customUserId}/${fileName}`
+    // 💡 tmp / uploads / その他（avatars, covers）でキーの生成条件を分岐
+    let storageKey = ""
+    if (folder === "tmp") {
+      storageKey = `tmp/${customUserId}/${fileName}`
+    } else if (folder === "uploads") {
+      storageKey = `uploads/${customUserId}/${year}/${month}/${fileName}`
+    } else {
+      storageKey = `${folder}/${customUserId}/${fileName}`
+    }
 
     await r2.send(
       new PutObjectCommand({

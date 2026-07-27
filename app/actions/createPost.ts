@@ -12,20 +12,24 @@ const r2 = new S3Client({
   },
 })
 
-// 共通で使えるように、ファイル内専用だった名前からエクスポート関数へ変更
+// 一時ストレージ(/tmp/)から永久ストレージ(/uploads/)へ画像を移動する関数
 export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<string> {
   if (!tmpUrl || !tmpUrl.includes("/tmp/")) return tmpUrl
 
   try {
     const urlObj = new URL(tmpUrl)
+    // 先頭の '/' を除去した S3/R2 キー（例: tmp/user_id/filename.jpg）
     const srcKey = decodeURIComponent(urlObj.pathname.slice(1)) 
     
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, "0") 
 
-    const destKey = srcKey.replace(/^tmp\//, `${year}/${month}/`)
+    // tmp/ を uploads/userId/YYYY/MM/ に置換
+    // 例: tmp/user_id/file.jpg -> uploads/user_id/2026/07/file.jpg
+    const destKey = srcKey.replace(/^tmp\/([^/]+)\/(.+)$/, `uploads/$1/${year}/${month}/$2`)
 
+    // R2 内でのコピー実行
     await r2.send(
       new CopyObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -34,6 +38,7 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
       })
     )
 
+    // コピー完了後に一時ファイルを削除
     await r2.send(
       new DeleteObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -41,7 +46,17 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
       })
     )
 
-    return `${urlObj.origin}/${destKey}`
+    // 設定済みの R2 公開ドメインを取得
+    const baseUrl = (
+      process.env.R2_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+    )?.replace(/\/$/, "")
+
+    if (!baseUrl) {
+      throw new Error("R2 public URL is not configured")
+    }
+
+    return `${baseUrl}/${destKey}`
   } catch (err) {
     console.error(`Failed to move file to permanent storage: ${tmpUrl}`, err)
     throw new Error("画像を一時保存領域から本保存領域へ移動できませんでした。")
@@ -152,13 +167,12 @@ export async function createPost(input: any, userId: string) {
       input.imageUrls.map((url: string) => serverMoveToPermanentStorage(url))
     )
 
-    // 💡 image_urls をカンマ結合せず、配列 (string[]) のまま保存するように修正
     const insertPayload = {
       user_id: currentUserId,
       title: input.title.trim(),
       description: input.description?.trim() || null,
       tastes: input.tastes?.trim() || null,
-      image_urls: permanentImageUrls, // ← ここを配列に変更
+      image_urls: permanentImageUrls,
       visibility: input.visibility || "draft",
       lang: input.lang === "en" ? "en" : "ja",
       source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
@@ -174,7 +188,6 @@ export async function createPost(input: any, userId: string) {
 
     if (postError) throw new Error(`投稿の保存に失敗しました: ${postError.message}`)
 
-    // 💡 品種 (Variety) 中間テーブルへの一括保存処理
     if (input.variety_id) {
       const varietyIds = input.variety_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
       if (varietyIds.length > 0) {
@@ -187,7 +200,6 @@ export async function createPost(input: any, userId: string) {
       }
     }
 
-    // 💡 精製方法 (Process) 中間テーブルへの一括保存処理
     if (input.process_id) {
       const processIds = input.process_id.split(",").map((id: string) => parseInt(id.trim(), 10)).filter(Boolean)
       if (processIds.length > 0) {
@@ -302,11 +314,10 @@ export async function updatePost(postId: string, input: any, userId: string) {
       input.imageUrls.map((url: string) => serverMoveToPermanentStorage(url))
     )
 
-    // 💡 image_urls をカンマ結合せず、配列 (string[]) のまま更新するように修正
     const updatePayload = {
       title: input.title.trim(),
       description: input.description?.trim() || null,
-      image_urls: permanentImageUrls, // ← ここを配列に変更
+      image_urls: permanentImageUrls,
       visibility: input.visibility || "public",
       source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
       market_origin_id: Number.isInteger(input.market_origin_id) ? input.market_origin_id : null,
@@ -326,7 +337,6 @@ export async function updatePost(postId: string, input: any, userId: string) {
       throw new Error(`投稿の更新に失敗しました: ${updateError.message}`)
     }
 
-    // 💡 品種 (Variety) の更新ロジック (一度全削除してから再インサート)
     if (input.variety_id !== undefined) {
       await supabaseAdmin.from("post_varieties").delete().eq("post_id", postId)
       
@@ -343,7 +353,6 @@ export async function updatePost(postId: string, input: any, userId: string) {
       }
     }
 
-    // 💡 精製方法 (Process) の更新ロジック (一度全削除してから再インサート)
     if (input.process_id !== undefined) {
       await supabaseAdmin.from("post_processes").delete().eq("post_id", postId)
       
