@@ -162,6 +162,7 @@ export default function HeroImageUploader({
       const compressedFile = await compressImage(file)
       const formData = new FormData()
       formData.append("file", compressedFile)
+      formData.append("folder", "tmp")
 
       const res = await fetch("/api/upload", { method: "POST", body: formData })
       const data = await res.json()
