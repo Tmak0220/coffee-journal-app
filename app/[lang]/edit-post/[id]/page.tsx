@@ -8,7 +8,7 @@ import { FormSkeleton } from "@/components/ui/PageSkeletons"
 import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
 import HeroImageUploader from "@/app/[lang]/dashboard/_components/HeroImageUploader"
 import CoffeeBeansInfoForm from "@/app/[lang]/dashboard/_components/CoffeeBeansInfoForm"
-import BrewRecipeForm from "@/app/[lang]/dashboard/_components/BrewRecipeForm"
+import BrewRecipeForm, { RecipeItemData } from "@/app/[lang]/dashboard/_components/BrewRecipeForm"
 import TasteTagsForm from "@/app/[lang]/dashboard/_components/TasteTagsForm"
 
 type OriginSuggestion = {
@@ -75,6 +75,27 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const cleanImageUrls = (input: string[] | null): string[] =>
   (input ?? []).map(url => url.trim()).filter(url => url.startsWith("http"))
 
+const parseDurationSeconds = (value: string): number | null => {
+  const text = value.trim()
+  if (!text) return null
+  if (/^\d+(?:\.\d+)?$/.test(text)) return Math.round(Number(text))
+
+  const colonMatch = text.match(/^(\d+):(\d{1,2})$/)
+  if (colonMatch) return Number(colonMatch[1]) * 60 + Number(colonMatch[2])
+
+  const minutes = text.match(/(\d+(?:\.\d+)?)\s*(?:分|min(?:ute)?s?)/i)
+  const seconds = text.match(/(\d+(?:\.\d+)?)\s*(?:秒|sec(?:ond)?s?|s)\b/i)
+  if (!minutes && !seconds) return null
+  return Math.round(Number(minutes?.[1] || 0) * 60 + Number(seconds?.[1] || 0))
+}
+
+const formatDurationInput = (seconds: number | null | undefined): string => {
+  if (seconds == null) return ""
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return minutes > 0 ? `${minutes}:${String(remainingSeconds).padStart(2, "0")}` : String(seconds)
+}
+
 export default function EditPostPage({ params }: Props) {
   const { lang, id: postId } = use(params)
   const currentLang = lang === "en" ? "en" : "ja"
@@ -105,18 +126,7 @@ export default function EditPostPage({ params }: Props) {
   const [marketInput, setMarketInput] = useState("")
   const [selectedMarket, setSelectedMarket] = useState<OriginSuggestion | null>(null)
   
-  const [recipeState, setRecipeState] = useState({
-    editingRecipeId: null as string | number | null,
-    recipeMode: "none" as "self" | "barista" | "none",
-    selfRecipe: { 
-      dripper: "Hario V60", 
-      waterTemp: "", 
-      grindSize: "", 
-      ratio: ""
-    },
-    baristaRecipe: { baristaUserId: "", shopName: "", shopOriginId: null as number | null },
-    recipeNotes: ""
-  })
+  const [recipeItems, setRecipeItems] = useState<RecipeItemData[]>([])
   
   const [selectedTasteIds, setSelectedTasteIds] = useState<string[]>([])
   const [selectedGears, setSelectedGears] = useState<Array<{ id: string; name: string; gearId: number | null }>>([
@@ -239,6 +249,9 @@ export default function EditPostPage({ params }: Props) {
         initialImageUrlsRef.current = urls
       }
 
+      let loadedGears: Array<{ id: string; name: string; gearId: number | null }> = [
+        { id: "1", name: "", gearId: null }
+      ]
       const { data: postGearRows } = await supabase
         .from("post_gears")
         .select("gear_id")
@@ -252,14 +265,15 @@ export default function EditPostPage({ params }: Props) {
           .in("id", gearIds)
 
         const gearMap = new Map((gearRows || []).map(gear => [gear.id, gear]))
-        setSelectedGears(gearIds.flatMap((gearId, index) => {
+        loadedGears = gearIds.flatMap((gearId, index) => {
           const gear = gearMap.get(gearId)
           return gear ? [{
             id: `saved-gear-${index}`,
             name: currentLang === "ja" ? (gear.name_ja || gear.name) : gear.name,
             gearId: gear.id
           }] : []
-        }))
+        })
+        setSelectedGears(loadedGears)
       }
 
       if (postData.source_origin_id) {
@@ -277,39 +291,76 @@ export default function EditPostPage({ params }: Props) {
         }
       }
 
-      const { data: recipeData } = await supabase
+      const { data: recipeData, error: recipeError } = await supabase
         .from("recipes")
         .select("*")
         .eq("post_id", postId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
 
-      if (recipeData) {
-        setRecipeState({
-          editingRecipeId: recipeData.id,
-          recipeMode: recipeData.mode || "none",
-          selfRecipe: {
-            dripper: "Hario V60",
-            waterTemp: recipeData.temperature ? String(recipeData.temperature) : "",
-            grindSize: recipeData.grind_size ? String(recipeData.grind_size) : "",
-            ratio: recipeData.brew_ratio ? String(recipeData.brew_ratio) : ""
-          },
-          baristaRecipe: {
-            baristaUserId: recipeData.barista_user_id || "",
-            shopName: recipeData.shop_name || "",
-            shopOriginId: recipeData.shop_origin_id || null
-          },
-          recipeNotes: recipeData.notes || ""
-        })
+      if (recipeError) throw recipeError
+
+      if (recipeData && recipeData.length > 0) {
+        const providerIds = Array.from(new Set(
+          recipeData.map(recipe => recipe.barista_user_id).filter(Boolean)
+        ))
+        const { data: providers } = providerIds.length > 0
+          ? await supabase
+              .from("users")
+              .select("id, username, display_name, display_name_en")
+              .in("id", providerIds)
+          : { data: [] }
+        const providerMap = new Map((providers || []).map(provider => [provider.id, provider]))
+
+        setRecipeItems(recipeData.map((recipe, index): RecipeItemData => {
+          const provider = recipe.barista_user_id ? providerMap.get(recipe.barista_user_id) : null
+          const providerName = currentLang === "en"
+            ? (provider?.display_name_en || provider?.display_name || provider?.username || "")
+            : (provider?.display_name || provider?.username || "")
+
+          return {
+            id: recipe.id,
+            mode: recipe.mode || "self",
+            equipments: loadedGears.map((gear, gearIndex) => ({
+              ...gear,
+              id: `${recipe.id}-gear-${gearIndex}`
+            })),
+            waterTemp: recipe.temperature ? String(recipe.temperature) : "",
+            grindSize: recipe.grind_size ? String(recipe.grind_size) : "",
+            ratio: recipe.brew_ratio ? String(recipe.brew_ratio) : "",
+            tdsInput: recipe.tds ? String(recipe.tds) : "",
+            bloomTime: formatDurationInput(recipe.bloom_time_seconds),
+            totalTime: formatDurationInput(recipe.total_time_seconds),
+            pourSteps: Array.isArray(recipe.pour_steps) ? recipe.pour_steps : [],
+            notes: recipe.notes || "",
+            baristaName: providerName,
+            baristaUserId: recipe.barista_user_id || "",
+            baristaUsername: provider?.username || "",
+            shopName: recipe.shop_name || "",
+            shopOriginId: recipe.shop_origin_id || null,
+            servingStyle: recipe.serving_style || ""
+          }
+        }))
       } else {
-        setRecipeState({
-          editingRecipeId: "new-recipe",
-          recipeMode: "none",
-          selfRecipe: { dripper: "Hario V60", waterTemp: "", grindSize: "", ratio: "" },
-          baristaRecipe: { baristaUserId: "", shopName: "", shopOriginId: null },
-          recipeNotes: ""
-        })
+        setRecipeItems([{
+          id: "new-recipe",
+          mode: "none",
+          equipments: loadedGears,
+          waterTemp: "",
+          grindSize: "",
+          ratio: "",
+          tdsInput: "",
+          bloomTime: "",
+          totalTime: "",
+          pourSteps: [{ id: "1", amount: "", time: "" }],
+          notes: "",
+          baristaName: "",
+          baristaUserId: "",
+          baristaUsername: "",
+          shopName: "",
+          shopOriginId: null,
+          servingStyle: ""
+        }])
       }
 
       const { data: pivotData } = await supabase
@@ -394,66 +445,90 @@ export default function EditPostPage({ params }: Props) {
 
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const cleanRatio = Number(recipeState.selfRecipe.ratio.replace(/[^0-9.]/g, "")) || null
-        const linkedExpertId = recipeState.recipeMode === "barista"
-          ? (recipeState.baristaRecipe.baristaUserId || null)
-          : null
-        let expertDisplayStatus: "approved" | "pending" = "approved"
-        if (linkedExpertId) {
-          const { data: linkedExpert } = await supabase
-            .from("experts")
-            .select("linked_posts_mode")
-            .eq("user_id", linkedExpertId)
-            .maybeSingle()
-          expertDisplayStatus = linkedExpert?.linked_posts_mode === "review" ? "pending" : "approved"
-        }
+        const activeRecipes = recipeItems.filter(recipe => recipe.mode !== "none")
+        const retainedRecipeIds: string[] = []
 
-        const recipePayload: any = {
-          post_id: postId,
-          user_id: user.id,
-          bean_name: title.trim(),
-          mode: recipeState.recipeMode,
-          temperature: recipeState.recipeMode === "self" ? (Number(recipeState.selfRecipe.waterTemp) || null) : null,
-          grind_size: recipeState.recipeMode === "self" ? recipeState.selfRecipe.grindSize.trim() : null,
-          brew_ratio: recipeState.recipeMode === "self" ? cleanRatio : null,
-          barista_user_id: linkedExpertId,
-          shop_name: recipeState.recipeMode === "barista" ? recipeState.baristaRecipe.shopName.trim() : null,
-          shop_origin_id: recipeState.recipeMode === "barista" ? recipeState.baristaRecipe.shopOriginId : null,
-          notes: recipeState.recipeNotes.trim() || null,
-          is_template: false
-        }
+        for (const [index, recipe] of activeRecipes.entries()) {
+          const linkedExpertId = recipe.mode === "barista"
+            ? (recipe.baristaUserId || null)
+            : null
+          let expertDisplayStatus: "approved" | "pending" = "approved"
+          if (linkedExpertId && linkedExpertId !== user.id) {
+            const { data: linkedExpert } = await supabase
+              .from("experts")
+              .select("linked_posts_mode")
+              .eq("user_id", linkedExpertId)
+              .maybeSingle()
+            expertDisplayStatus = linkedExpert?.linked_posts_mode === "review" ? "pending" : "approved"
+          }
 
-        const isExistingRecipe = 
-          recipeState.editingRecipeId && 
-          recipeState.editingRecipeId !== "new-recipe" && 
-          recipeState.editingRecipeId !== "" &&
-          (uuidPattern.test(String(recipeState.editingRecipeId)) || !/^\d+$/.test(String(recipeState.editingRecipeId)))
+          const recipePayload: any = {
+            post_id: postId,
+            user_id: user.id,
+            bean_name: title.trim(),
+            mode: recipe.mode,
+            sort_order: index,
+            temperature: recipe.mode === "self" ? (Number(recipe.waterTemp) || null) : null,
+            grind_size: recipe.mode === "self" ? (recipe.grindSize.trim() || null) : null,
+            brew_ratio: recipe.mode === "self"
+              ? (Number(recipe.ratio.replace(/[^0-9.]/g, "")) || null)
+              : null,
+            tds: recipe.mode === "self" ? (Number(recipe.tdsInput) || null) : null,
+            bloom_time_seconds: recipe.mode === "self" ? parseDurationSeconds(recipe.bloomTime) : null,
+            total_time_seconds: recipe.mode === "self" ? parseDurationSeconds(recipe.totalTime) : null,
+            pour_steps: recipe.mode === "self"
+              ? recipe.pourSteps.filter(step => step.amount.trim() || step.time.trim())
+              : [],
+            barista_user_id: linkedExpertId,
+            shop_name: recipe.mode === "barista" ? (recipe.shopName.trim() || null) : null,
+            shop_origin_id: recipe.mode === "barista" ? (recipe.shopOriginId || null) : null,
+            serving_style: recipe.mode === "barista" ? (recipe.servingStyle.trim() || null) : null,
+            notes: recipe.notes.trim() || null,
+            is_template: false,
+          }
 
-        if (isExistingRecipe) {
-          const { data: currentRecipe } = await supabase
-            .from("recipes")
-            .select("barista_user_id")
-            .eq("id", recipeState.editingRecipeId)
-            .maybeSingle()
-          if (currentRecipe?.barista_user_id !== linkedExpertId) {
+          const isExistingRecipe = uuidPattern.test(recipe.id)
+          if (isExistingRecipe) {
+            const { data: currentRecipe } = await supabase
+              .from("recipes")
+              .select("barista_user_id")
+              .eq("id", recipe.id)
+              .eq("post_id", postId)
+              .maybeSingle()
+            if (currentRecipe?.barista_user_id !== linkedExpertId) {
+              recipePayload.expert_display_status = linkedExpertId ? expertDisplayStatus : "approved"
+              recipePayload.expert_is_pinned = false
+            }
+            const { error: recipeError } = await supabase
+              .from("recipes")
+              .update(recipePayload)
+              .eq("id", recipe.id)
+              .eq("post_id", postId)
+            if (recipeError) throw recipeError
+            retainedRecipeIds.push(recipe.id)
+          } else {
             recipePayload.expert_display_status = linkedExpertId ? expertDisplayStatus : "approved"
             recipePayload.expert_is_pinned = false
+            const { data: insertedRecipe, error: recipeError } = await supabase
+              .from("recipes")
+              .insert(recipePayload)
+              .select("id")
+              .single()
+            if (recipeError) throw recipeError
+            retainedRecipeIds.push(insertedRecipe.id)
           }
-          const { error: recipeError } = await supabase
-            .from("recipes")
-            .update(recipePayload)
-            .eq("id", recipeState.editingRecipeId)
-
-          if (recipeError) throw recipeError
-        } else {
-          recipePayload.expert_display_status = linkedExpertId ? expertDisplayStatus : "approved"
-          recipePayload.expert_is_pinned = false
-          const { error: recipeError } = await supabase
-            .from("recipes")
-            .insert(recipePayload)
-
-          if (recipeError) throw recipeError
         }
+
+        let staleRecipeQuery = supabase
+          .from("recipes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+        if (retainedRecipeIds.length > 0) {
+          staleRecipeQuery = staleRecipeQuery.not("id", "in", `(${retainedRecipeIds.join(",")})`)
+        }
+        const { error: staleRecipeError } = await staleRecipeQuery
+        if (staleRecipeError) throw staleRecipeError
       }
 
       const { error: deletePivotError } = await supabase
@@ -552,47 +627,16 @@ export default function EditPostPage({ params }: Props) {
 
   const handleRecipeChange = useCallback((updatedRecipes: any[]) => {
     if (!updatedRecipes || updatedRecipes.length === 0) return
-    const r = updatedRecipes[0]
-    setSelectedGears(r.equipments?.length ? r.equipments : [{ id: "1", name: "", gearId: null }])
-
-    setRecipeState((prev) => {
-      const isModeChanged = prev.recipeMode !== r.mode
-
-      let isDataChanged = false
-      if (r.mode === "self") {
-        isDataChanged =
-          String(prev.selfRecipe.waterTemp) !== String(r.waterTemp || "") ||
-          String(prev.selfRecipe.grindSize) !== String(r.grindSize || "") ||
-          String(prev.selfRecipe.ratio) !== String(r.ratio || "")
-      } else if (r.mode === "barista") {
-        isDataChanged =
-          String(prev.baristaRecipe.baristaUserId) !== String(r.baristaUserId || "") ||
-          String(prev.baristaRecipe.shopName) !== String(r.shopName || "") ||
-          prev.baristaRecipe.shopOriginId !== (r.shopOriginId || null)
-      }
-
-      const isNotesChanged = String(prev.recipeNotes) !== String(r.notes || "")
-
-      if (isModeChanged || isDataChanged || isNotesChanged) {
-        return {
-          editingRecipeId: (r.id && r.id !== "new-recipe" && !/^\d+$/.test(String(r.id))) ? r.id : prev.editingRecipeId,
-          recipeMode: r.mode,
-          selfRecipe: {
-            dripper: "Hario V60",
-            waterTemp: r.mode === "self" ? (r.waterTemp || "") : prev.selfRecipe.waterTemp,
-            grindSize: r.mode === "self" ? (r.grindSize || "") : prev.selfRecipe.grindSize,
-            ratio: r.mode === "self" ? (r.ratio || "") : prev.selfRecipe.ratio
-          },
-          baristaRecipe: {
-            baristaUserId: r.mode === "barista" ? (r.baristaUserId || "") : prev.baristaRecipe.baristaUserId,
-            shopName: r.mode === "barista" ? (r.shopName || "") : prev.baristaRecipe.shopName,
-            shopOriginId: r.mode === "barista" ? (r.shopOriginId || null) : prev.baristaRecipe.shopOriginId
-          },
-          recipeNotes: r.notes || ""
-        }
-      }
-      return prev
-    })
+    setRecipeItems(updatedRecipes as RecipeItemData[])
+    const allGears = updatedRecipes.flatMap(recipe => recipe.equipments || [])
+    const uniqueGears = Array.from(
+      new Map(
+        allGears
+          .filter(gear => typeof gear.gearId === "number")
+          .map(gear => [gear.gearId, gear])
+      ).values()
+    )
+    setSelectedGears(uniqueGears.length > 0 ? uniqueGears : [{ id: "1", name: "", gearId: null }])
   }, [])
 
   if (!isAuthChecked) return <FormSkeleton />
@@ -672,24 +716,7 @@ export default function EditPostPage({ params }: Props) {
           <BrewRecipeForm 
             currentLang={currentLang}
             syncInitialRecipes={true}
-            initialRecipes={[{
-              id: recipeState.editingRecipeId ? String(recipeState.editingRecipeId) : "new-recipe",
-              mode: recipeState.recipeMode,
-              equipments: selectedGears,
-              waterTemp: recipeState.selfRecipe.waterTemp,
-              grindSize: recipeState.selfRecipe.grindSize,
-              ratio: recipeState.selfRecipe.ratio,
-              tdsInput: "", 
-              bloomTime: "",
-              totalTime: "",
-              pourSteps: [{ id: "1", amount: "", time: "" }],
-              notes: String(recipeState.recipeNotes),
-              baristaName: "",
-              baristaUserId: recipeState.recipeMode === "barista" ? String(recipeState.baristaRecipe.baristaUserId) : "",
-              shopName: recipeState.recipeMode === "barista" ? String(recipeState.baristaRecipe.shopName) : "",
-              shopOriginId: recipeState.recipeMode === "barista" ? recipeState.baristaRecipe.shopOriginId : null,
-              servingStyle: ""
-            }]}
+            initialRecipes={recipeItems}
             onChange={handleRecipeChange}
           />
 

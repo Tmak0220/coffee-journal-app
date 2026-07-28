@@ -40,6 +40,7 @@ const dict = {
     roaster: "ロースター",
     variety: "品種",
     process: "精製方法",
+    equipment: "使用器具",
     brewRecord: "Brew Record",
     recipe: "RECIPE",
     temp: "抽出湯温",
@@ -52,6 +53,10 @@ const dict = {
     approx: "近似値 (Approx)",
     corrected: "補正値 (Corrected)",
     notes: "抽出メモ",
+    provider: "提供者",
+    shop: "提供元",
+    servingStyle: "提供形態・メニュー",
+    processSteps: "Pour / Process Steps",
     min: "分",
     sec: "秒"
   },
@@ -60,6 +65,7 @@ const dict = {
     roaster: "Roaster",
     variety: "Variety",
     process: "Process",
+    equipment: "Equipment",
     brewRecord: "Brew Record",
     recipe: "RECIPE",
     temp: "Water Temp",
@@ -72,6 +78,10 @@ const dict = {
     approx: "Approx",
     corrected: "Corrected",
     notes: "Brew Notes",
+    provider: "Provider",
+    shop: "Shop",
+    servingStyle: "Serving Style / Menu",
+    processSteps: "Pour / Process Steps",
     min: "m ",
     sec: "s"
   }
@@ -129,6 +139,19 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
       .join(", ")
   }, [post, currentLang])
 
+  const equipmentNames = useMemo(() => {
+    if (!post || !Array.isArray(post.post_gears)) return []
+    return post.post_gears
+      .map((item: any) => {
+        const gear = item?.gears
+        if (!gear) return null
+        const name = currentLang === "ja" ? (gear.name_ja || gear.name) : gear.name
+        const brand = currentLang === "ja" ? (gear.brand_ja || gear.brand) : gear.brand
+        return [brand, name].filter(Boolean).join(" ")
+      })
+      .filter((name: string | null): name is string => Boolean(name))
+  }, [post, currentLang])
+
   const getOriginName = (origin: any, fallbackId: number | null | undefined) => {
     if (!origin) return fallbackId ? `ID: ${fallbackId}` : null
     return currentLang === "ja" 
@@ -143,32 +166,49 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
     return m === 0 ? `${s}${t.sec}` : `${m}${t.min}${s}${t.sec}`
   }
 
-  const recipe = post?.recipes
-  const hasRecipeData = !!(
-    recipe &&
-    (recipe.temperature ||
+  const recipes = (
+    Array.isArray(post?.recipes)
+      ? post.recipes
+      : post?.recipes
+        ? [post.recipes]
+        : []
+  )
+    .filter(recipe => recipe?.mode !== "none")
+    .sort((a, b) => (a?.sort_order || 0) - (b?.sort_order || 0))
+
+  const recipeDetails = recipes
+    .filter(recipe => (
+      recipe.temperature ||
       recipe.grind_size ||
       recipe.brew_ratio ||
       recipe.tds ||
       recipe.bloom_time_seconds ||
       recipe.total_time_seconds ||
-      recipe.notes)
-  )
-
-  const bloomTime = formatSeconds(recipe?.bloom_time_seconds)
-  const totalTime = formatSeconds(recipe?.total_time_seconds)
-
-  const approxEY = recipe?.extraction_yield_approx 
-    ? `${Number(recipe.extraction_yield_approx).toFixed(2)}%`
-    : recipe?.tds && recipe?.brew_ratio 
-      ? `${(recipe.tds * recipe.brew_ratio).toFixed(2)}%` 
-      : null
-
-  const correctedEY = recipe?.extraction_yield_corrected
-    ? `${Number(recipe.extraction_yield_corrected).toFixed(2)}%`
-    : recipe?.tds && recipe?.brew_ratio
-      ? `${((recipe.tds * recipe.brew_ratio) / (1 - recipe.tds / 100)).toFixed(2)}%`
-      : null
+      (Array.isArray(recipe.pour_steps) && recipe.pour_steps.length > 0) ||
+      recipe.notes ||
+      recipe.shop_name ||
+      recipe.serving_style ||
+      recipe.barista ||
+      recipe.mode === "barista"
+    ))
+    .map(recipe => ({
+      recipe,
+      providerName: currentLang === "en"
+        ? (recipe.barista?.display_name_en || recipe.barista?.display_name || recipe.barista?.username || null)
+        : (recipe.barista?.display_name || recipe.barista?.username || null),
+      bloomTime: formatSeconds(recipe.bloom_time_seconds),
+      totalTime: formatSeconds(recipe.total_time_seconds),
+      approxEY: recipe.extraction_yield_approx
+        ? `${Number(recipe.extraction_yield_approx).toFixed(2)}%`
+        : recipe.tds && recipe.brew_ratio
+          ? `${(recipe.tds * recipe.brew_ratio).toFixed(2)}%`
+          : null,
+      correctedEY: recipe.extraction_yield_corrected
+        ? `${Number(recipe.extraction_yield_corrected).toFixed(2)}%`
+        : recipe.tds && recipe.brew_ratio
+          ? `${((recipe.tds * recipe.brew_ratio) / (1 - recipe.tds / 100)).toFixed(2)}%`
+          : null,
+    }))
 
   const sourceName = getOriginName(post?.source_origin, post?.source_origin_id)
   const marketName = getOriginName(post?.market_origin, post?.market_origin_id)
@@ -306,87 +346,124 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
             </div>
           )}
 
+          {equipmentNames.length > 0 && (
+            <div className="space-y-2 sm:col-span-2">
+              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">{t.equipment}</span>
+              <p className="font-bold text-neutral-800 text-[14px] leading-snug break-words">
+                {equipmentNames.join(", ")}
+              </p>
+            </div>
+          )}
+
         </div>
       </div>
 
       {/* 5. 抽出レシピ領域 */}
-      {hasRecipeData && recipe && (
-        <div className="border border-neutral-200/80 rounded-3xl p-6 sm:p-8 bg-neutral-50/40 space-y-6 max-w-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)]">
-          <div className="flex items-center justify-between border-b border-neutral-200/60 pb-4">
-            <h3 className="text-[10px] font-bold tracking-[0.2em] text-neutral-400 uppercase">{t.brewRecord}</h3>
-            <span className="text-[9px] tracking-widest px-2.5 py-1 bg-white border border-neutral-200 text-neutral-500 rounded-md font-bold uppercase">
-              {t.recipe}
-            </span>
-          </div>
+      {recipeDetails.length > 0 && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {recipeDetails.map(({ recipe, providerName, bloomTime, totalTime, approxEY, correctedEY }, index) => (
+            <div
+              key={recipe.id || index}
+              className="border border-neutral-200/80 rounded-3xl p-6 sm:p-8 bg-neutral-50/40 space-y-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)]"
+            >
+              <div className="flex items-center justify-between border-b border-neutral-200/60 pb-4">
+                <h3 className="text-[10px] font-bold tracking-[0.2em] text-neutral-400 uppercase">
+                  {t.brewRecord}{recipeDetails.length > 1 ? ` ${index + 1}` : ""}
+                </h3>
+                <span className="text-[9px] tracking-widest px-2.5 py-1 bg-white border border-neutral-200 text-neutral-500 rounded-md font-bold uppercase">
+                  {t.recipe}
+                </span>
+              </div>
 
-          <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-[13px]">
-            {recipe.temperature && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.temp}</span>
-                <p className="font-bold text-neutral-900 text-base">{recipe.temperature}<span className="text-xs ml-0.5 font-normal text-neutral-500">°C</span></p>
-              </div>
-            )}
-            {recipe.grind_size && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.grind}</span>
-                <p className="font-bold text-neutral-900 text-[15px] break-words">{recipe.grind_size}</p>
-              </div>
-            )}
-            {recipe.brew_ratio && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.brewRatio}</span>
-                <p className="font-bold text-neutral-900 text-base">1 : {recipe.brew_ratio}</p>
-              </div>
-            )}
-            {recipe.tds && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.tds}</span>
-                <p className="font-bold text-neutral-900 text-base">{recipe.tds}<span className="text-xs ml-0.5 font-normal text-neutral-500">%</span></p>
-              </div>
-            )}
-            {bloomTime && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.bloomTime}</span>
-                <p className="font-bold text-neutral-900 text-[15px]">{bloomTime}</p>
-              </div>
-            )}
-            {totalTime && (
-              <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">{t.totalTime}</span>
-                <p className="font-bold text-neutral-900 text-[15px]">{totalTime}</p>
-              </div>
-            )}
-          </div>
-
-          {/* EY (収率) */}
-          {(approxEY || correctedEY) && (
-            <div className="bg-white border border-neutral-200/60 rounded-2xl p-4 space-y-3 shadow-3xs">
-              <span className="text-[10px] text-neutral-400 font-bold tracking-[0.1em] block">{t.ey}</span>
-              <div className="grid grid-cols-2 gap-4 text-left">
-                {approxEY && (
-                  <div>
-                    <div className="text-[10px] text-neutral-400 font-medium">{t.approx}</div>
-                    <div className="text-sm font-bold mt-0.5 text-neutral-800">{approxEY}</div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-[13px]">
+                {recipe.temperature != null && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.temp}</span>
+                    <p className="font-bold text-neutral-900 text-base">{recipe.temperature}<span className="text-xs ml-0.5 font-normal text-neutral-500">°C</span></p>
                   </div>
                 )}
-                {correctedEY && (
-                  <div className="border-l border-neutral-100 pl-4">
-                    <div className="text-[10px] text-neutral-400 font-medium">{t.corrected}</div>
-                    <div className="text-sm font-bold mt-0.5 text-neutral-900">{correctedEY}</div>
+                {recipe.grind_size && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.grind}</span>
+                    <p className="font-bold text-neutral-900 text-[15px] break-words">{recipe.grind_size}</p>
+                  </div>
+                )}
+                {recipe.brew_ratio != null && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.brewRatio}</span>
+                    <p className="font-bold text-neutral-900 text-base">1 : {recipe.brew_ratio}</p>
+                  </div>
+                )}
+                {recipe.tds != null && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.tds}</span>
+                    <p className="font-bold text-neutral-900 text-base">{recipe.tds}<span className="text-xs ml-0.5 font-normal text-neutral-500">%</span></p>
+                  </div>
+                )}
+                {bloomTime && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.bloomTime}</span>
+                    <p className="font-bold text-neutral-900 text-[15px]">{bloomTime}</p>
+                  </div>
+                )}
+                {totalTime && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.totalTime}</span>
+                    <p className="font-bold text-neutral-900 text-[15px]">{totalTime}</p>
+                  </div>
+                )}
+                {providerName && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.provider}</span>
+                    <p className="font-bold text-neutral-900 text-[15px]">{providerName}</p>
+                  </div>
+                )}
+                {recipe.shop_name && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.shop}</span>
+                    <p className="font-bold text-neutral-900 text-[15px]">{recipe.shop_name}</p>
+                  </div>
+                )}
+                {recipe.serving_style && (
+                  <div className="space-y-1">
+                    <span className="text-neutral-400 font-medium">{t.servingStyle}</span>
+                    <p className="font-bold text-neutral-900 text-[15px]">{recipe.serving_style}</p>
                   </div>
                 )}
               </div>
+
+              {(approxEY || correctedEY) && (
+                <div className="bg-white border border-neutral-200/60 rounded-2xl p-4 space-y-3 shadow-3xs">
+                  <span className="text-[10px] text-neutral-400 font-bold tracking-[0.1em] block">{t.ey}</span>
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    {approxEY && <div><div className="text-[10px] text-neutral-400 font-medium">{t.approx}</div><div className="text-sm font-bold mt-0.5 text-neutral-800">{approxEY}</div></div>}
+                    {correctedEY && <div className="border-l border-neutral-100 pl-4"><div className="text-[10px] text-neutral-400 font-medium">{t.corrected}</div><div className="text-sm font-bold mt-0.5 text-neutral-900">{correctedEY}</div></div>}
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(recipe.pour_steps) && recipe.pour_steps.length > 0 && (
+                <div className="text-[13px] pt-4 border-t border-neutral-200/60 space-y-3">
+                  <span className="text-neutral-400 font-medium block">{t.processSteps}</span>
+                  <div className="space-y-2">
+                    {recipe.pour_steps.map((step: any, stepIndex: number) => (
+                      <div key={step.id || stepIndex} className="rounded-xl border border-neutral-200/60 bg-white px-4 py-3 text-neutral-700">
+                        <span className="mr-3 text-[10px] font-bold text-neutral-400">{stepIndex + 1}</span>
+                        {[step.time, step.amount, step.description || step.note].filter(Boolean).join(" / ")}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recipe.notes && (
+                <div className="text-[13px] pt-4 border-t border-neutral-200/60 space-y-1.5">
+                  <span className="text-neutral-400 font-medium block">{t.notes}</span>
+                  <p className="text-neutral-600 leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-neutral-200/60 shadow-3xs">{recipe.notes}</p>
+                </div>
+              )}
             </div>
-          )}
-          
-          {recipe.notes && (
-            <div className="text-[13px] pt-4 border-t border-neutral-200/60 space-y-1.5">
-              <span className="text-neutral-400 font-medium block">{t.notes}</span>
-              <p className="text-neutral-600 leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-neutral-200/60 shadow-3xs">
-                {recipe.notes}
-              </p>
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>

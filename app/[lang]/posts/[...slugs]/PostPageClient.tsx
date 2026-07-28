@@ -214,7 +214,26 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
           return
         }
         
-        currentPost = rawPost as unknown as Post
+        const providerIds = Array.from(new Set(
+          (rawPost.recipes || [])
+            .map((recipe: any) => recipe.barista_user_id)
+            .filter((providerId: unknown): providerId is string => typeof providerId === "string" && providerId.length > 0)
+        ))
+        const { data: providers } = providerIds.length > 0
+          ? await supabase
+              .from("users")
+              .select("id, username, display_name, display_name_en")
+              .in("id", providerIds)
+          : { data: [] }
+        const providerMap = new Map((providers || []).map(provider => [provider.id, provider]))
+
+        currentPost = {
+          ...rawPost,
+          recipes: (rawPost.recipes || []).map((recipe: any) => ({
+            ...recipe,
+            barista: recipe.barista_user_id ? providerMap.get(recipe.barista_user_id) || null : null,
+          })),
+        } as unknown as Post
         setPost(currentPost)
       }
 

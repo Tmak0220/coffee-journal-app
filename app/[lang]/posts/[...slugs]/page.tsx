@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase-server"
 import PostPageClient from "./PostPageClient"
 
@@ -98,7 +99,27 @@ async function getPostDetail(actualId: string) {
     if (!canViewMembersPost) return null
   }
 
-  return post
+  const providerIds = Array.from(new Set(
+    (post.recipes || [])
+      .map((recipe: any) => recipe.barista_user_id)
+      .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+  ))
+
+  if (providerIds.length === 0) return post
+
+  const { data: providers } = await supabase
+    .from("users")
+    .select("id, username, display_name, display_name_en")
+    .in("id", providerIds)
+
+  const providerMap = new Map((providers || []).map(provider => [provider.id, provider]))
+  return {
+    ...post,
+    recipes: (post.recipes || []).map((recipe: any) => ({
+      ...recipe,
+      barista: recipe.barista_user_id ? providerMap.get(recipe.barista_user_id) || null : null,
+    })),
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -126,9 +147,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { slugs, lang } = await params
-  const { actualId, marketSlug, sourceSlug } = parseSlugs(slugs)
+  const { actualId } = parseSlugs(slugs)
 
   const post = await getPostDetail(actualId)
+  const marketSlug = post?.market_origin?.slug || null
+  const sourceSlug = post?.source_origin?.slug || null
+  const gearSlug = post?.type === "gear_review"
+    ? post.post_gears?.find((item: any) => item?.gears?.slug)?.gears?.slug || null
+    : null
+
+  if (post) {
+    const canonicalSegments = (
+      post.type === "gear_review"
+        ? [gearSlug, actualId]
+        : [marketSlug, sourceSlug, actualId]
+    ).filter(
+      (segment): segment is string => Boolean(segment)
+    )
+    if (slugs.join("/") !== canonicalSegments.join("/")) {
+      redirect(`/${lang}/posts/${canonicalSegments.map(encodeURIComponent).join("/")}`)
+    }
+  }
 
   return (
     <PostPageClient 

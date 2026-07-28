@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import RecipeItemForm from "./RecipeItemForm"
-import { supabase } from "@/lib/supabase" // 💡 追加: バリスタ検索用
+import { supabase } from "@/lib/supabase"
 import { useAppPopup } from "@/context/AppPopupContext"
 
 export type RecipeMode = "self" | "barista" | "none"
@@ -28,7 +28,6 @@ export type GearMasterItem = {
   search_keywords: string | null
 }
 
-// 💡 データベースと連携できるよう baristaUserId を追加
 export type RecipeItemData = {
   id: string
   mode: RecipeMode
@@ -42,7 +41,8 @@ export type RecipeItemData = {
   pourSteps: PourStep[]
   notes: string
   baristaName: string
-  baristaUserId: string // 💡 追加: 選択されたエキスパートの user_id を保持する
+  baristaUserId: string // 💡 選択されたエキスパートの user_id
+  baristaUsername?: string // 💡 選択されたエキスパートの URL スラッグ (username)
   shopName: string
   shopOriginId?: number | null
   servingStyle: string
@@ -84,7 +84,8 @@ export default function BrewRecipeForm({
       pourSteps: [{ id: "1", amount: "", time: "" }],
       notes: "",
       baristaName: "",
-      baristaUserId: "", // 💡 初期化
+      baristaUserId: "",
+      baristaUsername: "",
       shopName: "",
       shopOriginId: null,
       servingStyle: ""
@@ -92,11 +93,12 @@ export default function BrewRecipeForm({
   })
 
   const [gearOptions, setGearOptions] = useState<GearMasterItem[]>(gears || [])
+  const initialRecipesSignature = JSON.stringify(initialRecipes || [])
 
   useEffect(() => {
     if (!syncInitialRecipes || !initialRecipes?.length) return
     setRecipes(current => JSON.stringify(current) === JSON.stringify(initialRecipes) ? current : initialRecipes)
-  }, [initialRecipes, syncInitialRecipes])
+  }, [initialRecipesSignature, syncInitialRecipes])
 
   useEffect(() => {
     if (gears) {
@@ -117,11 +119,23 @@ export default function BrewRecipeForm({
   }, [gears])
 
   useEffect(() => {
-    if (onChange) {
-      const activeRecipes = recipes.filter(r => r.mode !== "none")
-      onChange(activeRecipes)
+    if (!onChange) return
+
+    // When an edit screen has just loaded its DB rows, the effect above still
+    // sees the form's previous default value during the same effect cycle.
+    // Never send that stale value back to the parent before hydration finishes.
+    if (
+      syncInitialRecipes &&
+      initialRecipes?.length &&
+      JSON.stringify(recipes) !== JSON.stringify(initialRecipes)
+    ) {
+      return
     }
-  }, [recipes, onChange])
+
+    // "none" is also a meaningful selection. The parent needs it to avoid
+    // accidentally saving the previously selected recipe mode.
+    onChange(recipes)
+  }, [recipes, onChange, initialRecipesSignature, syncInitialRecipes])
 
   const t = {
     ja: {
@@ -253,7 +267,7 @@ export default function BrewRecipeForm({
   }[currentLang]
 
   const updateRecipe = (id: string, updatedFields: Partial<RecipeItemData>) => {
-    setRecipes(recipes.map(r => (r.id === id ? { ...r, ...updatedFields } : r)))
+    setRecipes(prev => prev.map(r => (r.id === id ? { ...r, ...updatedFields } : r)))
   }
 
   const handleRemoveRecipe = (id: string) => {
@@ -309,7 +323,8 @@ export default function BrewRecipeForm({
       pourSteps: [{ id: "1", amount: "", time: "" }],
       notes: "",
       baristaName: "",
-      baristaUserId: "", // 💡 初期化
+      baristaUserId: "",
+      baristaUsername: "",
       shopName: "",
       shopOriginId: null,
       servingStyle: ""

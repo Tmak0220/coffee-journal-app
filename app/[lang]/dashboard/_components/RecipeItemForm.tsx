@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { supabase } from "@/lib/supabase" // 💡 追加: expertsの検索用
+import { useState } from "react"
+import { supabase } from "@/lib/supabase"
 import { RecipeItemData, RecipeMode, GearMasterItem } from "./BrewRecipeForm"
 import MasterRequestButton from "./MasterRequestButton"
 
@@ -18,15 +17,14 @@ type RecipeItemFormProps = {
   onSaveTemplate: (recipe: RecipeItemData, templateName: string) => void
 }
 
-// 💡 バリスタ検索用の型定義
 type ExpertSuggestItem = {
-  user_id: string
-  display_name: string
+  id: string
+  username: string | null
+  display_name: string | null
   display_name_en: string | null
-  current_store: string | null
-  avatar_url?: string | null
-  // 💡 DBから取得するか、フロントで生成する検索用キーワード配列
-  search_keywords?: string[] 
+  experts: {
+    current_store: string | null
+  } | null
 }
 
 type MarketSuggestItem = {
@@ -51,7 +49,6 @@ export default function RecipeItemForm({
   const [templateNameInput, setTemplateNameInput] = useState("")
   const [activeEquipmentField, setActiveEquipmentField] = useState<string | null>(null)
 
-  // 💡 バリスタサジェスト用のローカルステート
   const [baristaSuggestions, setBaristaSuggestions] = useState<ExpertSuggestItem[]>([])
   const [showBaristaSuggest, setShowBaristaSuggest] = useState(false)
   const [marketSuggestions, setMarketSuggestions] = useState<MarketSuggestItem[]>([])
@@ -85,30 +82,56 @@ export default function RecipeItemForm({
     })
   }
 
-  // 💡 バリスタ（Experts）用の検索ロジック
-  // 入力された文字を元に、DB側、または取得後のキーワードマッチングでサジェストを展開します
+  // バリスタ検索（experts!user_id!inner を明示して多重FKエラーを回避）
   const handleBaristaSearch = async (inputValue: string) => {
-    onUpdate(recipe.id, { baristaName: inputValue, baristaUserId: "" }) // 手入力時はIDをリセット
+    onUpdate(recipe.id, { 
+      baristaName: inputValue, 
+      baristaUserId: "",
+      baristaUsername: "" 
+    })
 
-    const cleanInput = inputValue.trim().toLowerCase()
+    const cleanInput = inputValue.replace(/[,()%\\]/g, "").trim()
     if (!cleanInput) {
       setBaristaSuggestions([])
+      setShowBaristaSuggest(false)
       return
     }
 
-    // 公開かつ承認済みのプロを対象に検索
     const { data, error } = await supabase
-      .from("experts")
-      .select("user_id, display_name, display_name_en, current_store")
-      .eq("is_approved", true)
-      .eq("is_public", true)
-      // display_name または display_name_en に部分一致、もしくはDB側に関連キーワードカラムがあればそれを利用
-      .or(`display_name.ilike.%${cleanInput}%,display_name_en.ilike.%${cleanInput}%,current_store.ilike.%${cleanInput}%`)
+      .from("users")
+      .select(`
+        id,
+        username,
+        display_name,
+        display_name_en,
+        experts!user_id!inner (
+          current_store,
+          is_approved,
+          is_public
+        )
+      `)
+      .eq("experts.is_approved", true)
+      .eq("experts.is_public", true)
+      .or(`display_name.ilike.%${cleanInput}%,display_name_en.ilike.%${cleanInput}%,username.ilike.%${cleanInput}%`)
       .limit(6)
 
-    if (!error && data) {
-      setBaristaSuggestions(data as ExpertSuggestItem[])
+    if (error) {
+      console.error("Barista search error:", error)
+      setBaristaSuggestions([])
+      setShowBaristaSuggest(false)
+      return
+    }
+
+    if (data && data.length > 0) {
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        experts: Array.isArray(item.experts) ? item.experts[0] : item.experts
+      }))
+      setBaristaSuggestions(formattedData as ExpertSuggestItem[])
       setShowBaristaSuggest(true)
+    } else {
+      setBaristaSuggestions([])
+      setShowBaristaSuggest(false)
     }
   }
 
@@ -128,12 +151,12 @@ export default function RecipeItemForm({
       .ilike("search_keywords", `%${query}%`)
       .limit(6)
 
-    if (error) {
-      console.error("Failed to search market origins:", error)
+    if (error || !data || data.length === 0) {
       setMarketSuggestions([])
+      setShowMarketSuggest(false)
       return
     }
-    setMarketSuggestions((data || []) as MarketSuggestItem[])
+    setMarketSuggestions(data as MarketSuggestItem[])
     setShowMarketSuggest(true)
   }
 
@@ -364,10 +387,8 @@ export default function RecipeItemForm({
             </div>
           </div>
 
-          {/* 比率・TDSのコンテナ（高さズレ対策） */}
+          {/* 比率・TDSのコンテナ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 border-t border-b border-neutral-100 py-6 items-start">
-            
-            {/* Brew Ratio 側のブロック */}
             <div className="flex flex-col justify-between space-y-3">
               <div className="min-h-[52px] flex flex-col justify-start">
                 <label className={labelStyle}>{t.labelRatio}</label>
@@ -385,7 +406,6 @@ export default function RecipeItemForm({
               </div>
             </div>
 
-            {/* TDS 側のブロック */}
             <div className="flex flex-col justify-between space-y-3">
               <div className="min-h-[52px] flex flex-col justify-start">
                 <label className={labelStyle}>{t.labelTds}</label>
@@ -544,7 +564,7 @@ export default function RecipeItemForm({
         <div className="space-y-8 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             
-            {/* 💡 修正: バリスタ名入力フィールド（サジェスト機能付きに完全拡張） */}
+            {/* バリスタ名入力フィールド */}
             <div className="space-y-3 relative">
               <div>
                 <label className={labelStyle}>{t.labelBaristaName}</label>
@@ -556,30 +576,55 @@ export default function RecipeItemForm({
                   type="text"
                   placeholder={t.placeholderBaristaName}
                   value={recipe.baristaName || ""}
-                  onFocus={() => recipe.baristaName && setShowBaristaSuggest(true)}
+                  onFocus={() => {
+                    if (recipe.baristaName && baristaSuggestions.length > 0) {
+                      setShowBaristaSuggest(true)
+                    } else if (recipe.baristaName) {
+                      void handleBaristaSearch(recipe.baristaName)
+                    }
+                  }}
                   onBlur={() => {
-                    // クリックイベントの伝播が阻害されないよう少しディレイを入れる
                     setTimeout(() => setShowBaristaSuggest(false), 200)
                   }}
-                  onChange={(e) => handleBaristaSearch(e.target.value)}
+                  onChange={(e) => void handleBaristaSearch(e.target.value)}
                   className={inputStyle}
                 />
 
-                {/* 💡 器具と同じスタイリング構造のサジェストボックス */}
+                {/* 紐付けステータスバッジ */}
+                {(recipe.baristaUserId || recipe.baristaUsername) && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                      ✓ Verified Expert
+                    </span>
+                    {recipe.baristaUsername && (
+                      <span className="text-[11px] text-neutral-400 font-mono">
+                        (@{recipe.baristaUsername})
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* サジェストリスト */}
                 {showBaristaSuggest && baristaSuggestions.length > 0 && (
                   <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-white border border-[#e5e5e5] rounded-[10px] shadow-xl z-50 p-1 max-h-52 overflow-y-auto animate-fade-in">
-                    {baristaSuggestions.map((expert) => {
-                      const displayName = currentLang === "en" ? (expert.display_name_en || expert.display_name) : expert.display_name
+                    {baristaSuggestions.map((user) => {
+                      // 💡 名前が null/空文字の時のフォールバック指定
+                      const nameJa = user.display_name || user.username || "Unknown Barista"
+                      const nameEn = user.display_name_en || user.display_name || user.username || "Unknown Barista"
+                      const displayName = currentLang === "en" ? nameEn : nameJa
+
+                      const currentStore = user.experts?.current_store
+
                       return (
                         <button
-                          key={expert.user_id}
+                          key={user.id}
                           type="button"
                           onMouseDown={() => {
-                            // 💡 選択時に実際に入力フィールドに表示されるのは display_name
                             onUpdate(recipe.id, { 
                               baristaName: displayName, 
-                              baristaUserId: expert.user_id, // 裏で一意のIDを紐付け
-                              shopName: expert.current_store || recipe.shopName // 店舗名も自動セット
+                              baristaUserId: user.id,
+                              baristaUsername: user.username || "",
+                              shopName: currentStore || recipe.shopName
                             })
                             setShowBaristaSuggest(false)
                           }}
@@ -587,11 +632,18 @@ export default function RecipeItemForm({
                         >
                           <div className="flex flex-col">
                             <span className="font-semibold text-[#161616]">{displayName}</span>
-                            {expert.current_store && (
-                              <span className="text-[11px] text-[#8e8e8e] mt-0.5">{expert.current_store}</span>
-                            )}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {user.username && (
+                                <span className="text-[11px] text-[#8e8e8e]">@{user.username}</span>
+                              )}
+                              {currentStore && (
+                                <span className="text-[11px] text-[#8e8e8e] truncate max-w-[150px]">
+                                  • {currentStore}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10px] font-mono text-[#8e8e8e] border border-neutral-200 rounded px-1.5 py-0.5 bg-neutral-50 uppercase tracking-wider scale-90">
+                          <span className="text-[10px] font-mono text-[#8e8e8e] border border-neutral-200 rounded px-1.5 py-0.5 bg-neutral-50 uppercase tracking-wider scale-90 shrink-0">
                             Verified
                           </span>
                         </button>

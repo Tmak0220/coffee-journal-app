@@ -66,6 +66,31 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
 // UUIDチェック用の正規表現
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+function parseDurationSeconds(value: unknown): number | null {
+  const text = String(value ?? "").trim()
+  if (!text) return null
+
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    return Math.round(Number(text))
+  }
+
+  const colonMatch = text.match(/^(\d+):(\d{1,2})$/)
+  if (colonMatch) {
+    return Number(colonMatch[1]) * 60 + Number(colonMatch[2])
+  }
+
+  const minutes = text.match(/(\d+(?:\.\d+)?)\s*(?:分|min(?:ute)?s?)/i)
+  const seconds = text.match(/(\d+(?:\.\d+)?)\s*(?:秒|sec(?:ond)?s?|s)\b/i)
+  if (minutes || seconds) {
+    return Math.round(
+      Number(minutes?.[1] || 0) * 60 +
+      Number(seconds?.[1] || 0)
+    )
+  }
+
+  return null
+}
+
 async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
   const [{ data: post, error: postError }, { data: recipeRows, error: recipeError }] = await Promise.all([
     supabaseAdmin
@@ -225,7 +250,7 @@ export async function createPost(input: any, userId: string) {
     }
 
     if (input.recipe_data && Array.isArray(input.recipe_data)) {
-      for (const recipe of input.recipe_data) {
+      for (const [recipeIndex, recipe] of input.recipe_data.entries()) {
         if (recipe.mode === "none") continue
 
         let expertDisplayStatus: "approved" | "pending" = "approved"
@@ -240,21 +265,28 @@ export async function createPost(input: any, userId: string) {
 
         const recipePayload = {
           post_id: post.id,
+          user_id: currentUserId,
+          bean_name: input.title.trim(),
+          is_template: false,
+          sort_order: recipeIndex,
           mode: recipe.mode || "none",
           temperature: recipe.waterTemp ? parseFloat(recipe.waterTemp) : null,
           grind_size: recipe.grindSize || null,
           brew_ratio: recipe.ratio ? parseFloat(recipe.ratio) : null,
           tds: recipe.tdsInput ? parseFloat(recipe.tdsInput) : null,
-          bloom_time: recipe.bloomTime || null,
-          total_time: recipe.totalTime || null,
+          bloom_time_seconds: parseDurationSeconds(recipe.bloomTime),
+          total_time_seconds: parseDurationSeconds(recipe.totalTime),
+          pour_steps: Array.isArray(recipe.pourSteps)
+            ? recipe.pourSteps.filter((step: any) => step?.amount || step?.time)
+            : [],
           notes: recipe.notes || null,
           shop_name: recipe.shopName || null,
           shop_origin_id: recipe.shopOriginId || null,
           serving_style: recipe.servingStyle || null,
-          ...(recipe.baristaName ? { barista_name: recipe.baristaName } : {}),
           ...(recipe.baristaUserId ? {
             barista_user_id: recipe.baristaUserId,
             expert_display_status: expertDisplayStatus,
+            expert_is_pinned: false,
           } : {})
         }
 
@@ -264,7 +296,8 @@ export async function createPost(input: any, userId: string) {
 
         if (recipeError) {
           console.error("Recipe insert error:", recipeError.message)
-          continue
+          await supabaseAdmin.from("posts").delete().eq("id", post.id)
+          throw new Error(`抽出レシピの保存に失敗しました: ${recipeError.message}`)
         }
       }
     }

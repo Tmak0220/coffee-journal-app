@@ -452,6 +452,7 @@ export default function UnifiedDashboard({
   const [userProfileComplete, setUserProfileComplete] = useState(Boolean(profile.username && profile.display_name))
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [proPostRefreshKey, setProPostRefreshKey] = useState(0)
+  const [userPostRefreshKey, setUserPostRefreshKey] = useState(0)
 
   const isAdmin = profile.role === "admin"
   const isPremium = profile.membership_tier !== "free" || isAdmin
@@ -678,7 +679,12 @@ export default function UnifiedDashboard({
                       <CoffeeAnalyticsCharts userId={profile.id} lang={formLanguage} />
                     </div>
                   )}
-                  <div className="w-full"><CreateLogForm onLogCreated={() => window.location.reload()} lang={formLanguage} /></div>
+                  <div className="w-full">
+                    <CreateLogForm
+                      onLogCreated={() => setUserPostRefreshKey((key) => key + 1)}
+                      lang={formLanguage}
+                    />
+                  </div>
                 </div>
 
                 {/* ⚙️ 器具レビュー投稿フォーム */}
@@ -695,7 +701,11 @@ export default function UnifiedDashboard({
                 <div className="border-t border-neutral-200 pt-10 w-full">
                   <p className="text-sm tracking-[0.14em] text-neutral-400 font-medium uppercase mb-2">MY ARTICLES</p>
                   <h3 className="text-lg font-normal mb-6">{t.articlesTitle}</h3>
-                  <PostList userId={profile.id} lang={formLanguage} />
+                  <PostList
+                    key={`${formLanguage}-${userPostRefreshKey}`}
+                    userId={profile.id}
+                    lang={formLanguage}
+                  />
                 </div>
                   </>
                 ) : (

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 
 import HeroImageUploader from "./HeroImageUploader"
 import CoffeeBeansInfoForm, { OriginSuggestion } from "./CoffeeBeansInfoForm"
-import BrewRecipeForm from "./BrewRecipeForm"
+import BrewRecipeForm, { RecipeItemData } from "./BrewRecipeForm"
 import TasteTagsForm from "./TasteTagsForm"
 
 type Props = { 
@@ -82,11 +82,24 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       dripper: "Hario V60", 
       waterTemp: "", 
       grindSize: "", 
-      ratio: "" 
+      ratio: "",
+      tdsInput: "",
+      bloomTime: "",
+      totalTime: "",
+      pourSteps: [{ id: "1", amount: "", time: "" }]
     },
-    baristaRecipe: { baristaName: "", baristaUserId: "", shopName: "", shopOriginId: null as number | null },
+    baristaRecipe: {
+      baristaName: "",
+      baristaUserId: "",
+      baristaUsername: "",
+      shopName: "",
+      shopOriginId: null as number | null,
+      servingStyle: ""
+    },
     recipeNotes: ""
   })
+  const [recipeItems, setRecipeItems] = useState<RecipeItemData[]>([])
+  const [recipeFormResetKey, setRecipeFormResetKey] = useState(0)
   
   const [selectedTasteIds, setSelectedTasteIds] = useState<string[]>([])
   const [selectedGearIds, setSelectedGearIds] = useState<number[]>([])
@@ -109,52 +122,36 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
 
   const handleRecipeChange = useCallback((updatedRecipes: any[]) => {
     if (!updatedRecipes || updatedRecipes.length === 0) return
+    setRecipeItems(updatedRecipes as RecipeItemData[])
     const r = updatedRecipes[0]
     setSelectedGearIds(Array.from(new Set(
-      (r.equipments || []).map((item: any) => item.gearId).filter((id: unknown): id is number => typeof id === "number")
+      updatedRecipes
+        .flatMap((recipe: any) => recipe.equipments || [])
+        .map((item: any) => item.gearId)
+        .filter((id: unknown): id is number => typeof id === "number")
     )))
 
-    setRecipeState((prev) => {
-      const isModeChanged = prev.recipeMode !== r.mode
-
-      const isSelfDataChanged = prev.recipeMode === "self" && (
-        String(prev.selfRecipe.waterTemp) !== String(r.waterTemp || "") ||
-        String(prev.selfRecipe.grindSize) !== String(r.grindSize || "") ||
-        String(prev.selfRecipe.ratio) !== String(r.ratio || "") ||
-        String(prev.recipeNotes) !== String(r.notes || "")
-      )
-
-      const isBaristaDataChanged = prev.recipeMode === "barista" && (
-        String(prev.baristaRecipe.baristaName) !== String(r.baristaName || "") ||
-        String(prev.baristaRecipe.baristaUserId) !== String(r.baristaUserId || "") ||
-        String(prev.baristaRecipe.shopName) !== String(r.shopName || "") ||
-        prev.baristaRecipe.shopOriginId !== (r.shopOriginId || null) ||
-        String(prev.recipeNotes) !== String(r.notes || "")
-      )
-
-      const isNoneDataChanged = prev.recipeMode === "none" && (
-        String(prev.recipeNotes) !== String(r.notes || "")
-      )
-
-      if (isModeChanged || isSelfDataChanged || isBaristaDataChanged || isNoneDataChanged) {
-        return {
-          recipeMode: r.mode,
-          selfRecipe: {
-            dripper: "Hario V60",
-            waterTemp: r.waterTemp || "",
-            grindSize: r.grindSize || "",
-            ratio: r.ratio || "" 
-          },
-          baristaRecipe: {
-            baristaName: r.baristaName || "",
-            baristaUserId: r.baristaUserId || "",
-            shopName: r.shopName || "",
-            shopOriginId: r.shopOriginId || null
-          },
-          recipeNotes: r.notes || ""
-        }
-      }
-      return prev
+    setRecipeState({
+      recipeMode: r.mode,
+      selfRecipe: {
+        dripper: "Hario V60",
+        waterTemp: r.waterTemp || "",
+        grindSize: r.grindSize || "",
+        ratio: r.ratio || "",
+        tdsInput: r.tdsInput || "",
+        bloomTime: r.bloomTime || "",
+        totalTime: r.totalTime || "",
+        pourSteps: Array.isArray(r.pourSteps) ? r.pourSteps : []
+      },
+      baristaRecipe: {
+        baristaName: r.baristaName || "",
+        baristaUserId: r.baristaUserId || "",
+        baristaUsername: r.baristaUsername || "",
+        shopName: r.shopName || "",
+        shopOriginId: r.shopOriginId || null,
+        servingStyle: r.servingStyle || ""
+      },
+      recipeNotes: r.notes || ""
     })
   }, [])
 
@@ -223,33 +220,25 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       const finalSourceId = await getOrCreateOriginId(selectedSource, beanData.source, "source")
       const finalMarketId = await getOrCreateOriginId(selectedMarket, beanData.market, "market")
 
-      let recipeObj: any = { mode: recipeState.recipeMode, gearIds: selectedGearIds }
-
-      if (recipeState.recipeMode === "self") {
-        recipeObj = {
-          ...recipeObj,
-          dripper: recipeState.selfRecipe.dripper.trim(),
-          waterTemp: recipeState.selfRecipe.waterTemp ? String(recipeState.selfRecipe.waterTemp) : "",
-          grindSize: recipeState.selfRecipe.grindSize.trim(),
-          ratio: recipeState.selfRecipe.ratio.trim(),
-          tdsInput: "", 
-          bloomTime: "",
-          totalTime: "",
-          notes: recipeState.recipeNotes.trim()
-        }
-      } else if (recipeState.recipeMode === "barista") {
-        recipeObj = {
-          ...recipeObj,
-          baristaName: recipeState.baristaRecipe.baristaName.trim(),
-          baristaUserId: recipeState.baristaRecipe.baristaUserId,
-          shopName: recipeState.baristaRecipe.shopName.trim(),
-          shopOriginId: recipeState.baristaRecipe.shopOriginId,
-          servingStyle: "",
-          notes: recipeState.recipeNotes.trim()
-        }
-      } else {
-        recipeObj = { mode: "none" }
-      }
+      const recipePayloads = recipeItems.map((recipe) => ({
+        mode: recipe.mode,
+        gearIds: (recipe.equipments || [])
+          .map((item) => item.gearId)
+          .filter((id): id is number => typeof id === "number"),
+        waterTemp: recipe.waterTemp.trim(),
+        grindSize: recipe.grindSize.trim(),
+        ratio: recipe.ratio.trim(),
+        tdsInput: recipe.tdsInput.trim(),
+        bloomTime: recipe.bloomTime.trim(),
+        totalTime: recipe.totalTime.trim(),
+        pourSteps: recipe.pourSteps,
+        notes: recipe.notes.trim(),
+        baristaName: recipe.baristaName.trim(),
+        baristaUserId: recipe.baristaUserId,
+        shopName: recipe.shopName.trim(),
+        shopOriginId: recipe.shopOriginId || null,
+        servingStyle: recipe.servingStyle.trim(),
+      }))
 
       const { createPost } = await import("@/app/actions/createPost")
 
@@ -262,7 +251,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         tastes: tastes.trim(),
         description: description.trim() || null,
         flavor_tags: selectedTasteIds,
-        recipe_data: [recipeObj], 
+        recipe_data: recipePayloads,
         imageUrls: imageUrls,
         visibility: visibility,
         lang: currentLang
@@ -279,6 +268,8 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       setDescription("")
       setSelectedTasteIds([])
       setSelectedGearIds([])
+      setRecipeItems([])
+      setRecipeFormResetKey((current) => current + 1)
       setImageUrls([])
       setVisibility("draft")
       
@@ -297,9 +288,20 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
           dripper: "Hario V60", 
           waterTemp: "", 
           grindSize: "", 
-          ratio: "" 
+          ratio: "",
+          tdsInput: "",
+          bloomTime: "",
+          totalTime: "",
+          pourSteps: [{ id: "1", amount: "", time: "" }]
         },
-        baristaRecipe: { baristaName: "", baristaUserId: "", shopName: "", shopOriginId: null },
+        baristaRecipe: {
+          baristaName: "",
+          baristaUserId: "",
+          baristaUsername: "",
+          shopName: "",
+          shopOriginId: null,
+          servingStyle: ""
+        },
         recipeNotes: ""
       })
       
@@ -309,6 +311,18 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       setStatusMessage({ text: err?.message || t.errorMessage, type: "error" })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const preventImplicitSubmit = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter") return
+
+    const target = e.target as HTMLElement
+    // Enter is reserved for new lines in textareas and for activating the
+    // explicit submit button. In ordinary inputs it must never submit the
+    // complete tasting form (including during Japanese IME conversion).
+    if (target.tagName === "INPUT" || target.isContentEditable) {
+      e.preventDefault()
     }
   }
 
@@ -323,7 +337,11 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-10 space-y-10">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDownCapture={preventImplicitSubmit}
+        className="mt-10 space-y-10"
+      >
         
         <HeroImageUploader 
           currentLang={currentLang} 
@@ -362,6 +380,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         </div>
         
         <BrewRecipeForm 
+          key={recipeFormResetKey}
           currentLang={currentLang}
           initialRecipes={[{
             id: "new-recipe",
@@ -370,16 +389,17 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
             waterTemp: String(recipeState.selfRecipe.waterTemp),
             grindSize: String(recipeState.selfRecipe.grindSize),
             ratio: String(recipeState.selfRecipe.ratio), 
-            tdsInput: "", 
-            bloomTime: "",
-            totalTime: "",
-            pourSteps: [{ id: "1", amount: "", time: "" }],
+            tdsInput: String(recipeState.selfRecipe.tdsInput),
+            bloomTime: String(recipeState.selfRecipe.bloomTime),
+            totalTime: String(recipeState.selfRecipe.totalTime),
+            pourSteps: recipeState.selfRecipe.pourSteps,
             notes: String(recipeState.recipeNotes),
             baristaName: String(recipeState.baristaRecipe.baristaName),
             baristaUserId: String(recipeState.baristaRecipe.baristaUserId),
+            baristaUsername: String(recipeState.baristaRecipe.baristaUsername),
             shopName: String(recipeState.baristaRecipe.shopName),
             shopOriginId: recipeState.baristaRecipe.shopOriginId,
-            servingStyle: ""
+            servingStyle: String(recipeState.baristaRecipe.servingStyle)
           }]}
           onChange={handleRecipeChange}
         />

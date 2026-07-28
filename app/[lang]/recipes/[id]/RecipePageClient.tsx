@@ -36,7 +36,6 @@ export type Recipe = {
   pour_steps?: PourStep[] | null
   notes?: string | null
   created_at: string
-  barista_name?: string | null
   mode?: string | null
   shop_name?: string | null
   sort_order: number
@@ -48,6 +47,12 @@ export type Recipe = {
     username: string | null
     display_name: string | null
     avatar_url: string | null
+  } | null
+  provider?: {
+    id: string
+    username: string | null
+    display_name: string | null
+    display_name_en: string | null
   } | null
   posts?: {
     id: string
@@ -243,6 +248,15 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
 
         }
 
+        if (currentRecipe.barista_user_id) {
+          const { data: provider } = await supabase
+            .from("users")
+            .select("id, username, display_name, display_name_en")
+            .eq("id", currentRecipe.barista_user_id)
+            .maybeSingle()
+          currentRecipe.provider = provider
+        }
+
         setRecipe(currentRecipe)
 
         // 3. いいね数・フォロー・ブックマーク状態の読み込み
@@ -372,7 +386,14 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
           <div className="min-w-0">
             <p className="text-[11px] font-medium tracking-wider text-neutral-400 uppercase">{t.labelBarista}</p>
             <span className="block truncate text-[14px] font-semibold text-neutral-800">
-              {recipe.barista_name || recipe.users?.display_name || recipe.users?.username || t.anonymous}
+              {(currentLang === "en"
+                ? recipe.provider?.display_name_en
+                : recipe.provider?.display_name)
+                || recipe.provider?.display_name
+                || recipe.provider?.username
+                || recipe.users?.display_name
+                || recipe.users?.username
+                || t.anonymous}
             </span>
             {recipe.shop_name && (
               <span className="text-xs text-neutral-400 ml-2">(@{recipe.shop_name})</span>

@@ -18,6 +18,15 @@ type ContentRow = DatedRow & {
   lang?: string | null
 }
 
+type PostRow = ContentRow & {
+  type?: string | null
+  market_origin?: Array<{ slug: string | null }> | { slug: string | null } | null
+  source_origin?: Array<{ slug: string | null }> | { slug: string | null } | null
+  post_gears?: Array<{
+    gears?: Array<{ slug: string | null }> | { slug: string | null } | null
+  }> | null
+}
+
 type OriginRow = DatedRow & {
   slug: string
 }
@@ -39,6 +48,21 @@ function asDate(value?: string | null): Date | undefined {
 
 function contentLanguage(value?: string | null): (typeof languages)[number] {
   return value === "en" ? "en" : "ja"
+}
+
+function relationSlug(
+  relation?: Array<{ slug: string | null }> | { slug: string | null } | null,
+): string | null {
+  if (Array.isArray(relation)) return relation[0]?.slug || null
+  return relation?.slug || null
+}
+
+function postGearSlug(postGears?: PostRow["post_gears"]): string | null {
+  for (const postGear of postGears || []) {
+    const slug = relationSlug(postGear.gears)
+    if (slug) return slug
+  }
+  return null
 }
 
 function entry(
@@ -100,10 +124,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const [posts, blogs, recipes, origins, users, experts] = await Promise.all([
-      collectRows<ContentRow>((from, to) =>
+      collectRows<PostRow>((from, to) =>
         supabase
           .from("posts")
-          .select("id, lang, updated_at, created_at")
+          .select(`
+            id,
+            lang,
+            type,
+            updated_at,
+            created_at,
+            market_origin:origins!posts_market_origin_id_fkey(slug),
+            source_origin:origins!posts_source_origin_id_fkey(slug),
+            post_gears(
+              gears(slug)
+            )
+          `)
           .eq("visibility", "public")
           .order("created_at", { ascending: false })
           .range(from, to),
@@ -151,13 +186,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ),
     ])
 
-    const postPages = posts.map((post) =>
-      entry(`/${contentLanguage(post.lang)}/posts/${post.id}`, {
+    const postPages = posts.map((post) => {
+      const segments = (
+        post.type === "gear_review"
+          ? [postGearSlug(post.post_gears), post.id]
+          : [relationSlug(post.market_origin), relationSlug(post.source_origin), post.id]
+      ).filter((segment): segment is string => Boolean(segment))
+
+      return entry(`/${contentLanguage(post.lang)}/posts/${segments.map(encodeURIComponent).join("/")}`, {
         lastModified: asDate(post.updated_at || post.created_at),
         changeFrequency: "monthly",
         priority: 0.8,
-      }),
-    )
+      })
+    })
 
     const blogPages = blogs.map((blog) =>
       entry(`/${contentLanguage(blog.lang)}/blogs/${blog.id}`, {
