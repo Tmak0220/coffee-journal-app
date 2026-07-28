@@ -15,6 +15,13 @@ type GearSuggestion = {
   type?: string | null
 }
 
+type OriginSuggestion = {
+  id: number
+  name: string
+  name_ja: string | null
+  slug?: string | null
+}
+
 type Props = {
   lang?: "ja" | "en"
   editId?: string
@@ -29,8 +36,6 @@ const dict = {
     labelGearSub: "対象の器具を選択してください",
     placeholderGear: "ブランド名や器具名で検索...",
     btnChange: "変更",
-    searching: "検索中...",
-    notFound: "お探しの器具が見つかりませんでした。",
     labelFlavor: "FLAVOR PROFILE",
     labelFlavorSub: "抽出・味わいの傾向（任意）",
     labelSetting: "SETTING NOTE",
@@ -52,8 +57,6 @@ const dict = {
     labelGearSub: "Select gear to review",
     placeholderGear: "Search brand or gear name...",
     btnChange: "Change",
-    searching: "Searching...",
-    notFound: "Gear not found.",
     labelFlavor: "FLAVOR PROFILE",
     labelFlavorSub: "Flavor Profile / Tendency (Optional)",
     labelSetting: "SETTING NOTE",
@@ -99,11 +102,13 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
   const currentLang = isEn ? "en" : "ja"
   const t = dict[currentLang]
 
+  // Gear のステート（入力文字列 & 選択中のGearオブジェクト）
+  const [gearInput, setGearInput] = useState("")
   const [selectedGear, setSelectedGear] = useState<GearSuggestion | null>(null)
-  const [gearSearchQuery, setGearSearchQuery] = useState("")
-  const [suggestions, setSuggestions] = useState<GearSuggestion[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
+  const [gearSuggestions, setGearSuggestions] = useState<GearSuggestion[]>([])
+
+  // Gear から自動で紐付ける Origins (ブランド・会社) のステート
+  const [selectedBrandOrigin, setSelectedBrandOrigin] = useState<OriginSuggestion | null>(null)
 
   const [flavorProfile, setFlavorProfile] = useState<number | null>(null)
   const [grindSetting, setGrindSetting] = useState("")
@@ -118,6 +123,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
 
   const showRating = shouldShowRating(selectedGear)
 
+  // 編集時初期データの取得
   useEffect(() => {
     if (!editId) return
     let active = true
@@ -129,7 +135,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
         return
       }
       const [postResult, linkResult] = await Promise.all([
-        supabase.from("posts").select("user_id, type, description, image_urls").eq("id", editId).eq("user_id", user.id).single(),
+        supabase.from("posts").select("user_id, type, description, image_urls, source_origin_id").eq("id", editId).eq("user_id", user.id).single(),
         supabase.from("post_gears").select("gear_id, rating, grind_setting, comment").eq("post_id", editId).maybeSingle(),
       ])
       if (!active) return
@@ -138,10 +144,27 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
         setLoadingInitial(false)
         return
       }
+
+      // 器具取得および入力欄テキスト初期表示
       const { data: gear } = await supabase.from("gears")
         .select("id, brand, brand_ja, name, name_ja, type")
         .eq("id", linkResult.data.gear_id).single()
-      if (gear) setSelectedGear(gear as GearSuggestion)
+      if (gear) {
+        setSelectedGear(gear as GearSuggestion)
+        const gearDisplayName = currentLang === "en" ? gear.name : (gear.name_ja || gear.name)
+        setGearInput(gearDisplayName)
+      }
+
+      // 既存の紐付けOriginがあれば取得
+      if (postResult.data.source_origin_id) {
+        const { data: originData } = await supabase
+          .from("origins")
+          .select("id, name, name_ja, slug")
+          .eq("id", postResult.data.source_origin_id)
+          .single()
+        if (originData) setSelectedBrandOrigin(originData)
+      }
+
       setFlavorProfile(linkResult.data.rating == null ? null : Number(linkResult.data.rating))
       setGrindSetting(linkResult.data.grind_setting || "")
       setComment(linkResult.data.comment || postResult.data.description || "")
@@ -153,33 +176,53 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
     return () => { active = false }
   }, [currentLang, editId, t.loginError])
 
+  // 1. 器具 (gears) を search_keywords で検索
   useEffect(() => {
-    const query = gearSearchQuery.trim()
-    if (!query || selectedGear) {
-      setSuggestions([])
-      setHasSearched(false)
+    const currentName = selectedGear ? (currentLang === "en" ? selectedGear.name : (selectedGear.name_ja || selectedGear.name)) : ""
+    if (gearInput.trim().length < 1 || (selectedGear && currentName === gearInput)) {
+      setGearSuggestions([])
       return
     }
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true)
-      const sanitized = query.replace(/[%_]/g, "\\$&")
-
-      const { data, error } = await supabase
+    const fetchGears = async () => {
+      const { data } = await supabase
         .from("gears")
         .select("id, brand, brand_ja, name, name_ja, type")
-        .or(`name.ilike.%${sanitized}%,name_ja.ilike.%${sanitized}%,brand.ilike.%${sanitized}%,brand_ja.ilike.%${sanitized}%`)
-        .limit(6)
+        .ilike("search_keywords", `%${gearInput}%`)
+        .limit(5)
 
-      if (!error && data) {
-        setSuggestions(data as GearSuggestion[])
-      }
-      setIsSearching(false)
-      setHasSearched(true)
-    }, 300)
+      setGearSuggestions((data as GearSuggestion[]) || [])
+    }
 
+    const timer = setTimeout(fetchGears, 200)
     return () => clearTimeout(timer)
-  }, [gearSearchQuery, selectedGear])
+  }, [gearInput, selectedGear, currentLang])
+
+  // 2. 器具選択時に、そのブランド情報（gear.brand / gear.brand_ja）から origins テーブルと自動照合
+  const handleSelectGear = async (gear: GearSuggestion) => {
+    setSelectedGear(gear)
+    const gearDisplayName = currentLang === "en" ? gear.name : (gear.name_ja || gear.name)
+    setGearInput(gearDisplayName)
+    setGearSuggestions([])
+
+    // gear.brand または gear.brand_ja を使って origins の search_keywords から該当ブランドを検索して紐付け
+    const targetBrand = gear.brand_ja || gear.brand
+    if (targetBrand) {
+      const { data } = await supabase
+        .from("origins")
+        .select("id, slug, name, name_ja")
+        .ilike("search_keywords", `%${targetBrand}%`)
+        .limit(1)
+
+      if (data && data.length > 0) {
+        setSelectedBrandOrigin(data[0] as OriginSuggestion)
+      } else {
+        setSelectedBrandOrigin(null)
+      }
+    } else {
+      setSelectedBrandOrigin(null)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -197,14 +240,16 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
       if (!user) throw new Error(t.loginError)
 
       const postPayload = {
-          user_id: user.id,
-          title: `${selectedGear.brand_ja || selectedGear.brand} ${selectedGear.name_ja || selectedGear.name} レビュー`,
-          description: comment.trim() || null,
-          image_urls: imageUrls.length > 0 ? imageUrls.slice(0, 3) : null,
-          visibility: "public",
-          lang: currentLang,
-          type: "gear_review"
-        }
+        user_id: user.id,
+        title: `${selectedGear.brand_ja || selectedGear.brand} ${selectedGear.name_ja || selectedGear.name} レビュー`,
+        description: comment.trim() || null,
+        image_urls: imageUrls.length > 0 ? imageUrls.slice(0, 3) : null,
+        visibility: "public",
+        lang: currentLang,
+        type: "gear_review",
+        source_origin_id: selectedBrandOrigin?.id || null // 自動参照された origins.id を連携
+      }
+
       const postQuery = editId
         ? supabase.from("posts").update(postPayload).eq("id", editId).eq("user_id", user.id)
         : supabase.from("posts").insert(postPayload)
@@ -217,12 +262,12 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
         if (deleteLinkError) throw deleteLinkError
       }
       const { error: gearLinkError } = await supabase.from("post_gears").insert({
-          post_id: postData.id,
-          gear_id: selectedGear.id,
-          rating: showRating ? flavorProfile : null,
-          grind_setting: grindSetting.trim() || null,
-          comment: comment.trim() || null
-        })
+        post_id: postData.id,
+        gear_id: selectedGear.id,
+        rating: showRating ? flavorProfile : null,
+        grind_setting: grindSetting.trim() || null,
+        comment: comment.trim() || null
+      })
 
       if (gearLinkError) throw gearLinkError
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
@@ -270,6 +315,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
           onRemovedImagesChanged={setRemovedImageUrls}
         />
 
+        {/* SELECT GEAR 選択セクション */}
         <div className="border-b border-neutral-100 pb-8 space-y-3">
           <div>
             <label className="text-sm font-bold text-neutral-900 tracking-wider block uppercase">
@@ -280,84 +326,58 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
             </p>
           </div>
 
-          {selectedGear ? (
-            <div className="flex items-center justify-between p-4 bg-neutral-50/50 border border-neutral-200 rounded-xl max-w-xl">
-              <div>
-                <span className="text-[11px] font-bold text-neutral-400 block uppercase tracking-wider">
-                  {selectedGear.brand_ja || selectedGear.brand}
-                </span>
-                <span className="text-sm font-bold text-neutral-900 mt-0.5 block">
-                  {selectedGear.name_ja || selectedGear.name}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
+          <div className="relative max-w-xl">
+            <input
+              type="text"
+              value={gearInput}
+              onChange={(e) => {
+                setGearInput(e.target.value)
+                if (selectedGear) {
                   setSelectedGear(null)
-                  setGearSearchQuery("")
+                  setSelectedBrandOrigin(null)
                   setFlavorProfile(null)
-                }}
-                className="text-xs text-neutral-500 hover:text-neutral-900 font-medium px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition duration-200"
-              >
-                {t.btnChange}
-              </button>
-            </div>
-          ) : (
-            <div className="relative max-w-xl">
-              <input
-                type="text"
-                value={gearSearchQuery}
-                onChange={(e) => setGearSearchQuery(e.target.value)}
-                placeholder={t.placeholderGear}
-                className="w-full text-sm px-4 py-3 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition duration-200 placeholder:text-neutral-400"
-              />
-              {isSearching && (
-                <span className="absolute right-4 top-3.5 text-xs text-neutral-400 animate-pulse font-medium">
-                  {t.searching}
-                </span>
-              )}
+                }
+              }}
+              placeholder={t.placeholderGear}
+              className="w-full text-sm px-4 py-3 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition duration-200 placeholder:text-neutral-400"
+            />
 
-              {suggestions.length > 0 && (
-                <div className="absolute z-20 left-0 right-0 mt-2 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
-                  {suggestions.map((item) => (
-                    <button
+            {gearSuggestions.length > 0 && (
+              <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-neutral-100">
+                {gearSuggestions.map((item) => {
+                  const displayBrand = currentLang === "en" ? item.brand : (item.brand_ja || item.brand)
+                  const displayName = currentLang === "en" ? item.name : (item.name_ja || item.name)
+
+                  return (
+                    <li
                       key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedGear(item)
-                        setSuggestions([])
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-neutral-50 border-b border-neutral-100 last:border-none transition duration-150 flex flex-col"
+                      onMouseDown={() => handleSelectGear(item)}
+                      className="p-3 text-left hover:bg-neutral-50 cursor-pointer transition duration-150 flex flex-col"
                     >
                       <span className="text-[10px] text-neutral-400 font-medium tracking-wide">
-                        {item.brand_ja || item.brand}
+                        {displayBrand}
                       </span>
                       <span className="text-xs font-bold text-neutral-800 mt-0.5">
-                        {item.name_ja || item.name}
+                        {displayName}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
 
-              {hasSearched && !isSearching && suggestions.length === 0 && (
-                <div className="mt-2 text-xs text-neutral-500">
-                  <p>{t.notFound}</p>
-                </div>
-              )}
-
-              <div className="mt-6 pt-2">
-                <MasterRequestButton
-                  currentLang={currentLang}
-                  options={GEAR_REQUEST_OPTIONS}
-                  placeholderJa="例: FELLOW Stagg EKG / HARIO V60"
-                  placeholderEn="e.g., FELLOW Stagg EKG / HARIO V60"
-                />
-              </div>
+            <div className="mt-6 pt-2">
+              <MasterRequestButton
+                currentLang={currentLang}
+                options={GEAR_REQUEST_OPTIONS}
+                placeholderJa="例: FELLOW Stagg EKG / HARIO V60"
+                placeholderEn="e.g., FELLOW Stagg EKG / HARIO V60"
+              />
             </div>
-          )}
+          </div>
         </div>
 
+        {/* FLAVOR PROFILE & SETTING NOTE */}
         <div className="border-b border-neutral-100 pb-8 space-y-8">
           {showRating && (
             <div className="space-y-3 transition-all duration-300">
@@ -369,7 +389,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
                   {t.labelFlavorSub}
                 </p>
               </div>
-              
+
               <div className="flex flex-wrap gap-2.5">
                 {FLAVOR_PROFILE_OPTIONS.map((option) => {
                   const isSelected = flavorProfile === option.value
@@ -411,6 +431,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
           </div>
         </div>
 
+        {/* REVIEW */}
         <div className="space-y-3">
           <div>
             <label className="text-sm font-bold text-neutral-900 tracking-wider block uppercase">
@@ -435,7 +456,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
             disabled={submitting || !selectedGear}
             className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
           >
-          {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
+            {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
           </button>
           {secondaryAction}
         </div>

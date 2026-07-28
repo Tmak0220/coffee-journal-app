@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Post } from "./PostPageClient"
 
 type EventProps = {
@@ -28,12 +29,20 @@ const dict = {
 export default function EventPostDetails({ post, lang }: EventProps) {
   const t = dict[lang] || dict.ja
 
-  // 1. 関連イベント（origins）の名称解決
-  const origin = post.origins as { id: number; name?: string; name_ja?: string | null } | null
+  // 1. 関連イベント（origins）のデータ参照と名称解決
+  const origin = post.origins as {
+    id: number
+    name?: string
+    name_ja?: string | null
+    display_name?: string | null
+    display_name_en?: string | null
+    slug?: string
+  } | null
+
   const originName = origin
     ? lang === "en"
-      ? (origin.name || origin.name_ja)
-      : (origin.name_ja || origin.name)
+      ? (origin.display_name_en || origin.display_name || origin.name || origin.name_ja)
+      : (origin.display_name || origin.name_ja || origin.name)
     : null
 
   // 2. 日付のフォーマット処理 (YYYY/MM/DD)
@@ -57,11 +66,14 @@ export default function EventPostDetails({ post, lang }: EventProps) {
             {t.eventBadge}
           </span>
 
-          {/* 関連イベント名バッジ */}
-          {originName && (
-            <span className="inline-block bg-neutral-100 text-neutral-800 border border-neutral-200/80 text-[11px] font-medium px-3 py-1 rounded-full">
+          {/* 関連イベント名バッジ ([...slug] 構造に対応した動的リンク) */}
+          {originName && origin?.slug && (
+            <Link
+              href={`/${lang}/origins/${origin.slug}`}
+              className="inline-block bg-neutral-100 hover:bg-neutral-200/80 text-neutral-800 border border-neutral-200/80 text-[11px] font-medium px-3 py-1 rounded-full transition-colors duration-200"
+            >
               {originName}
-            </span>
+            </Link>
           )}
 
           {/* 非公開/限定公開バッジ */}

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react" // 💡 よりミニマルでモダンな斜め右上矢印を採用
 import { Post } from "./PostPageClient"
 
 type DetailsProps = {
@@ -32,8 +33,53 @@ const TASTE_STYLE_MAP = {
   }
 } as const
 
+// 多言語用辞書
+const dict = {
+  ja: {
+    origin: "産地 / 農園",
+    roaster: "ロースター",
+    variety: "品種",
+    process: "精製方法",
+    brewRecord: "Brew Record",
+    recipe: "RECIPE",
+    temp: "抽出湯温",
+    grind: "挽き目",
+    brewRatio: "Brew Ratio",
+    tds: "TDS",
+    bloomTime: "蒸らし時間",
+    totalTime: "全体時間",
+    ey: "収率 (Extraction Yield)",
+    approx: "近似値 (Approx)",
+    corrected: "補正値 (Corrected)",
+    notes: "抽出メモ",
+    min: "分",
+    sec: "秒"
+  },
+  en: {
+    origin: "Origin / Farm",
+    roaster: "Roaster",
+    variety: "Variety",
+    process: "Process",
+    brewRecord: "Brew Record",
+    recipe: "RECIPE",
+    temp: "Water Temp",
+    grind: "Grind Size",
+    brewRatio: "Brew Ratio",
+    tds: "TDS",
+    bloomTime: "Bloom Time",
+    totalTime: "Total Time",
+    ey: "Extraction Yield",
+    approx: "Approx",
+    corrected: "Corrected",
+    notes: "Brew Notes",
+    min: "m ",
+    sec: "s"
+  }
+}
+
 export default function CoffeeDetails({ post, lang }: DetailsProps) {
   const currentLang = lang === "en" ? "en" : "ja"
+  const t = dict[currentLang]
   
   // 1. フレーバータグの取得
   const flavorTags = useMemo(() => {
@@ -41,21 +87,21 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
 
     return post.post_tastes
       .map((item) => {
-        const t = item?.tastes
-        if (!t) return null
+        const tItem = item?.tastes
+        if (!tItem) return null
         
-        const rawType = t.attribute_type || "default"
+        const rawType = tItem.attribute_type || "default"
         const typeKey = (rawType in TASTE_STYLE_MAP ? rawType : "default") as keyof typeof TASTE_STYLE_MAP
         
         return {
-          name: currentLang === "en" ? t.name : t.name_ja,
+          name: currentLang === "en" ? tItem.name : (tItem.name_ja || tItem.name),
           type: typeKey
         }
       })
-      .filter((t): t is { name: string; type: keyof typeof TASTE_STYLE_MAP } => !!t)
+      .filter((tItem): tItem is { name: string; type: keyof typeof TASTE_STYLE_MAP } => !!tItem)
   }, [post, currentLang])
 
-  // 💡 2. 複数品種（post_varieties）の取得・整形
+  // 2. 複数品種（post_varieties）の取得・整形
   const varietiesString = useMemo(() => {
     if (!post || !Array.isArray(post.post_varieties) || post.post_varieties.length === 0) return null
     
@@ -69,7 +115,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
       .join(", ")
   }, [post, currentLang])
 
-  // 💡 3. 複数精製方法（post_processes）の取得・整形
+  // 3. 複数精製方法（post_processes）の取得・整形
   const processesString = useMemo(() => {
     if (!post || !Array.isArray(post.post_processes) || post.post_processes.length === 0) return null
 
@@ -86,15 +132,15 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
   const getOriginName = (origin: any, fallbackId: number | null | undefined) => {
     if (!origin) return fallbackId ? `ID: ${fallbackId}` : null
     return currentLang === "ja" 
-      ? origin.name_ja || origin.display_name || origin.name 
-      : origin.display_name_en || origin.name
+      ? origin.display_name || origin.name_ja || origin.name 
+      : origin.display_name_en || origin.display_name || origin.name
   }
 
   const formatSeconds = (seconds: number | null | undefined) => {
     if (seconds == null) return null
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
-    return m === 0 ? `${s}秒` : `${m}分${s}秒`
+    return m === 0 ? `${s}${t.sec}` : `${m}${t.min}${s}${t.sec}`
   }
 
   const recipe = post?.recipes
@@ -200,21 +246,21 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
         </span>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-6">
           
-          {/* 産地 / 農園 (リンク付き) */}
+          {/* 産地 / 農園 (洗練された別タブ用リンク) */}
           {sourceName && (
             <div className="space-y-2">
-              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">産地 / 農園</span>
+              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">{t.origin}</span>
               {post.source_origin?.slug ? (
                 <Link 
                   href={`/${currentLang}/origins/${post.source_origin.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block font-bold text-neutral-900 text-[14px] leading-snug group transition-all duration-200"
+                  className="group inline-flex items-baseline gap-0.5 font-bold text-neutral-900 text-[14px] leading-snug transition-colors duration-200 hover:text-neutral-600"
                 >
-                  <span className="border-b border-transparent group-hover:border-neutral-900 transition-all">
+                  <span className="border-b border-transparent group-hover:border-neutral-600 transition-all">
                     {sourceName}
                   </span>
-                  <span className="text-[10px] ml-1 text-neutral-400 font-normal inline-block opacity-0 group-hover:opacity-100 transform translate-y-[-1px] transition-all">↗</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400 opacity-60 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:text-neutral-900 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 shrink-0 self-center" />
                 </Link>
               ) : (
                 <p className="font-bold text-neutral-900 text-[14px] leading-snug">{sourceName}</p>
@@ -222,21 +268,21 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
             </div>
           )}
 
-          {/* ロースター (リンク付き) */}
+          {/* ロースター (洗練された別タブ用リンク) */}
           {marketName && (
             <div className="space-y-2">
-              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">ロースター</span>
+              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">{t.roaster}</span>
               {post.market_origin?.slug ? (
                 <Link 
                   href={`/${currentLang}/origins/${post.market_origin.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block font-bold text-neutral-900 text-[14px] leading-snug group transition-all duration-200"
+                  className="group inline-flex items-baseline gap-0.5 font-bold text-neutral-900 text-[14px] leading-snug transition-colors duration-200 hover:text-neutral-600"
                 >
-                  <span className="border-b border-transparent group-hover:border-neutral-900 transition-all">
+                  <span className="border-b border-transparent group-hover:border-neutral-600 transition-all">
                     {marketName}
                   </span>
-                  <span className="text-[10px] ml-1 text-neutral-400 font-normal inline-block opacity-0 group-hover:opacity-100 transform translate-y-[-1px] transition-all">↗</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400 opacity-60 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:text-neutral-900 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 shrink-0 self-center" />
                 </Link>
               ) : (
                 <p className="font-bold text-neutral-900 text-[14px] leading-snug">{marketName}</p>
@@ -244,18 +290,18 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
             </div>
           )}
 
-          {/* 💡 複数品種のカンマ区切り表示 */}
+          {/* 複数品種 */}
           {varietiesString && (
             <div className="space-y-2">
-              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">品種</span>
+              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">{t.variety}</span>
               <p className="font-bold text-neutral-800 text-[14px] leading-snug break-words">{varietiesString}</p>
             </div>
           )}
 
-          {/* 💡 複数精製方法のカンマ区切り表示 */}
+          {/* 複数精製方法 */}
           {processesString && (
             <div className="space-y-2">
-              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">精製方法</span>
+              <span className="text-[11px] text-neutral-400 font-medium block tracking-wider">{t.process}</span>
               <p className="font-bold text-neutral-800 text-[14px] leading-snug break-words">{processesString}</p>
             </div>
           )}
@@ -267,46 +313,46 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
       {hasRecipeData && recipe && (
         <div className="border border-neutral-200/80 rounded-3xl p-6 sm:p-8 bg-neutral-50/40 space-y-6 max-w-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)]">
           <div className="flex items-center justify-between border-b border-neutral-200/60 pb-4">
-            <h3 className="text-[10px] font-bold tracking-[0.2em] text-neutral-400 uppercase">Brew Record</h3>
+            <h3 className="text-[10px] font-bold tracking-[0.2em] text-neutral-400 uppercase">{t.brewRecord}</h3>
             <span className="text-[9px] tracking-widest px-2.5 py-1 bg-white border border-neutral-200 text-neutral-500 rounded-md font-bold uppercase">
-              RECIPE
+              {t.recipe}
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-[13px]">
             {recipe.temperature && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">抽出湯温</span>
+                <span className="text-neutral-400 font-medium">{t.temp}</span>
                 <p className="font-bold text-neutral-900 text-base">{recipe.temperature}<span className="text-xs ml-0.5 font-normal text-neutral-500">°C</span></p>
               </div>
             )}
             {recipe.grind_size && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">挽き目</span>
+                <span className="text-neutral-400 font-medium">{t.grind}</span>
                 <p className="font-bold text-neutral-900 text-[15px] break-words">{recipe.grind_size}</p>
               </div>
             )}
             {recipe.brew_ratio && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">Brew Ratio</span>
+                <span className="text-neutral-400 font-medium">{t.brewRatio}</span>
                 <p className="font-bold text-neutral-900 text-base">1 : {recipe.brew_ratio}</p>
               </div>
             )}
             {recipe.tds && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">TDS</span>
+                <span className="text-neutral-400 font-medium">{t.tds}</span>
                 <p className="font-bold text-neutral-900 text-base">{recipe.tds}<span className="text-xs ml-0.5 font-normal text-neutral-500">%</span></p>
               </div>
             )}
             {bloomTime && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">蒸らし時間</span>
+                <span className="text-neutral-400 font-medium">{t.bloomTime}</span>
                 <p className="font-bold text-neutral-900 text-[15px]">{bloomTime}</p>
               </div>
             )}
             {totalTime && (
               <div className="space-y-1">
-                <span className="text-neutral-400 font-medium">全体時間</span>
+                <span className="text-neutral-400 font-medium">{t.totalTime}</span>
                 <p className="font-bold text-neutral-900 text-[15px]">{totalTime}</p>
               </div>
             )}
@@ -315,17 +361,17 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
           {/* EY (収率) */}
           {(approxEY || correctedEY) && (
             <div className="bg-white border border-neutral-200/60 rounded-2xl p-4 space-y-3 shadow-3xs">
-              <span className="text-[10px] text-neutral-400 font-bold tracking-[0.1em] block">収率 (Extraction Yield)</span>
+              <span className="text-[10px] text-neutral-400 font-bold tracking-[0.1em] block">{t.ey}</span>
               <div className="grid grid-cols-2 gap-4 text-left">
                 {approxEY && (
                   <div>
-                    <div className="text-[10px] text-neutral-400 font-medium">近似値 (Approx)</div>
+                    <div className="text-[10px] text-neutral-400 font-medium">{t.approx}</div>
                     <div className="text-sm font-bold mt-0.5 text-neutral-800">{approxEY}</div>
                   </div>
                 )}
                 {correctedEY && (
                   <div className="border-l border-neutral-100 pl-4">
-                    <div className="text-[10px] text-neutral-400 font-medium">補正値 (Corrected)</div>
+                    <div className="text-[10px] text-neutral-400 font-medium">{t.corrected}</div>
                     <div className="text-sm font-bold mt-0.5 text-neutral-900">{correctedEY}</div>
                   </div>
                 )}
@@ -335,7 +381,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
           
           {recipe.notes && (
             <div className="text-[13px] pt-4 border-t border-neutral-200/60 space-y-1.5">
-              <span className="text-neutral-400 font-medium block">抽出メモ</span>
+              <span className="text-neutral-400 font-medium block">{t.notes}</span>
               <p className="text-neutral-600 leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-neutral-200/60 shadow-3xs">
                 {recipe.notes}
               </p>

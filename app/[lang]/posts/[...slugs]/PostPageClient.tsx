@@ -42,6 +42,7 @@ export type Post = {
     id: number
     name: string
     name_ja: string | null
+    slug?: string | null
   } | null
 
   users: { id: string; username: string | null; display_name: string | null; avatar_url: string | null } | null
@@ -95,6 +96,8 @@ export type Post = {
 type Props = {
   id: string
   lang: string
+  marketSlug?: string | null
+  sourceSlug?: string | null
   initialPost?: Post | null 
 }
 
@@ -130,7 +133,7 @@ const pageDict = {
   }
 }
 
-export default function PostPageClient({ id, lang, initialPost }: Props) {
+export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initialPost }: Props) {
   const currentLang = (lang === "en" ? "en" : "ja") as "ja" | "en"
   const t = pageDict[currentLang]
 
@@ -170,20 +173,17 @@ export default function PostPageClient({ id, lang, initialPost }: Props) {
       let currentPost: Post | null = initialPost || null
 
       if (!currentPost) {
-        // サーバーがnullを返した場合は、非公開・限定公開または存在しない投稿。
-        // クライアントから再取得して公開範囲を迂回しない。
         if (initialPost !== undefined) {
           setLoading(false)
           return
         }
 
-        // 💡 origins リレーションの取得を追加（event_origin_id を外部キーとして参照）
         const { data: rawPost, error } = await supabase
           .from("posts")
           .select(`
             *,
             users (id, username, display_name, avatar_url),
-            origins:event_origin_id(id, name, name_ja),
+            origins:event_origin_id(id, name, name_ja, slug),
             source_origin:origins!posts_source_origin_id_fkey(*),
             market_origin:origins!posts_market_origin_id_fkey(*),
             post_varieties(

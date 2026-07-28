@@ -5,22 +5,43 @@ import PostPageClient from "./PostPageClient"
 type Props = {
   params: Promise<{
     lang: string
-    id: string
+    slugs: string[]
   }>
 }
 
 function extractUuid(paramId: string): string {
-  if (paramId.length >= 36) {
+  if (paramId && paramId.length >= 36) {
     return paramId.slice(-36)
   }
   return paramId
 }
 
+// slugs 配列から ID、Market、Source を抽出するヘルパー関数
+function parseSlugs(slugs: string[]) {
+  if (!slugs || slugs.length === 0) {
+    return { actualId: "", marketSlug: null, sourceSlug: null }
+  }
+
+  // 配列の一番最後（末尾）を ID として取り出す
+  const rawId = slugs[slugs.length - 1]
+  const actualId = extractUuid(rawId)
+
+  // パス階層の数に応じてスラッグを振り分け
+  // 例: /posts/lupicia/ethiopia/id  -> slugs: ["lupicia", "ethiopia", "id"]
+  // 例: /posts/lupicia/id            -> slugs: ["lupicia", "id"]
+  // 例: /posts/id                    -> slugs: ["id"]
+  const marketSlug = slugs.length > 2 ? slugs[0] : slugs.length === 2 ? slugs[0] : null
+  const sourceSlug = slugs.length > 2 ? slugs[1] : null
+
+  return { actualId, marketSlug, sourceSlug }
+}
+
 async function getPostDetail(actualId: string) {
+  if (!actualId) return null
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 💡 サーバーサイドのクエリも中間テーブル取得に変更
   const { data: post, error } = await supabase
     .from("posts")
     .select(`
@@ -81,8 +102,8 @@ async function getPostDetail(actualId: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id: paramId, lang } = await params
-  const actualId = extractUuid(paramId)
+  const { slugs, lang } = await params
+  const { actualId } = parseSlugs(slugs)
 
   const post = await getPostDetail(actualId)
 
@@ -104,8 +125,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Page({ params }: Props) {
-  const { id: paramId, lang } = await params
-  const actualId = extractUuid(paramId)
+  const { slugs, lang } = await params
+  const { actualId, marketSlug, sourceSlug } = parseSlugs(slugs)
 
   const post = await getPostDetail(actualId)
 
@@ -113,6 +134,8 @@ export default async function Page({ params }: Props) {
     <PostPageClient 
       id={actualId} 
       lang={lang} 
+      marketSlug={marketSlug}
+      sourceSlug={sourceSlug}
       initialPost={post} 
     />
   )
