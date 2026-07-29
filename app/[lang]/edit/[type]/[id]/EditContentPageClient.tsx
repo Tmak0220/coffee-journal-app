@@ -134,21 +134,10 @@ export default function EditContentPageClient({
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-400">{type}</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">{title}</h1>
       </header>
-      {type === "event" && <EventPostForm userId={userId} lang={currentLang} editId={id} secondaryAction={deleteAction} />}
-      {type === "gear" && <GearReviewForm lang={currentLang} editId={id} secondaryAction={deleteAction} />}
-      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} onBlogCreated={() => undefined} secondaryAction={deleteAction} />}
-      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} secondaryAction={deleteAction} />}
-      {statusMessage && (
-        <section className="mx-auto mt-6 max-w-4xl">
-          <div className={`max-w-xl rounded-xl border p-4 text-xs transition-all duration-300 ${
-            statusMessage.type === "error"
-              ? "border-red-200 bg-red-50/40 text-red-600"
-              : "border-neutral-200 bg-neutral-50 text-neutral-900"
-          }`}>
-            {statusMessage.text}
-          </div>
-        </section>
-      )}
+      {type === "event" && <EventPostForm userId={userId} lang={currentLang} editId={id} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
+      {type === "gear" && <GearReviewForm lang={currentLang} editId={id} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
+      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} onBlogCreated={() => undefined} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
+      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true">

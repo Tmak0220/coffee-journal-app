@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import MasterRequestButton, { MasterRequestOption } from "./MasterRequestButton"
-import { syncPostOriginLinksForOwner } from "@/app/actions/createPost"
+import { serverMoveToPermanentStorage, syncPostOriginLinksForOwner } from "@/app/actions/createPost"
 
 type GearSuggestion = {
   id: number
@@ -13,6 +12,7 @@ type GearSuggestion = {
   brand_ja: string | null
   name: string
   name_ja: string | null
+  slug: string
   type?: string | null
 }
 
@@ -27,6 +27,7 @@ type Props = {
   lang?: "ja" | "en"
   editId?: string
   secondaryAction?: ReactNode
+  deleteStatusMessage?: { text: string; type: "success" | "error" } | null
 }
 
 const dict = {
@@ -107,8 +108,7 @@ function shouldShowRating(gear: GearSuggestion | null): boolean {
   return !hiddenTypes.includes(gear.type.toLowerCase())
 }
 
-export default function GearReviewForm({ lang = "ja", editId, secondaryAction }: Props) {
-  const router = useRouter()
+export default function GearReviewForm({ lang = "ja", editId, secondaryAction, deleteStatusMessage }: Props) {
   const isEn = lang === "en"
   const currentLang = isEn ? "en" : "ja"
   const t = dict[currentLang]
@@ -159,7 +159,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
 
       // 器具取得および入力欄テキスト初期表示
       const { data: gear } = await supabase.from("gears")
-        .select("id, brand, brand_ja, name, name_ja, type")
+        .select("id, brand, brand_ja, name, name_ja, slug, type")
         .eq("id", linkResult.data.gear_id).single()
       if (gear) {
         setSelectedGear(gear as GearSuggestion)
@@ -201,7 +201,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
     const fetchGears = async () => {
       const { data } = await supabase
         .from("gears")
-        .select("id, brand, brand_ja, name, name_ja, type")
+        .select("id, brand, brand_ja, name, name_ja, slug, type")
         .ilike("search_keywords", `%${gearInput}%`)
         .limit(5)
 
@@ -272,11 +272,15 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error(t.loginError)
 
+      const permanentImageUrls = await Promise.all(
+        imageUrls.slice(0, 3).map(url => serverMoveToPermanentStorage(url))
+      )
+
       const postPayload = {
         user_id: user.id,
         title: title.trim(),
         description: comment.trim(),
-        image_urls: imageUrls.length > 0 ? imageUrls.slice(0, 3) : null,
+        image_urls: permanentImageUrls.length > 0 ? permanentImageUrls : null,
         visibility: "public",
         lang: currentLang,
         type: "gear_review",
@@ -308,16 +312,37 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
 
       // origins の公開ページ・ダッシュボード双方で参照する関連リンクを同期する。
       // 編集時にブランドを変更した場合は古いリンクもこの処理で取り除かれる。
-      await syncPostOriginLinksForOwner(postData.id)
+      try {
+        await syncPostOriginLinksForOwner(postData.id)
+      } catch (syncError) {
+        // 投稿そのものは保存済みなので、画面遷移を妨げない。
+        // エラーは運営側で追跡できるようコンソールへ残す。
+        console.error("Failed to sync gear review origin links:", syncError)
+      }
 
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
         await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
       }
-      initialImagesRef.current = imageUrls
+      initialImagesRef.current = permanentImageUrls
       setRemovedImageUrls([])
 
-      router.push(`/${lang}/posts/${postData.id}`)
-      router.refresh()
+      const postUrl = `/${currentLang}/posts/${encodeURIComponent(selectedGear.slug)}/${postData.id}`
+
+      setTitle("")
+      setGearInput("")
+      setSelectedGear(null)
+      setGearSuggestions([])
+      setSelectedBrandOrigin(null)
+      setFlavorProfile(null)
+      setGrindSetting("")
+      setComment("")
+      setImageUrls([])
+      setRemovedImageUrls([])
+      initialImagesRef.current = []
+
+      // 投稿詳細はサーバー側で投稿・器具・originをまとめて取得するページ。
+      // push直後のrefresh競合を避け、保存済みデータを確実に再取得する。
+      window.location.assign(postUrl)
 
     } catch (err: any) {
       console.error(err)
@@ -522,15 +547,26 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
           </p>
         </div>
 
-        <div className="pt-4 border-t border-neutral-100 flex flex-col justify-end gap-3 sm:flex-row sm:items-center">
-          <button
-            type="submit"
-            disabled={submitting || !title.trim() || !selectedGear || !comment.trim()}
-            className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
-          >
-            {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
-          </button>
-          {secondaryAction}
+        <div className="space-y-4 border-t border-neutral-100 pt-4">
+          {deleteStatusMessage && (
+            <div className={`max-w-xl rounded-xl border p-4 text-xs transition-all duration-300 ${
+              deleteStatusMessage.type === "error"
+                ? "border-red-200 bg-red-50/40 text-red-600"
+                : "border-neutral-200 bg-neutral-50 text-neutral-900"
+            }`}>
+              {deleteStatusMessage.text}
+            </div>
+          )}
+          <div className="flex flex-col justify-end gap-3 sm:flex-row sm:items-center">
+            <button
+              type="submit"
+              disabled={submitting || !title.trim() || !selectedGear || !comment.trim()}
+              className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
+            >
+              {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
+            </button>
+            {secondaryAction}
+          </div>
         </div>
       </form>
     </div>

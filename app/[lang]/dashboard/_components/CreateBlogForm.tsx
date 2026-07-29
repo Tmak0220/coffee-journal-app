@@ -14,6 +14,7 @@ type Props = {
   membership_tier: "free" | "standard" | "pro" | "business"
   editId?: string
   secondaryAction?: ReactNode
+  deleteStatusMessage?: StatusMessage | null
 }
 
 type StatusMessage = {
@@ -79,7 +80,7 @@ const BLOG_FORM_DICT = {
   }
 } as const
 
-export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId, secondaryAction }: Props) {
+export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId, secondaryAction, deleteStatusMessage }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = BLOG_FORM_DICT[currentLang]
@@ -294,7 +295,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
           setTargetCategory={setTargetCategory}
           submitting={submitting}
           disabled={isFormInvalid}
-          statusMessage={statusMessage}
+          statusMessage={deleteStatusMessage || statusMessage}
           secondaryAction={secondaryAction}
         />
 

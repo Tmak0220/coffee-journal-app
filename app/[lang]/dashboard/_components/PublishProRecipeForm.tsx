@@ -97,6 +97,7 @@ type Props = {
   membership_tier?: "free" | "standard" | "pro" | "business" | string
   editId?: string
   secondaryAction?: ReactNode
+  deleteStatusMessage?: { text: string; type: "success" | "error" } | null
 }
 
 type VisibilityType = "draft" | "private" | "members" | "public"
@@ -153,6 +154,7 @@ export default function PublishProRecipeForm({
   membership_tier,
   editId,
   secondaryAction,
+  deleteStatusMessage,
 }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
@@ -947,7 +949,7 @@ export default function PublishProRecipeForm({
           setTargetCategory={setTargetCategory}
           submitting={submitting}
           disabled={isFormInvalid}
-          statusMessage={statusMessage}
+          statusMessage={deleteStatusMessage || statusMessage}
           secondaryAction={secondaryAction}
         />
       </form>

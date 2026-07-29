@@ -795,17 +795,6 @@ export default function EditPostPage({ params }: Props) {
           />
 
           <div className="pt-4 border-t border-neutral-100 space-y-8">
-            
-            {statusMessage && (
-              <div className={`text-xs p-4 rounded-xl border max-w-xl transition-all duration-300 ${
-                statusMessage.type === "error" 
-                  ? "text-red-600 bg-red-50/40 border-red-200" 
-                  : "text-neutral-900 bg-neutral-50 border-neutral-200"
-              }`}>
-                {statusMessage.text}
-              </div>
-            )}
-
             <div className="space-y-3">
               <label className="text-[14px] font-bold text-neutral-900 tracking-wide block">
                 {t.labelVisibility}
@@ -842,6 +831,16 @@ export default function EditPostPage({ params }: Props) {
               </div>
             </div>
 
+            {statusMessage && (
+              <div className={`max-w-xl rounded-xl border p-4 text-xs transition-all duration-300 ${
+                statusMessage.type === "error"
+                  ? "border-red-200 bg-red-50/40 text-red-600"
+                  : "border-neutral-200 bg-neutral-50 text-neutral-900"
+              }`}>
+                {statusMessage.text}
+              </div>
+            )}
+
             <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-end gap-3.5">
               <button 
                 type="submit" 
@@ -861,6 +860,7 @@ export default function EditPostPage({ params }: Props) {
                 {deleting ? (currentLang === "en" ? "Deleting..." : "削除中...") : t.deleteButton}
               </button>
             </div>
+
           </div>
         </form>
       </div>

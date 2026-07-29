@@ -19,10 +19,11 @@ type Props = {
   onSuccess?: () => void
   editId?: string
   secondaryAction?: ReactNode
+  deleteStatusMessage?: { text: string; type: "success" | "error" } | null
   eventOrigins?: OriginEventOption[]
 }
 
-export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess, editId, secondaryAction, eventOrigins: initialEventOrigins }: Props) {
+export default function EventPostForm({ userId, lang = "ja", isAdmin = false, onSuccess, editId, secondaryAction, deleteStatusMessage, eventOrigins: initialEventOrigins }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = currentLang === "en" ? {
@@ -351,7 +352,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
       </div>
 
       <div className="pt-6 border-t border-neutral-100 space-y-4">
-        {status && <div role="status" className={`text-[13px] p-4 rounded-xl border text-center ${status.type === "success" ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-red-700 bg-red-50 border-red-200"}`}>{status.text}</div>}
+        {(deleteStatusMessage || status) && <div role="status" className={`text-[13px] p-4 rounded-xl border text-center ${(deleteStatusMessage || status)?.type === "success" ? "text-neutral-900 bg-neutral-50 border-neutral-200" : "text-red-700 bg-red-50 border-red-200"}`}>{deleteStatusMessage?.text || status?.text}</div>}
         <div className="flex flex-col justify-end gap-3 sm:flex-row sm:items-center"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button>{secondaryAction}</div>
       </div>
     </form>
