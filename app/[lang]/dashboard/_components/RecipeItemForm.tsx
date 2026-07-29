@@ -11,7 +11,7 @@ type RecipeItemFormProps = {
   currentLang: "ja" | "en"
   t: any
   gears: GearMasterItem[]
-  recipesCount: number
+  allowRemove: boolean
   onUpdate: (id: string, updatedFields: Partial<RecipeItemData>) => void
   onRemove: (id: string) => void
   onSaveTemplate: (recipe: RecipeItemData, templateName: string) => void
@@ -40,7 +40,7 @@ export default function RecipeItemForm({
   currentLang,
   t,
   gears,
-  recipesCount,
+  allowRemove,
   onUpdate,
   onRemove,
   onSaveTemplate
@@ -221,7 +221,7 @@ export default function RecipeItemForm({
               )}
             </div>
           )}
-          {recipesCount > 1 && (
+          {allowRemove && (
             <button
               type="button"
               onClick={() => onRemove(recipe.id)}

@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 import type { Post } from "./PostPageClient"
 
 type Props = {
@@ -23,6 +25,8 @@ const dict = {
     tendency: "抽出・味わいの傾向",
     setting: "設定・パラメータ",
     review: "レビュー",
+    profile: "Gear Profile",
+    brand: "ブランド",
     noGear: "器具情報が見つかりません。",
   },
   en: {
@@ -33,6 +37,8 @@ const dict = {
     tendency: "Flavor / Brewing Tendency",
     setting: "Setting / Parameters",
     review: "Review",
+    profile: "Gear Profile",
+    brand: "Brand",
     noGear: "Gear information is unavailable.",
   },
 }
@@ -54,6 +60,12 @@ export default function GearReviewDetails({ post, lang }: Props) {
   const rating = review?.rating == null ? null : Number(review.rating)
   const tendency = rating && flavorLabels[rating] ? flavorLabels[rating][lang] : null
   const comment = review?.comment || post.description
+  const brandOrigin = post.market_origin || post.source_origin
+  const linkedBrandName = brandOrigin
+    ? lang === "en"
+      ? brandOrigin.name || brandOrigin.name_ja
+      : brandOrigin.name_ja || brandOrigin.name
+    : brandName
 
   return (
     <article className="w-full space-y-10 text-neutral-800">
@@ -97,6 +109,30 @@ export default function GearReviewDetails({ post, lang }: Props) {
         </section>
       ) : (
         <p className="rounded-2xl border border-dashed border-neutral-200 px-5 py-6 text-sm text-neutral-400">{t.noGear}</p>
+      )}
+
+      {linkedBrandName && (
+        <section className="space-y-6 border-t border-neutral-100 pt-6">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">{t.profile}</p>
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium tracking-wider text-neutral-400">{t.brand}</p>
+            {brandOrigin?.slug ? (
+              <Link
+                href={`/${lang}/origins/${brandOrigin.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-1 text-[14px] font-bold leading-snug text-neutral-900 transition-colors hover:text-neutral-600"
+              >
+                <span className="border-b border-transparent transition-colors group-hover:border-neutral-500">
+                  {linkedBrandName}
+                </span>
+                <ArrowUpRight className="h-3.5 w-3.5 text-neutral-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-neutral-700" />
+              </Link>
+            ) : (
+              <p className="text-[14px] font-bold leading-snug text-neutral-900">{linkedBrandName}</p>
+            )}
+          </div>
+        </section>
       )}
 
       {comment && (

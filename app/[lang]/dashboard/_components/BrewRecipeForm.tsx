@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import RecipeItemForm from "./RecipeItemForm"
 import { supabase } from "@/lib/supabase"
 import { useAppPopup } from "@/context/AppPopupContext"
@@ -48,11 +48,16 @@ export type RecipeItemData = {
   servingStyle: string
 }
 
+type SavedRecipeTemplate = RecipeItemData & {
+  templateName: string
+}
+
 type Props = {
   currentLang: "ja" | "en"
   onChange?: (recipes: RecipeItemData[]) => void
   initialRecipes?: RecipeItemData[]
   syncInitialRecipes?: boolean
+  allowRemoveLast?: boolean
   gears?: GearMasterItem[]
   mode?: "self" | "barista" | "none"
   onChangeMode?: (mode: "self" | "barista" | "none") => void
@@ -63,11 +68,13 @@ export default function BrewRecipeForm({
   onChange,
   initialRecipes,
   syncInitialRecipes = false,
+  allowRemoveLast = false,
   gears
 }: Props) {
   const { showPopup } = useAppPopup()
-  const [templates, setTemplates] = useState<RecipeItemData[]>([])
+  const [templates, setTemplates] = useState<SavedRecipeTemplate[]>([])
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
+  const [confirmDeleteTemplateId, setConfirmDeleteTemplateId] = useState<string | null>(null)
 
   const [recipes, setRecipes] = useState<RecipeItemData[]>(() => {
     if (initialRecipes && initialRecipes.length > 0) return initialRecipes
@@ -94,10 +101,99 @@ export default function BrewRecipeForm({
 
   const [gearOptions, setGearOptions] = useState<GearMasterItem[]>(gears || [])
   const initialRecipesSignature = JSON.stringify(initialRecipes || [])
+  const lastSyncedInitialSignatureRef = useRef(initialRecipesSignature)
+  const isHydratingInitialRecipesRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchTemplates = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      const { data, error } = await supabase
+        .from("recipes")
+        .select(`
+          id,
+          template_title,
+          mode,
+          temperature,
+          grind_size,
+          brew_ratio,
+          tds,
+          bloom_time_seconds,
+          total_time_seconds,
+          gears,
+          pour_steps,
+          notes,
+          barista_user_id,
+          shop_name,
+          shop_origin_id,
+          serving_style
+        `)
+        .eq("user_id", user.id)
+        .eq("is_template", true)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Recipe template fetch error:", error)
+        return
+      }
+      if (cancelled) return
+
+      setTemplates((data || []).map((row: any) => ({
+        id: row.id,
+        templateName: row.template_title || (currentLang === "en" ? "My Recipe" : "マイレシピ"),
+        mode: row.mode === "barista" ? "barista" : "self",
+        equipments: Array.isArray(row.gears) && row.gears.length > 0
+          ? row.gears.map((name: unknown, index: number) => ({
+              id: String(index + 1),
+              name: String(name || ""),
+              gearId: null,
+            }))
+          : [{ id: "1", name: "", gearId: null }],
+        waterTemp: row.temperature != null ? String(row.temperature) : "",
+        grindSize: row.grind_size || "",
+        ratio: row.brew_ratio != null ? String(row.brew_ratio) : "",
+        tdsInput: row.tds != null ? String(row.tds) : "",
+        bloomTime: row.bloom_time_seconds != null ? String(row.bloom_time_seconds) : "",
+        totalTime: row.total_time_seconds != null ? String(row.total_time_seconds) : "",
+        pourSteps: Array.isArray(row.pour_steps) && row.pour_steps.length > 0
+          ? row.pour_steps.map((step: any, index: number) => ({
+              id: String(step.id || index + 1),
+              amount: String(step.amount || ""),
+              time: String(step.time || ""),
+            }))
+          : [{ id: "1", amount: "", time: "" }],
+        notes: row.notes || "",
+        baristaName: "",
+        baristaUserId: row.barista_user_id || "",
+        baristaUsername: "",
+        shopName: row.shop_name || "",
+        shopOriginId: row.shop_origin_id || null,
+        servingStyle: row.serving_style || "",
+      })))
+    }
+
+    void fetchTemplates()
+    return () => {
+      cancelled = true
+    }
+  }, [currentLang])
 
   useEffect(() => {
     if (!syncInitialRecipes || !initialRecipes?.length) return
-    setRecipes(current => JSON.stringify(current) === JSON.stringify(initialRecipes) ? current : initialRecipes)
+    if (lastSyncedInitialSignatureRef.current === initialRecipesSignature) return
+
+    lastSyncedInitialSignatureRef.current = initialRecipesSignature
+    setRecipes(current => {
+      if (JSON.stringify(current) === initialRecipesSignature) {
+        isHydratingInitialRecipesRef.current = false
+        return current
+      }
+      isHydratingInitialRecipesRef.current = true
+      return initialRecipes
+    })
   }, [initialRecipesSignature, syncInitialRecipes])
 
   useEffect(() => {
@@ -121,13 +217,19 @@ export default function BrewRecipeForm({
   useEffect(() => {
     if (!onChange) return
 
-    // When an edit screen has just loaded its DB rows, the effect above still
-    // sees the form's previous default value during the same effect cycle.
-    // Never send that stale value back to the parent before hydration finishes.
+    // Only suppress the stale form value while DB rows are being hydrated.
+    // User edits and removals must always flow back to the edit page.
+    if (isHydratingInitialRecipesRef.current) {
+      if (JSON.stringify(recipes) === initialRecipesSignature) {
+        isHydratingInitialRecipesRef.current = false
+      } else {
+        return
+      }
+    }
+
     if (
       syncInitialRecipes &&
-      initialRecipes?.length &&
-      JSON.stringify(recipes) !== JSON.stringify(initialRecipes)
+      lastSyncedInitialSignatureRef.current !== initialRecipesSignature
     ) {
       return
     }
@@ -271,22 +373,128 @@ export default function BrewRecipeForm({
   }
 
   const handleRemoveRecipe = (id: string) => {
-    if (recipes.length === 1) return
+    if (recipes.length === 1) {
+      if (!allowRemoveLast) return
+      setRecipes([{
+        id: `no-recipe-${Date.now()}`,
+        mode: "none",
+        equipments: [{ id: "1", name: "", gearId: null }],
+        waterTemp: "",
+        grindSize: "",
+        ratio: "",
+        tdsInput: "",
+        bloomTime: "",
+        totalTime: "",
+        pourSteps: [{ id: "1", amount: "", time: "" }],
+        notes: "",
+        baristaName: "",
+        baristaUserId: "",
+        baristaUsername: "",
+        shopName: "",
+        shopOriginId: null,
+        servingStyle: ""
+      }])
+      return
+    }
     setRecipes(recipes.filter(r => r.id !== id))
   }
 
-  const handleSaveTemplate = (recipe: RecipeItemData, templateName: string) => {
-    const name = templateName.trim() || "My Recipe"
-    const newTemplate = {
-      ...recipe,
-      id: `template-${Date.now()}`,
-      notes: `[Template: ${name}] ${recipe.notes}`
+  const handleSaveTemplate = async (recipe: RecipeItemData, templateName: string) => {
+    const name = templateName.trim() || (currentLang === "en" ? "My Recipe" : "マイレシピ")
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      showPopup(
+        currentLang === "en" ? "Please sign in again." : "ログイン状態を確認できませんでした。再度ログインしてください。",
+        "error"
+      )
+      return
     }
-    setTemplates([...templates, newTemplate])
+
+    const toSeconds = (value: string) => {
+      const text = value.trim()
+      if (!text) return null
+      if (/^\d+(?:\.\d+)?$/.test(text)) return Math.round(Number(text))
+      const colon = text.match(/^(\d+):(\d{1,2})$/)
+      if (colon) return Number(colon[1]) * 60 + Number(colon[2])
+      const minutes = text.match(/(\d+(?:\.\d+)?)\s*(?:分|min(?:ute)?s?)/i)
+      const seconds = text.match(/(\d+(?:\.\d+)?)\s*(?:秒|sec(?:ond)?s?|s)\b/i)
+      if (!minutes && !seconds) return null
+      return Math.round(Number(minutes?.[1] || 0) * 60 + Number(seconds?.[1] || 0))
+    }
+
+    const { data, error } = await supabase
+      .from("recipes")
+      .insert({
+        user_id: user.id,
+        bean_name: name,
+        template_title: name,
+        is_template: true,
+        mode: recipe.mode,
+        sort_order: 0,
+        temperature: recipe.waterTemp ? Number(recipe.waterTemp) || null : null,
+        grind_size: recipe.grindSize.trim() || null,
+        brew_ratio: recipe.ratio ? Number(recipe.ratio.replace(/[^0-9.]/g, "")) || null : null,
+        tds: recipe.tdsInput ? Number(recipe.tdsInput) || null : null,
+        bloom_time_seconds: toSeconds(recipe.bloomTime),
+        total_time_seconds: toSeconds(recipe.totalTime),
+        gears: recipe.equipments
+          .map(equipment => equipment.name.trim())
+          .filter(Boolean),
+        pour_steps: recipe.pourSteps.filter(step => step.amount.trim() || step.time.trim()),
+        notes: recipe.notes.trim() || null,
+        barista_user_id: recipe.mode === "barista" ? recipe.baristaUserId || null : null,
+        shop_name: recipe.mode === "barista" ? recipe.shopName.trim() || null : null,
+        shop_origin_id: recipe.mode === "barista" ? recipe.shopOriginId || null : null,
+        serving_style: recipe.mode === "barista" ? recipe.servingStyle.trim() || null : null,
+      })
+      .select("id")
+      .single()
+
+    if (error || !data) {
+      console.error("Recipe template save error:", error)
+      showPopup(
+        currentLang === "en"
+          ? `Could not save the template${error?.message ? `: ${error.message}` : "."}`
+          : `テンプレートを保存できませんでした${error?.message ? `: ${error.message}` : "。"}`,
+        "error"
+      )
+      return
+    }
+
+    setTemplates(current => [{
+      ...recipe,
+      id: data.id,
+      templateName: name,
+    }, ...current])
+    showPopup(
+      currentLang === "en" ? "Recipe template saved." : "レシピテンプレートを保存しました。",
+      "success"
+    )
   }
 
-  const handleLoadTemplate = (template: RecipeItemData) => {
-    if (recipes.length >= 5) {
+  const isBlankRecipe = (recipe: RecipeItemData) => (
+    recipe.mode === "none" ||
+    (
+      recipe.equipments.every(equipment => !equipment.name.trim() && equipment.gearId === null) &&
+      !recipe.waterTemp.trim() &&
+      !recipe.grindSize.trim() &&
+      !recipe.ratio.trim() &&
+      !recipe.tdsInput.trim() &&
+      !recipe.bloomTime.trim() &&
+      !recipe.totalTime.trim() &&
+      recipe.pourSteps.every(step => !step.amount.trim() && !step.time.trim()) &&
+      !recipe.notes.trim() &&
+      !recipe.baristaName.trim() &&
+      !recipe.baristaUserId &&
+      !recipe.shopName.trim() &&
+      !recipe.shopOriginId &&
+      !recipe.servingStyle.trim()
+    )
+  )
+
+  const handleLoadTemplate = (template: SavedRecipeTemplate) => {
+    const blankRecipeIndex = recipes.findIndex(isBlankRecipe)
+    if (blankRecipeIndex < 0 && recipes.length >= 5) {
       showPopup(
         currentLang === "en" ? "You can save up to five recipes. Remove an existing recipe before adding another." : "登録できるレシピは最大5件です。既存のレシピを削除してから追加してください。",
         "info",
@@ -294,8 +502,64 @@ export default function BrewRecipeForm({
       )
       return
     }
-    setRecipes([...recipes, { ...template, id: String(Date.now()) }])
+    const { templateName: _templateName, ...recipe } = template
+    const loadedRecipe: RecipeItemData = {
+      ...recipe,
+      id: String(Date.now()),
+      equipments: recipe.equipments.map((equipment, index) => ({
+        ...equipment,
+        id: `${Date.now()}-equipment-${index}`,
+      })),
+      pourSteps: recipe.pourSteps.map((step, index) => ({
+        ...step,
+        id: `${Date.now()}-step-${index}`,
+      })),
+    }
+
+    if (blankRecipeIndex >= 0) {
+      setRecipes(current => current.map((item, index) => (
+        index === blankRecipeIndex ? loadedRecipe : item
+      )))
+    } else {
+      setRecipes(current => [...current, loadedRecipe])
+    }
     setShowTemplateDropdown(false)
+  }
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      showPopup(
+        currentLang === "en" ? "Please sign in again." : "ログイン状態を確認できませんでした。再度ログインしてください。",
+        "error"
+      )
+      return
+    }
+
+    const { error } = await supabase
+      .from("recipes")
+      .delete()
+      .eq("id", templateId)
+      .eq("user_id", user.id)
+      .eq("is_template", true)
+
+    if (error) {
+      console.error("Recipe template delete error:", error)
+      showPopup(
+        currentLang === "en"
+          ? `Could not delete the template: ${error.message}`
+          : `テンプレートを削除できませんでした: ${error.message}`,
+        "error"
+      )
+      return
+    }
+
+    setTemplates(current => current.filter(template => template.id !== templateId))
+    setConfirmDeleteTemplateId(null)
+    showPopup(
+      currentLang === "en" ? "Recipe template deleted." : "レシピテンプレートを削除しました。",
+      "success"
+    )
   }
 
   const handleAddRecipe = () => {
@@ -332,7 +596,7 @@ export default function BrewRecipeForm({
   }
 
   return (
-    <div className="space-y-8">
+    <div id="brew-recipe-section" className="space-y-8 scroll-mt-28">
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-[15px] font-bold tracking-wider text-[#161616] uppercase">
@@ -351,23 +615,57 @@ export default function BrewRecipeForm({
           </button>
           {showTemplateDropdown && (
             <div className="absolute right-0 mt-2 w-64 bg-white border border-[#e5e5e5] rounded-[12px] shadow-lg z-50 p-2 space-y-1">
-              {templates.map((tpl, idx) => {
-                const match = tpl.notes.match(/^\[Template: (.*?)\]/)
-                const displayName = match ? match[1] : `Template #${idx + 1}`
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => handleLoadTemplate(tpl)}
-                    className="w-full text-left text-[13px] p-2.5 rounded-[8px] hover:bg-neutral-50 text-[#161616] transition-colors truncate block"
-                  >
-                    📌 {displayName}
-                  </button>
-                )
-              })}
+              {templates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="flex items-center gap-1 rounded-[8px] hover:bg-neutral-50 transition-colors"
+                >
+                  {confirmDeleteTemplateId === tpl.id ? (
+                    <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2">
+                      <span className="truncate text-[12px] text-[#555]">
+                        {currentLang === "en" ? "Delete this template?" : "このテンプレートを削除しますか？"}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteTemplateId(null)}
+                          className="text-[11px] text-[#777] hover:text-[#161616]"
+                        >
+                          {currentLang === "en" ? "Cancel" : "戻る"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteTemplate(tpl.id)}
+                          className="text-[11px] font-medium text-red-500 hover:text-red-600"
+                        >
+                          {currentLang === "en" ? "Delete" : "削除"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadTemplate(tpl)}
+                        className="min-w-0 flex-1 truncate px-2.5 py-2.5 text-left text-[13px] text-[#161616]"
+                      >
+                        {tpl.templateName}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteTemplateId(tpl.id)}
+                        className="shrink-0 px-2.5 py-2.5 text-[11px] text-[#999] hover:text-red-500"
+                        aria-label={currentLang === "en" ? `Delete ${tpl.templateName}` : `${tpl.templateName}を削除`}
+                      >
+                        {currentLang === "en" ? "Delete" : "削除"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
               {templates.length === 0 && (
                 <div className="text-[12px] text-[#8e8e8e] p-3 text-center">
-                  保存されたテンプレートはありません
+                  {currentLang === "en" ? "No saved templates." : "保存されたテンプレートはありません"}
                 </div>
               )}
             </div>
@@ -383,7 +681,7 @@ export default function BrewRecipeForm({
           currentLang={currentLang}
           t={t}
           gears={gearOptions}
-          recipesCount={recipes.length}
+          allowRemove={recipes.length > 1 || (allowRemoveLast && recipe.mode !== "none")}
           onUpdate={updateRecipe}
           onRemove={handleRemoveRecipe}
           onSaveTemplate={handleSaveTemplate}

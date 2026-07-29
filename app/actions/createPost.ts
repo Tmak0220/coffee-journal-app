@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@supabase/supabase-js"
+import { createClient as createServerSupabaseClient } from "@/lib/supabase-server"
 import { S3Client, CopyObjectCommand, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
 
 const r2 = new S3Client({
@@ -172,13 +173,70 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
   }
 }
 
+export async function syncPostOriginLinksForOwner(postId: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("ログインが必要です")
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data: post, error } = await supabaseAdmin
+    .from("posts")
+    .select("id, user_id")
+    .eq("id", postId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!post) throw new Error("投稿を確認できませんでした")
+
+  await syncOriginPostLinks(supabaseAdmin, post.id)
+  return { success: true }
+}
+
 // ==========================================
 // 1. 新規投稿作成処理 (INSERT)
 // ==========================================
 export async function createPost(input: any, userId: string) {
   try {
     if (!input.title?.trim()) throw new Error("タイトルは必須です")
+    if (!input.tastes?.trim()) throw new Error("味わいは必須です")
     if (!input.imageUrls?.length) throw new Error("画像は1枚以上必要です")
+
+    const incompleteRecipe = (input.recipe_data || []).find((recipe: any) => {
+      if (!recipe || recipe.mode === "none") return false
+      const hasEquipment = Array.isArray(recipe.gearIds) && recipe.gearIds.length > 0
+      const hasNotes = Boolean(String(recipe.notes || "").trim())
+      if (recipe.mode === "self") {
+        return !(
+          hasEquipment ||
+          String(recipe.waterTemp || "").trim() ||
+          String(recipe.grindSize || "").trim() ||
+          String(recipe.ratio || "").trim() ||
+          String(recipe.tdsInput || "").trim() ||
+          String(recipe.bloomTime || "").trim() ||
+          String(recipe.totalTime || "").trim() ||
+          (Array.isArray(recipe.pourSteps) && recipe.pourSteps.some((step: any) =>
+            String(step?.amount || "").trim() || String(step?.time || "").trim()
+          )) ||
+          hasNotes
+        )
+      }
+      return !(
+        hasEquipment ||
+        String(recipe.baristaName || "").trim() ||
+        String(recipe.baristaUserId || "").trim() ||
+        String(recipe.shopName || "").trim() ||
+        recipe.shopOriginId ||
+        String(recipe.servingStyle || "").trim() ||
+        hasNotes
+      )
+    })
+    if (incompleteRecipe) {
+      throw new Error("レシピには少なくとも1つの項目を入力してください")
+    }
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

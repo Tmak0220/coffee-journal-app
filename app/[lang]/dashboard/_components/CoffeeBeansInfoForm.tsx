@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 export type OriginSuggestion = {
@@ -51,6 +51,8 @@ const dict = {
   ja: {
     section1: "COFFEE INFO",
     subSection1: "基本情報",
+    labelTitle: "Coffee Name",
+    descTitle: "コーヒー名（必須）",
     placeholderTitle: "コーヒー名を入力してください（例: パナマ ゲイシャ）",
     labelSource: "Source",
     descSource: "産地・農園などを選択してください",
@@ -85,6 +87,8 @@ const dict = {
   en: {
     section1: "COFFEE INFO",
     subSection1: "Basic Information",
+    labelTitle: "Coffee Name",
+    descTitle: "Coffee name (Required)",
     placeholderTitle: "Please enter the coffee name (e.g., Panama Geisha)",
     labelSource: "Source",
     descSource: "Please select the origin, farm, etc.",
@@ -157,7 +161,10 @@ export default function CoffeeBeansInfoForm({
 
   // 初期値ロード (品種)
   useEffect(() => {
-    if (!variety) return
+    if (!variety) {
+      setVarieties([{ id: "1", value: "" }])
+      return
+    }
     const fetchInitialVarieties = async () => {
       const ids = variety.split(",").map(Number).filter(Boolean)
       if (ids.length === 0) return
@@ -185,7 +192,10 @@ export default function CoffeeBeansInfoForm({
 
   // 初期値ロード (精製方法)
   useEffect(() => {
-    if (!process) return
+    if (!process) {
+      setProcesses([{ id: "1", value: "" }])
+      return
+    }
     const fetchInitialProcesses = async () => {
       const ids = process.split(",").map(Number).filter(Boolean)
       if (ids.length === 0) return
@@ -387,7 +397,7 @@ export default function CoffeeBeansInfoForm({
   const counterStyle = "text-[12px] text-[#8e8e8e] font-mono text-right pr-1 pt-1"
 
   return (
-    <div className="space-y-8">
+    <div id="coffee-info-section" className="space-y-8 scroll-mt-28">
       <div>
         <h2 className="text-[15px] font-bold tracking-wider text-[#161616] uppercase">
           {t.section1}
@@ -399,6 +409,10 @@ export default function CoffeeBeansInfoForm({
       
       {/* Title */}
       <div className="space-y-3">
+        <div>
+          <label className={labelStyle}>{t.labelTitle}</label>
+          <p className={labelDescStyle}>{t.descTitle}</p>
+        </div>
         <input 
           type="text" 
           maxLength={isAdmin ? undefined : 100} 
@@ -718,6 +732,16 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
   const [requestValue, setRequestValue] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [modalMessage, setModalMessage] = useState<{ text: string; type: "success" | "error" } | null>(null)
+  const requestInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const frame = window.requestAnimationFrame(() => {
+      requestInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      requestInputRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -788,6 +812,7 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-neutral-600 uppercase tracking-wider">{t.modalContentLabel}</label>
             <input
+              ref={requestInputRef}
               type="text"
               placeholder={t.modalPlaceholder}
               value={requestValue}

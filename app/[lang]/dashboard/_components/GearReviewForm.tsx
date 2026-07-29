@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import MasterRequestButton, { MasterRequestOption } from "./MasterRequestButton"
+import { syncPostOriginLinksForOwner } from "@/app/actions/createPost"
 
 type GearSuggestion = {
   id: number
@@ -32,8 +33,11 @@ const dict = {
   ja: {
     sectionTitle: "GEAR REVIEW",
     sectionDesc: "器具レビュー / 器具の感想やおすすめ設定の記録",
+    labelTitle: "TITLE",
+    labelTitleSub: "投稿タイトル（必須）",
+    placeholderTitle: "投稿タイトルを入力してください",
     labelGear: "SELECT GEAR",
-    labelGearSub: "対象の器具を選択してください",
+    labelGearSub: "対象の器具を選択してください（必須）",
     placeholderGear: "ブランド名や器具名で検索...",
     btnChange: "変更",
     labelFlavor: "FLAVOR PROFILE",
@@ -42,19 +46,24 @@ const dict = {
     labelSettingSub: "設定・パラメータ（任意）",
     placeholderSetting: "例: 92℃ / 抽出比率 1:15 / メッシュ#30",
     labelReview: "REVIEW",
-    labelReviewSub: "レビュー（特徴、使い勝手など）",
+    labelReviewSub: "レビュー（特徴、使い勝手など）（必須）",
     placeholderReview: "特徴、使い勝手などを自由にお書きください。",
     btnSubmit: "投稿する",
     btnSubmitting: "処理中...",
     selectGearError: "レビューする器具を選択してください。",
+    titleError: "タイトルを入力してください。",
+    reviewError: "レビューを入力してください。",
     loginError: "投稿するにはログインが必要です。",
     submitError: "投稿に失敗しました。",
   },
   en: {
     sectionTitle: "GEAR REVIEW",
     sectionDesc: "Share your experience with coffee gears.",
+    labelTitle: "TITLE",
+    labelTitleSub: "Post title (Required)",
+    placeholderTitle: "Enter a title for this post",
     labelGear: "SELECT GEAR",
-    labelGearSub: "Select gear to review",
+    labelGearSub: "Select gear to review (Required)",
     placeholderGear: "Search brand or gear name...",
     btnChange: "Change",
     labelFlavor: "FLAVOR PROFILE",
@@ -63,11 +72,13 @@ const dict = {
     labelSettingSub: "Setting Note (Optional)",
     placeholderSetting: "e.g., 92°C / 1:15 ratio / Mesh #30",
     labelReview: "REVIEW",
-    labelReviewSub: "Review details",
+    labelReviewSub: "Review details (Required)",
     placeholderReview: "Describe its features and usability...",
     btnSubmit: "Post Review",
     btnSubmitting: "Processing...",
     selectGearError: "Please select a gear.",
+    titleError: "Please enter a title.",
+    reviewError: "Please enter your review.",
     loginError: "Please log in to submit.",
     submitError: "Failed to submit review.",
   }
@@ -110,6 +121,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
   // Gear から自動で紐付ける Origins (ブランド・会社) のステート
   const [selectedBrandOrigin, setSelectedBrandOrigin] = useState<OriginSuggestion | null>(null)
 
+  const [title, setTitle] = useState("")
   const [flavorProfile, setFlavorProfile] = useState<number | null>(null)
   const [grindSetting, setGrindSetting] = useState("")
   const [comment, setComment] = useState("")
@@ -135,7 +147,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
         return
       }
       const [postResult, linkResult] = await Promise.all([
-        supabase.from("posts").select("user_id, type, description, image_urls, source_origin_id").eq("id", editId).eq("user_id", user.id).single(),
+        supabase.from("posts").select("user_id, type, title, description, image_urls, market_origin_id, source_origin_id").eq("id", editId).eq("user_id", user.id).single(),
         supabase.from("post_gears").select("gear_id, rating, grind_setting, comment").eq("post_id", editId).maybeSingle(),
       ])
       if (!active) return
@@ -156,15 +168,17 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
       }
 
       // 既存の紐付けOriginがあれば取得
-      if (postResult.data.source_origin_id) {
+      const savedBrandOriginId = postResult.data.market_origin_id || postResult.data.source_origin_id
+      if (savedBrandOriginId) {
         const { data: originData } = await supabase
           .from("origins")
           .select("id, name, name_ja, slug")
-          .eq("id", postResult.data.source_origin_id)
+          .eq("id", savedBrandOriginId)
           .single()
         if (originData) setSelectedBrandOrigin(originData)
       }
 
+      setTitle(postResult.data.title || "")
       setFlavorProfile(linkResult.data.rating == null ? null : Number(linkResult.data.rating))
       setGrindSetting(linkResult.data.grind_setting || "")
       setComment(linkResult.data.comment || postResult.data.description || "")
@@ -205,17 +219,28 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
     setGearInput(gearDisplayName)
     setGearSuggestions([])
 
-    // gear.brand または gear.brand_ja を使って origins の search_keywords から該当ブランドを検索して紐付け
-    const targetBrand = gear.brand_ja || gear.brand
+    // ブランドとして公開されている market のみを候補にする
+    const targetBrand = currentLang === "en"
+      ? (gear.brand || gear.brand_ja)
+      : (gear.brand_ja || gear.brand)
     if (targetBrand) {
       const { data } = await supabase
         .from("origins")
         .select("id, slug, name, name_ja")
+        .eq("type", "market")
         .ilike("search_keywords", `%${targetBrand}%`)
-        .limit(1)
+        .limit(10)
 
       if (data && data.length > 0) {
-        setSelectedBrandOrigin(data[0] as OriginSuggestion)
+        const normalize = (value: string | null | undefined) => (
+          String(value || "").normalize("NFKC").trim().toLocaleLowerCase()
+        )
+        const normalizedBrand = normalize(targetBrand)
+        const exactMatch = data.find(origin => (
+          normalize(origin.name) === normalizedBrand ||
+          normalize(origin.name_ja) === normalizedBrand
+        ))
+        setSelectedBrandOrigin((exactMatch || data[0]) as OriginSuggestion)
       } else {
         setSelectedBrandOrigin(null)
       }
@@ -228,8 +253,16 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
     e.preventDefault()
     setErrorMessage(null)
 
+    if (!title.trim()) {
+      setErrorMessage(t.titleError)
+      return
+    }
     if (!selectedGear) {
       setErrorMessage(t.selectGearError)
+      return
+    }
+    if (!comment.trim()) {
+      setErrorMessage(t.reviewError)
       return
     }
 
@@ -241,13 +274,15 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
 
       const postPayload = {
         user_id: user.id,
-        title: `${selectedGear.brand_ja || selectedGear.brand} ${selectedGear.name_ja || selectedGear.name} レビュー`,
-        description: comment.trim() || null,
+        title: title.trim(),
+        description: comment.trim(),
         image_urls: imageUrls.length > 0 ? imageUrls.slice(0, 3) : null,
         visibility: "public",
         lang: currentLang,
         type: "gear_review",
-        source_origin_id: selectedBrandOrigin?.id || null // 自動参照された origins.id を連携
+        market_origin_id: selectedBrandOrigin?.id || null,
+        // 過去版でブランドを source に保存していた器具投稿も、編集保存時に正規化する。
+        source_origin_id: null,
       }
 
       const postQuery = editId
@@ -270,6 +305,11 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
       })
 
       if (gearLinkError) throw gearLinkError
+
+      // origins の公開ページ・ダッシュボード双方で参照する関連リンクを同期する。
+      // 編集時にブランドを変更した場合は古いリンクもこの処理で取り除かれる。
+      await syncPostOriginLinksForOwner(postData.id)
+
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
         await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
       }
@@ -315,6 +355,32 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
           onRemovedImagesChanged={setRemovedImageUrls}
         />
 
+        {/* TITLE */}
+        <div className="space-y-3 border-b border-neutral-100 pb-8">
+          <div>
+            <label className="block text-sm font-bold uppercase tracking-wider text-neutral-900">
+              {t.labelTitle}
+            </label>
+            <p className="mt-0.5 text-xs font-normal text-neutral-500">
+              {t.labelTitleSub}
+            </p>
+          </div>
+          <div className="max-w-xl">
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={100}
+              required
+              placeholder={t.placeholderTitle}
+              className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm transition duration-200 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            />
+            <p className="mt-2 text-right text-[11px] tabular-nums text-neutral-400">
+              {title.length} / 100
+            </p>
+          </div>
+        </div>
+
         {/* SELECT GEAR 選択セクション */}
         <div className="border-b border-neutral-100 pb-8 space-y-3">
           <div>
@@ -339,6 +405,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
                 }
               }}
               placeholder={t.placeholderGear}
+              required
               className="w-full text-sm px-4 py-3 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition duration-200 placeholder:text-neutral-400"
             />
 
@@ -445,15 +512,20 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction }:
             rows={5}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            maxLength={5000}
+            required
             placeholder={t.placeholderReview}
             className="w-full text-sm p-4 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 leading-relaxed transition duration-200 placeholder:text-neutral-400"
           />
+          <p className="text-right text-[11px] tabular-nums text-neutral-400">
+            {comment.length} / 5000
+          </p>
         </div>
 
         <div className="pt-4 border-t border-neutral-100 flex flex-col justify-end gap-3 sm:flex-row sm:items-center">
           <button
             type="submit"
-            disabled={submitting || !selectedGear}
+            disabled={submitting || !title.trim() || !selectedGear || !comment.trim()}
             className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
           >
             {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}

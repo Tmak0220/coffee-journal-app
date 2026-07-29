@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 import HeroImageUploader from "./HeroImageUploader"
 import CoffeeBeansInfoForm, { OriginSuggestion } from "./CoffeeBeansInfoForm"
 import BrewRecipeForm, { RecipeItemData } from "./BrewRecipeForm"
 import TasteTagsForm from "./TasteTagsForm"
+import { useAppPopup } from "@/context/AppPopupContext"
 
 type Props = { 
   onLogCreated: () => void 
@@ -36,7 +38,11 @@ const logFormDict = {
     statusPublic: "公開 (全員に公開)",
     loginRequired: "ログインしてください",
     successMessage: "投稿しました。",
-    errorMessage: "エラーが発生しました。"
+    errorMessage: "エラーが発生しました。",
+    coffeeInfoRequired: "COFFEE INFOの必須項目をすべて入力してください。",
+    coffeeInfoRequiredTitle: "基本情報を確認してください",
+    recipeInputRequired: "「自分で抽出」または「他の人が抽出 / 提供」を選んだレシピは、少なくとも1つの項目を入力してください。",
+    recipeInputRequiredTitle: "レシピ内容を確認してください"
   },
   en: {
     mainTitle: "TASTING & RECIPE",
@@ -51,13 +57,19 @@ const logFormDict = {
     statusPublic: "Public (Everyone)",
     loginRequired: "Please log in",
     successMessage: "Successfully posted.",
-    errorMessage: "An error occurred."
+    errorMessage: "An error occurred.",
+    coffeeInfoRequired: "Complete all required fields in COFFEE INFO.",
+    coffeeInfoRequiredTitle: "Check the basic information",
+    recipeInputRequired: "For each self-brewed or externally prepared recipe, enter at least one item.",
+    recipeInputRequiredTitle: "Check the recipe details"
   }
 }
 
 export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Props) {
   const currentLang = (lang === "en" || formLanguage === "en") ? "en" : "ja"
   const t = logFormDict[currentLang]
+  const { showPopup } = useAppPopup()
+  const router = useRouter()
 
   const [title, setTitle] = useState("")
   const [tastes, setTastes] = useState("")
@@ -202,7 +214,55 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
     e.preventDefault()
     setStatusMessage(null)
 
-    if (!title.trim()) return
+    const hasRequiredCoffeeInfo = Boolean(
+      title.trim() &&
+      tastes.trim()
+    )
+    if (!hasRequiredCoffeeInfo) {
+      showPopup(t.coffeeInfoRequired, "error", t.coffeeInfoRequiredTitle)
+      document.getElementById("coffee-info-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      return
+    }
+
+    const recipeHasAnyInput = (recipe: RecipeItemData) => {
+      if (recipe.mode === "none") return true
+
+      const hasEquipment = (recipe.equipments || []).some(
+        equipment => equipment.gearId !== null || equipment.name.trim()
+      )
+      const hasNotes = Boolean(recipe.notes.trim())
+
+      if (recipe.mode === "self") {
+        return Boolean(
+          hasEquipment ||
+          recipe.waterTemp.trim() ||
+          recipe.grindSize.trim() ||
+          recipe.ratio.trim() ||
+          recipe.tdsInput.trim() ||
+          recipe.bloomTime.trim() ||
+          recipe.totalTime.trim() ||
+          recipe.pourSteps.some(step => step.amount.trim() || step.time.trim()) ||
+          hasNotes
+        )
+      }
+
+      return Boolean(
+        hasEquipment ||
+        recipe.baristaName.trim() ||
+        recipe.baristaUserId ||
+        recipe.shopName.trim() ||
+        recipe.shopOriginId ||
+        recipe.servingStyle.trim() ||
+        hasNotes
+      )
+    }
+
+    if (recipeItems.some(recipe => !recipeHasAnyInput(recipe))) {
+      showPopup(t.recipeInputRequired, "error", t.recipeInputRequiredTitle)
+      document.getElementById("brew-recipe-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      return
+    }
+
     if (imageUrls.length === 0) {
       setStatusMessage({ text: t.imageRequiredError, type: "error" })
       return
@@ -242,7 +302,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
 
       const { createPost } = await import("@/app/actions/createPost")
 
-      await createPost({
+      const createdPost = await createPost({
         title: title.trim(),
         source_origin_id: finalSourceId,
         market_origin_id: finalMarketId, 
@@ -256,6 +316,20 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         visibility: visibility,
         lang: currentLang
       }, user.id)
+
+      const originIds = [finalMarketId, finalSourceId].filter(
+        (originId): originId is number => Number.isInteger(originId)
+      )
+      const { data: originRows } = originIds.length > 0
+        ? await supabase.from("origins").select("id, slug").in("id", originIds)
+        : { data: [] }
+      const originSlugMap = new Map((originRows || []).map(origin => [origin.id, origin.slug]))
+      const postSegments = [
+        finalMarketId ? originSlugMap.get(finalMarketId) : null,
+        finalSourceId ? originSlugMap.get(finalSourceId) : null,
+        createdPost.id,
+      ].filter((segment): segment is string => Boolean(segment))
+      const postUrl = `/${currentLang}/posts/${postSegments.map(encodeURIComponent).join("/")}`
       
       setStatusMessage({ text: t.successMessage, type: "success" })
 
@@ -306,6 +380,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
       })
       
       onLogCreated()
+      router.push(postUrl)
     } catch (err: any) {
       console.error("Form submit error:", err)
       setStatusMessage({ text: err?.message || t.errorMessage, type: "error" })

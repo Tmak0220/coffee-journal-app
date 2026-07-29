@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 export type MasterRequestOption = {
@@ -22,7 +22,19 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
   const [requestValue, setRequestValue] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null)
+  const requestInputRef = useRef<HTMLInputElement>(null)
   const isEn = currentLang === "en"
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const frame = window.requestAnimationFrame(() => {
+      requestInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      requestInputRef.current?.focus({ preventScroll: true })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [isOpen])
 
   const submitRequest = async () => {
     if (!requestValue.trim() || isSubmitting) return
@@ -64,8 +76,8 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl border border-neutral-200 w-full max-w-md p-6 shadow-xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm">
+          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl space-y-5">
             <h3 className="text-base font-bold text-neutral-900">{isEn ? "Registration Request" : "登録リクエスト"}</h3>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -77,6 +89,7 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-neutral-600 uppercase tracking-wider">{isEn ? "Request details" : "登録したい内容"}</label>
                 <input
+                  ref={requestInputRef}
                   type="text"
                   value={requestValue}
                   onChange={(e) => setRequestValue(e.target.value)}

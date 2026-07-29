@@ -10,6 +10,7 @@ import HeroImageUploader from "@/app/[lang]/dashboard/_components/HeroImageUploa
 import CoffeeBeansInfoForm from "@/app/[lang]/dashboard/_components/CoffeeBeansInfoForm"
 import BrewRecipeForm, { RecipeItemData } from "@/app/[lang]/dashboard/_components/BrewRecipeForm"
 import TasteTagsForm from "@/app/[lang]/dashboard/_components/TasteTagsForm"
+import { useAppPopup } from "@/context/AppPopupContext"
 
 type OriginSuggestion = {
   id: number
@@ -100,6 +101,7 @@ export default function EditPostPage({ params }: Props) {
   const { lang, id: postId } = use(params)
   const currentLang = lang === "en" ? "en" : "ja"
   const t = logFormDict[currentLang]
+  const { showPopup } = useAppPopup()
   
   const router = useRouter()
 
@@ -382,7 +384,63 @@ export default function EditPostPage({ params }: Props) {
     e.preventDefault()
     setStatusMessage(null)
 
-    if (!title.trim()) return
+    if (
+      !title.trim() ||
+      !tastes.trim()
+    ) {
+      showPopup(
+        currentLang === "en"
+          ? "Complete all required fields in COFFEE INFO."
+          : "COFFEE INFOの必須項目をすべて入力してください。",
+        "error",
+        currentLang === "en" ? "Check the basic information" : "基本情報を確認してください"
+      )
+      document.getElementById("coffee-info-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      return
+    }
+
+    const recipeHasAnyInput = (recipe: RecipeItemData) => {
+      if (recipe.mode === "none") return true
+      const hasEquipment = recipe.equipments.some(
+        equipment => equipment.gearId !== null || equipment.name.trim()
+      )
+      const hasNotes = Boolean(recipe.notes.trim())
+      if (recipe.mode === "self") {
+        return Boolean(
+          hasEquipment ||
+          recipe.waterTemp.trim() ||
+          recipe.grindSize.trim() ||
+          recipe.ratio.trim() ||
+          recipe.tdsInput.trim() ||
+          recipe.bloomTime.trim() ||
+          recipe.totalTime.trim() ||
+          recipe.pourSteps.some(step => step.amount.trim() || step.time.trim()) ||
+          hasNotes
+        )
+      }
+      return Boolean(
+        hasEquipment ||
+        recipe.baristaName.trim() ||
+        recipe.baristaUserId ||
+        recipe.shopName.trim() ||
+        recipe.shopOriginId ||
+        recipe.servingStyle.trim() ||
+        hasNotes
+      )
+    }
+
+    if (recipeItems.some(recipe => !recipeHasAnyInput(recipe))) {
+      showPopup(
+        currentLang === "en"
+          ? "For each self-brewed or externally prepared recipe, enter at least one item."
+          : "「自分で抽出」または「他の人が抽出 / 提供」を選んだレシピは、少なくとも1つの項目を入力してください。",
+        "error",
+        currentLang === "en" ? "Check the recipe details" : "レシピ内容を確認してください"
+      )
+      document.getElementById("brew-recipe-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      return
+    }
+
     if (imageUrls.length === 0) {
       setStatusMessage({ text: t.imageRequiredError, type: "error" })
       return
@@ -578,9 +636,16 @@ export default function EditPostPage({ params }: Props) {
       setPendingDeletedImageUrls([])
 
       setStatusMessage({ text: currentLang === "en" ? "Changes saved successfully" : "投稿を更新しました。", type: "success" })
-      
+
+      const postSegments = [
+        selectedMarket?.slug || null,
+        selectedSource?.slug || null,
+        postId,
+      ].filter((segment): segment is string => Boolean(segment))
+      const postUrl = `/${currentLang}/posts/${postSegments.map(encodeURIComponent).join("/")}`
+
       setTimeout(() => {
-        router.push(`/${currentLang}/dashboard`)
+        router.push(postUrl)
       }, 1000)
 
     } catch (err: any) {
@@ -716,6 +781,7 @@ export default function EditPostPage({ params }: Props) {
           <BrewRecipeForm 
             currentLang={currentLang}
             syncInitialRecipes={true}
+            allowRemoveLast={true}
             initialRecipes={recipeItems}
             onChange={handleRecipeChange}
           />

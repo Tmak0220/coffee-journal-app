@@ -63,14 +63,13 @@ export function AppPopupProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {notice && (
-        <div className="fixed left-1/2 top-24 z-[120] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 animate-fadeIn" role="status" aria-live="polite">
-          <div className={`flex items-start gap-3 rounded-2xl border px-5 py-4 shadow-[0_18px_55px_-24px_rgba(0,0,0,0.35)] backdrop-blur-md ${toneStyles}`}>
-            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-70" aria-hidden="true" />
+        <div className="fixed left-1/2 top-24 z-[120] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 animate-fadeIn" role="status" aria-live="polite">
+          <div className={`flex min-w-[280px] max-w-lg items-center gap-3 rounded-xl border px-4 py-3 shadow-[0_14px_42px_-24px_rgba(0,0,0,0.32)] backdrop-blur-md ${toneStyles}`}>
             <div className="min-w-0 flex-1">
               {notice.title && <p className="text-[11px] font-bold tracking-[0.08em]">{notice.title}</p>}
-              <p className={`${notice.title ? "mt-1" : ""} text-[13px] leading-relaxed`}>{notice.message}</p>
+              <p className={`${notice.title ? "mt-1" : ""} text-[13px] leading-[1.65]`}>{notice.message}</p>
             </div>
-            <button type="button" onClick={() => setNotice(null)} className="-mr-1 rounded-full p-1 text-current opacity-45 transition-opacity hover:opacity-100" aria-label="閉じる">✕</button>
+            <button type="button" onClick={() => setNotice(null)} className="-mr-0.5 shrink-0 rounded-full p-1 text-current opacity-40 transition-opacity hover:opacity-100" aria-label="閉じる">✕</button>
           </div>
         </div>
       )}
