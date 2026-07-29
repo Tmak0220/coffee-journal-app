@@ -146,9 +146,19 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
           .select("id, post_id, bean_name, expert_display_status, expert_is_pinned")
           .eq("barista_user_id", userId)
 
-    const [profileResult, linkedPostsResult] = await Promise.all([
-      editable ? profileQuery : Promise.resolve({ data: null, error: null }),
+    // posts の外部キーを正とし、古い投稿で origin_post_links が欠けていても
+    // Source / Market / Event のいずれか一つだけの紐付けから表示できるようにする。
+    const directlyLinkedPostsQuery = targetType === "origin"
+      ? supabase
+          .from("posts")
+          .select("id, user_id")
+          .or(`source_origin_id.eq.${originId!},market_origin_id.eq.${originId!},event_origin_id.eq.${originId!}`)
+      : Promise.resolve({ data: [], error: null })
+
+    const [profileResult, linkedPostsResult, directlyLinkedPostsResult] = await Promise.all([
+      profileQuery,
       linkedPostsQuery,
+      directlyLinkedPostsQuery,
     ])
 
     if (profileResult.data?.linked_posts_mode === "review") setMode("review")
@@ -161,7 +171,27 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
       return
     }
 
-    const linkedRows = linkedPostsResult.data || []
+    if (directlyLinkedPostsResult.error) {
+      console.error("Error fetching directly linked origin posts:", directlyLinkedPostsResult.error)
+    }
+
+    const linkedRows = [...(linkedPostsResult.data || [])] as any[]
+    if (targetType === "origin") {
+      const linkedPostIds = new Set(linkedRows.map((item: any) => item.post_id))
+      for (const directlyLinkedPost of directlyLinkedPostsResult.data || []) {
+        if (linkedPostIds.has(directlyLinkedPost.id)) continue
+        linkedRows.push({
+          id: `direct-${originId}-${directlyLinkedPost.id}`,
+          post_id: directlyLinkedPost.id,
+          display_status:
+            profileResult.data?.linked_posts_mode === "review" &&
+            directlyLinkedPost.user_id !== currentOwnerId
+              ? "pending"
+              : "approved",
+          is_pinned: false,
+        })
+      }
+    }
     const postIds = Array.from(new Set(linkedRows.map((item: any) => item.post_id).filter(Boolean)))
     if (postIds.length === 0) {
       setLogs([])

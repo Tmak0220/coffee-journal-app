@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { FormSkeleton } from "@/components/ui/PageSkeletons"
-import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
+import { serverMoveToPermanentStorage, syncPostOriginLinksForOwner } from "@/app/actions/createPost"
 import HeroImageUploader from "@/app/[lang]/dashboard/_components/HeroImageUploader"
 import CoffeeBeansInfoForm from "@/app/[lang]/dashboard/_components/CoffeeBeansInfoForm"
 import BrewRecipeForm, { RecipeItemData } from "@/app/[lang]/dashboard/_components/BrewRecipeForm"
@@ -613,6 +613,10 @@ export default function EditPostPage({ params }: Props) {
           if (insertPivotError) throw insertPivotError
         }
       }
+
+      // posts の産地・店舗と、公開ページ用の補助リンクを必ず同期する。
+      // Source / Market の片方だけを指定した場合や、紐付けを変更・解除した場合も反映する。
+      await syncPostOriginLinksForOwner(postId)
 
       const removedStoredUrls = Array.from(new Set([
         ...initialImageUrlsRef.current.filter((url) => !permanentImageUrls.includes(url)),

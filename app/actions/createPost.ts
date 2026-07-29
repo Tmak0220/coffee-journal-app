@@ -67,6 +67,12 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
 // UUIDチェック用の正規表現
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+function normalizeOriginId(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null
+  const parsed = typeof value === "number" ? value : Number(value)
+  return Number.isInteger(parsed) ? parsed : null
+}
+
 function parseDurationSeconds(value: unknown): number | null {
   const text = String(value ?? "").trim()
   if (!text) return null
@@ -113,7 +119,7 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
     post.market_origin_id,
     post.event_origin_id,
     ...(recipeRows || []).map((recipe: any) => recipe.shop_origin_id),
-  ].filter((id): id is number => Number.isInteger(id))))
+  ].map(normalizeOriginId).filter((id): id is number => id !== null)))
 
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("origin_post_links")
@@ -258,9 +264,9 @@ export async function createPost(input: any, userId: string) {
       image_urls: permanentImageUrls,
       visibility: input.visibility || "draft",
       lang: input.lang === "en" ? "en" : "ja",
-      source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
-      market_origin_id: Number.isInteger(input.market_origin_id) ? input.market_origin_id : null,
-      event_origin_id: Number.isInteger(input.event_origin_id) ? input.event_origin_id : null,
+      source_origin_id: normalizeOriginId(input.source_origin_id),
+      market_origin_id: normalizeOriginId(input.market_origin_id),
+      event_origin_id: normalizeOriginId(input.event_origin_id),
     }
 
     const { data: post, error: postError } = await supabaseAdmin
@@ -410,9 +416,9 @@ export async function updatePost(postId: string, input: any, userId: string) {
       description: input.description?.trim() || null,
       image_urls: permanentImageUrls,
       visibility: input.visibility || "public",
-      source_origin_id: Number.isInteger(input.source_origin_id) ? input.source_origin_id : null,
-      market_origin_id: Number.isInteger(input.market_origin_id) ? input.market_origin_id : null,
-      event_origin_id: Number.isInteger(input.event_origin_id) ? input.event_origin_id : null,
+      source_origin_id: normalizeOriginId(input.source_origin_id),
+      market_origin_id: normalizeOriginId(input.market_origin_id),
+      event_origin_id: normalizeOriginId(input.event_origin_id),
     }
 
     const { data: updatedPostData, error: updateError } = await supabaseAdmin
