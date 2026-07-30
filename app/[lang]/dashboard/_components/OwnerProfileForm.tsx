@@ -444,10 +444,15 @@ export default function OwnerProfileForm({
   }
 
   useEffect(() => {
+    setAvatarUrl(initialAvatarUrl)
+    setCoverUrl(initialCoverUrl)
+    committedAvatarUrlRef.current = initialAvatarUrl
+    committedCoverUrlRef.current = initialCoverUrl
     setDisplayName(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
     setBio(currentLang === "en" ? (initialBioEn || "") : (initialBio || ""))
     setHeadquarters(currentLang === "en" ? (initialHeadquartersEn || emptyLocation) : (initialHeadquarters || emptyLocation))
     setBranches(currentLang === "en" ? (initialBranchesEn || []) : (initialBranches || []))
+    setLinks(initialLinks || [])
     setIsApproved(initialIsApproved)
     setIsProfileCompleted(initialIsProfileCompleted)
     setIsPublic(initialIsPublic)
@@ -457,6 +462,9 @@ export default function OwnerProfileForm({
     initialDisplayNameEn,
     initialBio,
     initialBioEn,
+    initialAvatarUrl,
+    initialCoverUrl,
+    initialLinks,
     branchesKey,
     hqKey,
     initialIsApproved,

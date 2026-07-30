@@ -30,7 +30,9 @@ type UserProfile = {
   id: string
   username: string
   display_name: string | null
+  display_name_en?: string | null
   bio: string | null
+  bio_en?: string | null
   avatar_url: string | null
   cover_url: string | null
   role: "user" | "barista" | "owner" | "admin"
@@ -453,6 +455,9 @@ export default function UnifiedDashboard({
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [proPostRefreshKey, setProPostRefreshKey] = useState(0)
   const [userPostRefreshKey, setUserPostRefreshKey] = useState(0)
+  const [sharedAvatarUrl, setSharedAvatarUrl] = useState<string | null>(profile.avatar_url)
+  const [sharedCoverUrl, setSharedCoverUrl] = useState<string | null>(profile.cover_url)
+  const [liveUserProfile, setLiveUserProfile] = useState<UserProfile>(profile)
 
   const isAdmin = profile.role === "admin"
   const isPremium = profile.membership_tier !== "free" || isAdmin
@@ -460,6 +465,29 @@ export default function UnifiedDashboard({
   const hasBusinessAccess = (profile.role === "owner" || isAdmin) && profile.membership_tier === "business"
 
   const isEn = lang === "en"
+
+  useEffect(() => {
+    async function refreshSharedUserProfile() {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, username, display_name, display_name_en, bio, bio_en, avatar_url, cover_url, role, membership_tier")
+        .eq("id", profile.id)
+        .maybeSingle()
+
+      if (error) {
+        console.error("Failed to refresh shared profile settings:", error)
+        return
+      }
+
+      if (data) {
+        setLiveUserProfile((current) => ({ ...current, ...data }))
+        setSharedAvatarUrl(data.avatar_url ?? null)
+        setSharedCoverUrl(data.cover_url ?? null)
+      }
+    }
+
+    void refreshSharedUserProfile()
+  }, [profile.id, activeTab, formLanguage])
 
   useEffect(() => {
     async function fetchLatestExpertProfile() {
@@ -657,10 +685,29 @@ export default function UnifiedDashboard({
               <div className="space-y-12 animate-fadeIn w-full">
                 <div className="flex w-full flex-col items-center gap-8 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:gap-12 sm:p-12">
                   <div className="w-full flex flex-col items-center">
-                    <AvatarUpload userId={profile.id} initialAvatarUrl={profile.avatar_url} username={profile.username} displayName={profile.display_name} label={t.uploadLabel} lang={formLanguage} />
+                    <AvatarUpload
+                      userId={profile.id}
+                      initialAvatarUrl={sharedAvatarUrl}
+                      username={liveUserProfile.username}
+                      displayName={formLanguage === "en"
+                        ? (liveUserProfile.display_name_en || liveUserProfile.display_name)
+                        : liveUserProfile.display_name}
+                      label={t.uploadLabel}
+                      lang={formLanguage}
+                      onAvatarChanged={setSharedAvatarUrl}
+                    />
                   </div>
                   <div className="w-full">
-                    <ProfileForm userId={profile.id} initialUsername={profile.username} initialDisplayName={profile.display_name} initialBio={profile.bio} lang={formLanguage} onProfileCompleteChange={setUserProfileComplete} />
+                    <ProfileForm
+                      userId={profile.id}
+                      initialUsername={liveUserProfile.username}
+                      initialDisplayName={liveUserProfile.display_name}
+                      initialDisplayNameEn={liveUserProfile.display_name_en}
+                      initialBio={liveUserProfile.bio}
+                      initialBioEn={liveUserProfile.bio_en}
+                      lang={formLanguage}
+                      onProfileCompleteChange={setUserProfileComplete}
+                    />
                   </div>
                 </div>
 
@@ -755,13 +802,13 @@ export default function UnifiedDashboard({
                 <div className="w-full">
                   <ProProfileForm 
                     userId={profile.id} 
-                    initialUsername={profile.username} 
-                    initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? profile.display_name) : profile.display_name}
+                    initialUsername={liveUserProfile.username}
+                    initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? liveUserProfile.display_name) : liveUserProfile.display_name}
                     initialDisplayNameEn={expertData ? (expertData.pending_display_name_en ?? expertData.display_name_en ?? null) : null}
-                    initialBio={expertData ? expertData.bio_expert : profile.bio} 
+                    initialBio={expertData ? expertData.bio_expert : liveUserProfile.bio}
                     initialBioEn={expertData ? expertData.bio_expert_en : null}
-                    initialAvatarUrl={profile.avatar_url} 
-                    initialCoverUrl={profile.cover_url} 
+                    initialAvatarUrl={sharedAvatarUrl}
+                    initialCoverUrl={sharedCoverUrl}
                     initialCurrentStore={expertData ? expertData.current_store : null}
                     initialCurrentStoreEn={expertData ? expertData.current_store_en : null}
                     initialPastStores={expertData ? expertData.past_stores : null}
@@ -780,6 +827,8 @@ export default function UnifiedDashboard({
                   />
                 </div>
 
+                {proPostingEnabled ? (
+                  <>
                 <B2BInquiryPanel
                   currentUserId={profile.id}
                   currentUserTier={profile.membership_tier}
@@ -787,8 +836,6 @@ export default function UnifiedDashboard({
                   mode="sent"
                 />
 
-                {proPostingEnabled ? (
-                  <>
                 <BroadcastNotificationForm 
                   userId={profile.id} 
                   authorType="pro" 
@@ -832,13 +879,13 @@ export default function UnifiedDashboard({
                     userId={profile.id}
                     initialOriginId={ownerData?.id ?? null}
                     initialSlug={ownerData?.slug ?? null}
-                    initialUsername={profile.username}
-                    initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? profile.display_name}
+                    initialUsername={liveUserProfile.username}
+                    initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? liveUserProfile.display_name}
                     initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null}
-                    initialBio={ownerData?.bio ?? profile.bio}
+                    initialBio={ownerData?.bio ?? liveUserProfile.bio}
                     initialBioEn={ownerData?.bio_en ?? null}
-                    initialAvatarUrl={profile.avatar_url}
-                    initialCoverUrl={profile.cover_url}
+                    initialAvatarUrl={sharedAvatarUrl}
+                    initialCoverUrl={sharedCoverUrl}
                     initialHeadquarters={ownerData?.headquarters ?? null}
                     initialHeadquartersEn={ownerData?.headquarters_en ?? null}
                     initialBranches={ownerData?.branches ?? []}

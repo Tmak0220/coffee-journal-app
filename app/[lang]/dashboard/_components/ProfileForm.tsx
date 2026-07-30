@@ -143,9 +143,10 @@ export default function ProfileForm({
   const isUsernameDisabled = !!initialUsername
 
   useEffect(() => {
+    setUsername(initialUsername?.toLowerCase() || "")
     setDisplayName(currentLang === "en" ? (initialDisplayNameEn || "") : (initialDisplayName || ""))
     setBio(currentLang === "en" ? (initialBioEn || "") : (initialBio || ""))
-  }, [currentLang, initialDisplayName, initialDisplayNameEn, initialBio, initialBioEn])
+  }, [currentLang, initialUsername, initialDisplayName, initialDisplayNameEn, initialBio, initialBioEn])
 
   useEffect(() => {
     let isMounted = true

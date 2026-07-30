@@ -14,6 +14,7 @@ type Props = {
   displayName: string | null
   label?: string
   lang?: "ja" | "en"
+  onAvatarChanged?: (url: string | null) => void
 }
 
 type StatusMessage = {
@@ -52,7 +53,8 @@ export default function AvatarUpload({
   username, 
   displayName, 
   label,
-  lang = "ja"
+  lang = "ja",
+  onAvatarChanged,
 }: Props) {
   const currentLang = lang === "en" ? "en" : "ja"
   const t = textDict[currentLang]
@@ -65,6 +67,11 @@ export default function AvatarUpload({
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
 
   const uploadedUrlRef = useRef<string | null>(avatarUrl || null)
+
+  useEffect(() => {
+    setAvatarUrl(initialAvatarUrl || "")
+    uploadedUrlRef.current = initialAvatarUrl || null
+  }, [initialAvatarUrl])
 
   useEffect(() => {
     setFileName(t.noFile)
@@ -131,6 +138,7 @@ export default function AvatarUpload({
       if (dbError) throw dbError
 
       setAvatarUrl(publicUrl)
+      onAvatarChanged?.(publicUrl)
       showMessage(t.success, "success")
 
       if (oldAvatarUrl) {
@@ -163,6 +171,7 @@ export default function AvatarUpload({
 
       await deleteOldR2Object(oldAvatarUrl)
       setAvatarUrl("")
+      onAvatarChanged?.(null)
       uploadedUrlRef.current = null
       setFileName(t.noFile)
       showMessage(t.success, "success")
