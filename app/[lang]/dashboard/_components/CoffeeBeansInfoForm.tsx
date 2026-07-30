@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { supabase } from "@/lib/supabase"
 
 export type OriginSuggestion = {
@@ -736,12 +737,21 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
 
   useEffect(() => {
     if (!isOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isSubmitting) onClose()
+    }
+    window.addEventListener("keydown", handleEscape)
     const frame = window.requestAnimationFrame(() => {
-      requestInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
-      requestInputRef.current?.focus({ preventScroll: true })
+      requestInputRef.current?.focus()
     })
-    return () => window.cancelAnimationFrame(frame)
-  }, [isOpen])
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener("keydown", handleEscape)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isOpen, isSubmitting, onClose])
 
   if (!isOpen) return null
 
@@ -787,9 +797,15 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
     }
   }
   
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl border border-neutral-200 w-full max-w-md p-6 shadow-xl space-y-5">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-neutral-950/40 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onClose()
+      }}
+    >
+      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-5 overflow-y-auto rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.45)] sm:p-8">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">REGISTRATION REQUEST</p>
         <div>
           <h3 className="text-base font-bold text-neutral-900">{t.modalTitle}</h3>
         </div>
@@ -857,6 +873,7 @@ function MasterRequestModal({ isOpen, onClose, t, currentLang }: MasterRequestMo
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

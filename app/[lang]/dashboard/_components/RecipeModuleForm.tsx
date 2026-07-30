@@ -89,28 +89,28 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
   }, [])
   const { approx, corrected } = calculateEY(module.tds, module.ratio)
 
-  const subLabelStyle = "text-[11px] font-bold tracking-widest text-neutral-400 uppercase block mb-1.5 font-mono"
-  const descStyle = "text-[11px] text-neutral-400/80 -mt-1 block mb-2.5 leading-relaxed"
-  const baseInputStyle = "w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-900 text-sm focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/60 transition-all shadow-sm"
+  const subLabelStyle = "mb-2 block text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-600"
+  const descStyle = "mb-3 -mt-1 block text-[11px] leading-relaxed text-neutral-500"
+  const baseInputStyle = "w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-4 focus:ring-neutral-100"
 
   return (
-    <div className="border border-neutral-200 rounded-xl p-5 sm:p-6 space-y-6 bg-white shadow-sm relative">
+    <section className="relative space-y-7 rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_12px_35px_-30px_rgba(0,0,0,0.35)] sm:p-7">
       
       {/* ヘッダー */}
-      <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+      <header className="flex items-center justify-between border-b border-neutral-200 pb-4">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">
+          <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-800">
             RECIPE COMPONENT
           </span>
         </div>
         <button 
           type="button" 
           onClick={onRemove} 
-          className="text-xs text-neutral-400 hover:text-red-500 transition-colors"
+          className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500"
         >
           {t.remove}
         </button>
-      </div>
+      </header>
 
       {/* 使用器具エリア */}
       <div className="space-y-2.5">
@@ -237,17 +237,17 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
       </div>
 
       {/* 収率表示カード (EY) */}
-      <div className="bg-neutral-50/50 border border-neutral-200 rounded-xl p-4 space-y-3">
+      <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 border-b border-neutral-200/60 pb-2">
           <span className="text-[11px] font-bold text-neutral-700 tracking-wider font-mono uppercase">Extraction Yield (EY)</span>
           <span className="text-[9px] font-mono text-neutral-400">Formula: TDS × (Target Vol / Dose)</span>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white border border-neutral-200 rounded-xl p-2.5 text-center shadow-sm">
+          <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center shadow-sm">
             <span className="text-[9px] font-bold text-neutral-400 tracking-widest block mb-0.5 uppercase font-mono">{t.approx}</span>
             <span className="text-lg font-mono font-bold text-neutral-900 tracking-tight">{approx}</span>
           </div>
-          <div className="bg-neutral-950 text-white rounded-xl p-2.5 text-center shadow-sm">
+          <div className="rounded-xl bg-neutral-900 p-3 text-center text-white shadow-sm">
             <span className="text-[9px] font-bold text-neutral-400 tracking-widest block mb-0.5 uppercase font-mono">{t.corrected}</span>
             <span className="text-lg font-mono font-bold text-white tracking-tight">{corrected}</span>
           </div>
@@ -318,6 +318,6 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
           + {t.addStep}
         </button>
       </div>
-    </div>
+    </section>
   )
 }

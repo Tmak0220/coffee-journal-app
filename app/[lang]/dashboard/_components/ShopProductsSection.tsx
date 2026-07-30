@@ -144,7 +144,7 @@ export default function ShopProductsSection({ userId, lang }: Props) {
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* 統一されたコンテナカード */}
-      <div className="bg-white border border-neutral-200 rounded-3xl p-6 sm:p-10 shadow-sm space-y-8 animate-fadeIn">
+      <div className="space-y-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm animate-fadeIn sm:p-8">
         <div>
           <p className="text-[10px] font-bold tracking-[0.16em] text-neutral-400 uppercase">EC CONNECTIONS</p>
           <h2 className="mt-2 text-lg font-medium text-neutral-900">{isEn ? "Connect your online store" : "ECストアを連携"}</h2>

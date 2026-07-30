@@ -31,22 +31,22 @@ export default function LanguageSwitcherTabs({
   }[isEn ? "en" : "ja"]
 
   return (
-    <div className="bg-white border border-neutral-200/60 pt-6 sm:pt-12 pb-10 sm:pb-12 px-6 sm:px-12 rounded-xl shadow-sm w-full max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+    <div className="mx-auto flex w-full max-w-5xl flex-col justify-between gap-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       
       <div className="space-y-1">
-        <h2 className="text-[18px] font-bold tracking-[0.05em] text-neutral-900 uppercase">
+        <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-900">
           {content.title}
         </h2>
-        <p className="text-[13px] font-normal tracking-wide text-neutral-400">
+        <p className="text-xs font-normal tracking-wide text-neutral-500">
           {content.description}
         </p>
       </div>
 
-      <div className="inline-flex p-1 bg-neutral-50 border border-neutral-200/60 rounded-full select-none self-start sm:self-center shadow-sm">
+      <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-neutral-200 bg-neutral-100/70 p-1.5 shadow-sm select-none self-start sm:self-center">
         <button
           type="button"
           onClick={() => onChange("ja")}
-          className={`px-7 py-3 rounded-full text-[14px] tracking-wide transition-all duration-200 active:scale-[0.97] ${
+          className={`min-h-11 rounded-lg px-6 py-2.5 text-sm tracking-wide transition-all duration-200 active:scale-[0.97] ${
             value === "ja"
               ? "bg-neutral-900 text-white font-medium shadow-sm"
               : "text-neutral-400 hover:text-neutral-700 font-normal"
@@ -57,7 +57,7 @@ export default function LanguageSwitcherTabs({
         <button
           type="button"
           onClick={() => onChange("en")}
-          className={`px-7 py-3 rounded-full text-[14px] tracking-wide transition-all duration-200 active:scale-[0.97] ${
+          className={`min-h-11 rounded-lg px-6 py-2.5 text-sm tracking-wide transition-all duration-200 active:scale-[0.97] ${
             value === "en"
               ? "bg-neutral-900 text-white font-medium shadow-sm"
               : "text-neutral-400 hover:text-neutral-700 font-normal"

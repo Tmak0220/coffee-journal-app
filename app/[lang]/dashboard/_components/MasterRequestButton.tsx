@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { supabase } from "@/lib/supabase"
 
 export type MasterRequestOption = {
@@ -28,13 +29,26 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
   useEffect(() => {
     if (!isOpen) return
 
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isSubmitting) {
+        setIsOpen(false)
+        setMessage(null)
+      }
+    }
+    window.addEventListener("keydown", handleEscape)
+
     const frame = window.requestAnimationFrame(() => {
-      requestInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
-      requestInputRef.current?.focus({ preventScroll: true })
+      requestInputRef.current?.focus()
     })
 
-    return () => window.cancelAnimationFrame(frame)
-  }, [isOpen])
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener("keydown", handleEscape)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isOpen, isSubmitting])
 
   const submitRequest = async () => {
     if (!requestValue.trim() || isSubmitting) return
@@ -75,9 +89,18 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
         {isEn ? "Can't find it? Request new registration" : "見つからない場合は登録をリクエストする"}
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm">
-          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl space-y-5">
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-neutral-950/40 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isSubmitting) {
+              setIsOpen(false)
+              setMessage(null)
+            }
+          }}
+        >
+          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-5 overflow-y-auto rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.45)] sm:p-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">REGISTRATION REQUEST</p>
             <h3 className="text-base font-bold text-neutral-900">{isEn ? "Registration Request" : "登録リクエスト"}</h3>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -107,7 +130,8 @@ export default function MasterRequestButton({ currentLang, options, placeholderJ
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

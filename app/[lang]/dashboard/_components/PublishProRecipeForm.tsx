@@ -33,7 +33,13 @@ export type WaterModuleData = {
   name: string
   gh: string
   kh: string
+  waterTds?: string
+  ph?: string
   minerals: string
+  calcCa?: string
+  calcMg?: string
+  calcNaBi?: string
+  isAutoCalc?: boolean
 }
 
 export type CuppingModuleData = {
@@ -55,12 +61,21 @@ export type RoastModuleData = {
   roasterMachine?: string
   batchSize?: string
   chargeTemp?: string
+  turningPointTime?: string
+  turningPointTemp?: string
+  yellowingTime?: string
   ror?: string
   drumSpeed?: string
   firstCrack?: string
+  firstCrackTemp?: string
+  secondCrackTime?: string
   dropTemp?: string
   totalTime?: string
+  developmentTime?: string
   dtr?: string
+  greenWeight?: string
+  roastedWeight?: string
+  weightLoss?: string
   roastDegree?: string
   notes?: string
 }
@@ -87,6 +102,23 @@ export type RecipeFormData = {
   logPurpose?: string
   logProcess?: string
   logConclusion?: string
+}
+
+const normalizeVerificationVariable = (value: string, lang: string) => {
+  const aliases: Record<string, string> = lang === "en"
+    ? {
+        "KH": "Alkalinity (KH)",
+        "Drum Speed": "Drum Speed",
+        "DTR": "Development Ratio (DTR)",
+        "RoR": "Average RoR",
+      }
+    : {
+        "炭酸塩硬度（KH）": "アルカリ度（KH）",
+        "回転数（焙煎）": "ドラム回転数",
+        "DTR（発達時間比率）": "デベロップメント比率（DTR）",
+        "RoR（変化率）": "平均昇温率（RoR）",
+      }
+  return aliases[value] || value
 }
 
 type Props = { 
@@ -264,7 +296,9 @@ export default function PublishProRecipeForm({
         coffeeName: recipe.bean_name || "", coffeeLot: recipe.coffee_lot || "",
         coffeeUrl: recipe.coffee_url || "", roastDate: recipe.roast_date || "",
         verifications: savedPatterns,
-        selectedVariables: recipe.selected_variables || [],
+        selectedVariables: Array.from(new Set(
+          (recipe.selected_variables || []).map((value: string) => normalizeVerificationVariable(value, currentLang))
+        )),
         logPurpose: recipe.log_purpose || "", logProcess: recipe.log_process || "", logConclusion: recipe.log_conclusion || "",
       })
       setVisibility(recipe.visibility || "draft")
@@ -275,8 +309,8 @@ export default function PublishProRecipeForm({
   }, [currentLang, dict.loginRequired, editId, userId])
 
   const presetVariables = currentLang === "en"
-    ? ["Pour Rate", "Brew Temperature", "Grind Size", "Agitation Count", "GH", "KH", "Drum Speed"]
-    : ["注湯速度", "抽出温度", "挽き目（粒度）", "攪拌回数（抽出）", "総硬度（GH）", "炭酸塩硬度（KH）", "回転数（焙煎）"]
+    ? ["Pour Rate", "Brew Temperature", "Grind Size", "Agitation Count", "Total Hardness (GH)", "Alkalinity (KH)", "Drum Speed"]
+    : ["注湯速度", "抽出温度", "挽き目（粒度）", "攪拌回数（抽出）", "総硬度（GH）", "アルカリ度（KH）", "ドラム回転数"]
   
   const t = currentLang === "en" ? {
     saveTemplateBtn: "Save Template",
@@ -638,7 +672,7 @@ export default function PublishProRecipeForm({
   if (loadingInitial) return <div className="h-[620px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
 
   return (
-    <div className="bg-white border border-neutral-200 p-4 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto text-left transition-all duration-300">
+    <div className="mx-auto w-full max-w-5xl rounded-2xl border border-neutral-200 bg-white p-5 text-left shadow-sm transition-all duration-300 sm:p-8">
       
       {/* デザインをブログ作成フォームと完全統一したヘッダー部 */}
       <div>
@@ -674,15 +708,15 @@ export default function PublishProRecipeForm({
           return (
             <div 
               key={slot.id} 
-              className={`border rounded-[20px] p-6 bg-white transition-all duration-300 space-y-6 relative ${
+              className={`relative space-y-7 overflow-hidden rounded-3xl border bg-white p-5 transition-all duration-300 sm:p-7 ${
                 slot.isBest 
-                  ? "border-neutral-900 shadow-[0_4px_24px_rgba(0,0,0,0.03)] ring-1 ring-neutral-900" 
-                  : "border-neutral-200 shadow-[0_4px_30px_rgba(0,0,0,0.005)]"
+                  ? "border-neutral-900 shadow-[0_18px_50px_-38px_rgba(0,0,0,0.4)] ring-1 ring-neutral-900" 
+                  : "border-neutral-200 shadow-[0_16px_45px_-38px_rgba(0,0,0,0.3)]"
               }`}
             >
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-neutral-100 pb-4">
+              <div className="-mx-5 -mt-5 flex flex-col justify-between gap-4 border-b border-neutral-200 bg-neutral-50/70 px-5 py-5 sm:-mx-7 sm:-mt-7 sm:flex-row sm:items-center sm:px-7">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">
+                  <span className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-neutral-500">
                     {slot.title.includes("コピー") || slot.title.includes("Copy") ? "COPY" : "PATTERN"}
                   </span>
                   <input 
@@ -692,13 +726,13 @@ export default function PublishProRecipeForm({
                       ...p,
                       verifications: p.verifications.map(s => s.id === slot.id ? { ...s, title: e.target.value } : s)
                     }))} 
-                    className="text-xs border border-neutral-200 rounded-xl px-2.5 py-1 font-sans font-medium text-neutral-700 focus:outline-none focus:border-neutral-400 bg-neutral-50/50 min-w-[140px]" 
+                    className="min-w-[170px] rounded-xl border border-neutral-300 bg-white px-3.5 py-2 text-sm font-semibold text-neutral-800 shadow-sm outline-none transition focus:border-neutral-500 focus:ring-4 focus:ring-neutral-100" 
                   />
                   
                   <button
                     type="button"
                     onClick={() => handleToggleBestPattern(slot.id)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg font-bold transition-all border ${
+                    className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition-all ${
                       slot.isBest
                         ? "bg-neutral-950 text-white border-neutral-950 shadow-sm"
                         : "bg-white text-neutral-400 border-neutral-200 hover:text-neutral-950 hover:border-neutral-300"
@@ -708,16 +742,16 @@ export default function PublishProRecipeForm({
                   </button>
                 </div>
 
-                <div className="flex items-center gap-4 self-end sm:self-auto">
+                <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
                   <button 
                     type="button" 
                     onClick={() => handleDuplicatePattern(slot)}
-                    className="text-[11px] font-bold text-neutral-400 hover:text-neutral-950 transition-colors"
+                    className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[10px] font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950"
                   >
                     {t.duplicateBtn}
                   </button>
                   
-                  <button type="button" className="text-[11px] font-medium text-neutral-400 hover:text-neutral-600 transition-colors">
+                  <button type="button" className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-[10px] font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-950">
                     {t.saveTemplateBtn}
                   </button>
                   
@@ -725,7 +759,7 @@ export default function PublishProRecipeForm({
                     <button 
                       type="button" 
                       onClick={() => handleRemovePattern(slot.id)}
-                      className="text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors"
+                      className="rounded-xl border border-red-100 bg-white px-3 py-2 text-[10px] font-semibold text-red-500 transition hover:border-red-200 hover:bg-red-50"
                     >
                       {t.remove}
                     </button>
@@ -773,6 +807,8 @@ export default function PublishProRecipeForm({
                             name: getDiffClass(sIdx, "water", "name", module.name),
                             gh: getDiffClass(sIdx, "water", "gh", module.gh),
                             kh: getDiffClass(sIdx, "water", "kh", module.kh),
+                            waterTds: getDiffClass(sIdx, "water", "waterTds", module.waterTds),
+                            ph: getDiffClass(sIdx, "water", "ph", module.ph),
                             minerals: getDiffClass(sIdx, "water", "minerals", module.minerals)
                           }}
                           onChange={(updatedFields) => handleUpdateModuleData(slot.id, module.id, updatedFields)}
@@ -810,10 +846,23 @@ export default function PublishProRecipeForm({
 
                   if (module.type === "roast") {
                     return (
-                      <div key={module.id} className="border border-neutral-200 rounded-xl p-5 space-y-4 bg-white shadow-sm relative">
-                        <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5">
-                          <span className="text-[11px] text-neutral-400 font-bold uppercase tracking-widest">ROASTING COMPONENT</span>
-                          <button type="button" onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">{t.remove}</button>
+                      <div key={module.id} className="relative space-y-5 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+                        <div className="flex items-start justify-between gap-4 border-b border-neutral-200 pb-4">
+                          <div>
+                            <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-800">ROASTING COMPONENT</span>
+                            <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
+                              {currentLang === "en"
+                                ? "Record the machine, temperature changes, timing, and roast finish."
+                                : "焙煎機、温度推移、時間、仕上がりを記録します。"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveModuleFromPattern(slot.id, module.id)}
+                            className="shrink-0 rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:border-red-100 hover:bg-red-50 hover:text-red-500"
+                          >
+                            {t.remove}
+                          </button>
                         </div>
                         <RoastingProfileForm 
                           module={module} 
@@ -822,12 +871,21 @@ export default function PublishProRecipeForm({
                             roasterMachine: getDiffClass(sIdx, "roast", "roasterMachine", module.roasterMachine),
                             batchSize: getDiffClass(sIdx, "roast", "batchSize", module.batchSize),
                             chargeTemp: getDiffClass(sIdx, "roast", "chargeTemp", module.chargeTemp),
+                            turningPointTime: getDiffClass(sIdx, "roast", "turningPointTime", module.turningPointTime),
+                            turningPointTemp: getDiffClass(sIdx, "roast", "turningPointTemp", module.turningPointTemp),
+                            yellowingTime: getDiffClass(sIdx, "roast", "yellowingTime", module.yellowingTime),
                             ror: getDiffClass(sIdx, "roast", "ror", module.ror),
                             drumSpeed: getDiffClass(sIdx, "roast", "drumSpeed", module.drumSpeed),
                             firstCrack: getDiffClass(sIdx, "roast", "firstCrack", module.firstCrack),
+                            firstCrackTemp: getDiffClass(sIdx, "roast", "firstCrackTemp", module.firstCrackTemp),
+                            secondCrackTime: getDiffClass(sIdx, "roast", "secondCrackTime", module.secondCrackTime),
                             dropTemp: getDiffClass(sIdx, "roast", "dropTemp", module.dropTemp),
                             totalTime: getDiffClass(sIdx, "roast", "totalTime", module.totalTime),
+                            developmentTime: getDiffClass(sIdx, "roast", "developmentTime", module.developmentTime),
                             dtr: getDiffClass(sIdx, "roast", "dtr", module.dtr),
+                            greenWeight: getDiffClass(sIdx, "roast", "greenWeight", module.greenWeight),
+                            roastedWeight: getDiffClass(sIdx, "roast", "roastedWeight", module.roastedWeight),
+                            weightLoss: getDiffClass(sIdx, "roast", "weightLoss", module.weightLoss),
                             roastDegree: getDiffClass(sIdx, "roast", "roastDegree", module.roastDegree),
                             notes: getDiffClass(sIdx, "roast", "notes", module.notes)
                           }}
@@ -840,19 +898,28 @@ export default function PublishProRecipeForm({
                 })}
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-neutral-100">
-                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "recipe")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                  {t.addModuleRecipe}
-                </button>
-                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "water")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                  {t.addModuleWater}
-                </button>
-                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "cupping")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                  {t.addModuleCupping}
-                </button>
-                <button type="button" onClick={() => handleAddModuleToPattern(slot.id, "roast")} className="px-3 py-1.5 text-xs font-medium border border-neutral-200 rounded-xl hover:bg-neutral-50 text-neutral-700 transition-colors">
-                  {t.addModuleRoasting}
-                </button>
+              <div className="grid grid-cols-1 gap-3 border-t border-neutral-200 pt-5 sm:grid-cols-2 xl:grid-cols-4">
+                {([
+                  ["recipe", t.addModuleRecipe],
+                  ["water", t.addModuleWater],
+                  ["cupping", t.addModuleCupping],
+                  ["roast", t.addModuleRoasting],
+                ] as const).map(([moduleType, label]) => (
+                  <button
+                    key={moduleType}
+                    type="button"
+                    onClick={() => handleAddModuleToPattern(slot.id, moduleType)}
+                    className="group flex min-h-14 items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm font-semibold text-neutral-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neutral-200"
+                  >
+                    <span>{label}</span>
+                    <span
+                      aria-hidden="true"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-lg font-normal leading-none text-neutral-700 transition-colors group-hover:bg-neutral-950 group-hover:text-white"
+                    >
+                      +
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           )
@@ -869,25 +936,51 @@ export default function PublishProRecipeForm({
           </button>
         </div>
 
-        <div className="p-5 border border-neutral-200 rounded-[20px] bg-neutral-50/50 space-y-4">
-          <div className="flex justify-between items-center border-b border-neutral-200 pb-2">
-            <h4 className="text-[11px] font-mono font-bold tracking-widest text-neutral-400 uppercase">VISUALIZATION COMPONENT DATA</h4>
-            <span className="text-[10px] text-neutral-400 font-medium font-mono">SYNC ACTIVE</span>
+        <section className="space-y-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-4 border-b border-neutral-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-950 font-mono text-xs font-bold text-white">
+                  {String(chartData.length).padStart(2, "0")}
+                </span>
+                <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-900">
+                  VISUALIZATION COMPONENT DATA
+                </h4>
+              </div>
+              <p className="mt-2 pl-0 text-sm leading-6 text-neutral-500 sm:pl-12">
+                {currentLang === "en"
+                  ? "Cupping scores are visualized on the same scale for an easier comparison between patterns."
+                  : "各パターンのカッピング評価を同じ尺度で可視化し、味わいの違いを比較します。"}
+              </p>
+            </div>
+            <span className="flex min-h-10 w-fit items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-[11px] font-semibold text-neutral-600 shadow-sm">
+              <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.12)]" aria-hidden="true" />
+              {currentLang === "en" ? "Live preview" : "入力内容をリアルタイムに反映"}
+            </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-5">
             {chartData.map((cd, index) => (
-              <div key={index} className="p-4 bg-white border border-neutral-200 rounded-xl space-y-3 flex flex-col justify-between min-h-[220px]">
-                <div className="flex justify-between items-center font-bold text-neutral-800 text-xs">
-                  <span className="tracking-wide">{cd.title}</span>
-                  {cd.isBest && <span className="text-[9px] bg-neutral-950 text-white px-2 py-0.5 rounded-lg uppercase font-mono tracking-wider font-bold">Optimal</span>}
+              <article key={index} className="flex min-h-[280px] flex-col rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 transition-shadow hover:shadow-md sm:p-6">
+                <div className="flex items-center justify-between gap-3 border-b border-neutral-200 pb-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white font-mono text-[10px] font-bold text-neutral-500">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="truncate text-sm font-bold tracking-wide text-neutral-900">{cd.title}</span>
+                  </div>
+                  {cd.isBest && (
+                    <span className="shrink-0 rounded-full bg-neutral-950 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white">
+                      {currentLang === "en" ? "Best pattern" : "最適パターン"}
+                    </span>
+                  )}
                 </div>
                 
                 {cd.chartList ? (
-                  <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full justify-center">
-                    <div className="w-full sm:w-40 h-36 flex items-center justify-center shrink-0">
+                  <div className="grid w-full flex-1 items-center gap-5 pt-5 lg:grid-cols-[minmax(220px,0.9fr)_minmax(220px,1.1fr)]">
+                    <div className="flex h-56 w-full items-center justify-center rounded-xl border border-neutral-200 bg-white p-2 shadow-sm">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="65%" data={cd.chartList}>
-                          <PolarGrid stroke="#f5f5f5" />
+                          <PolarGrid stroke="#e5e5e5" />
                           <PolarAngleAxis 
                             dataKey="subject" 
                             tick={{ fill: "#a3a3a3", fontSize: 9, fontFamily: "monospace", fontWeight: "600" }} 
@@ -898,32 +991,56 @@ export default function PublishProRecipeForm({
                             dataKey="value"
                             stroke="#171717"
                             fill="#171717"
-                            fillOpacity={0.04}
+                            fillOpacity={0.09}
                           />
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
                     
                     {cd.rawScores && (
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-neutral-500 font-mono flex-1 w-full border-t sm:border-t-0 sm:border-l border-neutral-100 pt-2 sm:pt-0 sm:pl-3">
-                        <div>Aroma: {cd.rawScores.aroma}</div>
-                        <div>Flavor: {cd.rawScores.flavor}</div>
-                        <div>After: {cd.rawScores.aftertaste}</div>
-                        <div>Acid: {cd.rawScores.acidity}</div>
-                        <div>Body: {cd.rawScores.body}</div>
-                        <div>Bal: {cd.rawScores.balance}</div>
-                      </div>
+                      <dl className="grid w-full grid-cols-2 gap-2">
+                        {[
+                          ["Aroma", cd.rawScores.aroma],
+                          ["Flavor", cd.rawScores.flavor],
+                          ["Aftertaste", cd.rawScores.aftertaste],
+                          ["Acidity", cd.rawScores.acidity],
+                          ["Body", cd.rawScores.body],
+                          ["Balance", cd.rawScores.balance],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-sm">
+                            <dt className="text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-400">{label}</dt>
+                            <dd className="mt-1 font-mono text-sm font-bold text-neutral-900">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     )}
                   </div>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center text-neutral-400 text-[11px] italic h-36 border border-dashed border-neutral-100 rounded-xl bg-neutral-50/40">
-                    {t.noCupping}
+                  <div className="flex min-h-52 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-white px-5 py-8 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-full bg-neutral-100 text-xl font-light text-neutral-500" aria-hidden="true">
+                      +
+                    </span>
+                    <p className="mt-4 text-sm font-semibold text-neutral-700">
+                      {currentLang === "en" ? "No cupping data yet" : "カッピング評価がまだありません"}
+                    </p>
+                    <p className="mt-1 max-w-sm text-xs leading-5 text-neutral-500">
+                      {currentLang === "en"
+                        ? "Add a cupping component to this pattern and enter scores to generate the chart."
+                        : "この検証パターンにカッピングを追加して評価を入力すると、比較グラフが表示されます。"}
+                    </p>
                   </div>
                 )}
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+          {chartData.length === 0 && (
+            <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300 bg-neutral-50/60 px-5 py-8 text-center">
+              <p className="text-sm font-semibold text-neutral-700">
+                {currentLang === "en" ? "Add a verification pattern to begin comparison." : "検証パターンを追加すると比較データが表示されます。"}
+              </p>
+            </div>
+          )}
+        </section>
 
         <hr className="border-neutral-200/60 my-6" />
 

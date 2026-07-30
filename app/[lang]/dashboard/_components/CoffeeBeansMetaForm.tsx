@@ -12,33 +12,44 @@ type Props = {
 
 export default function CoffeeBeansMetaForm({ data, handleFieldChange, ageingLabel, currentLang }: Props) {
   const t = currentLang === "en" ? {
-    title: "USED COFFEE BEANS",
-    bean: "Coffee Beans Used",
+    title: "COFFEE DETAILS",
+    description: "Basic information about the coffee used in this verification.",
+    bean: "Coffee Name",
+    required: "Required",
     beanPlaceholder: "e.g., Ethiopia Yirgacheffe",
     lot: "Lot Number / Roast Level",
     lotPlaceholder: "e.g., Lot #2026-A / Light Roast",
     url: "Product URL (Purchase Link)",
     roastDate: "Roast Date",
   } : {
-    title: "使用したコーヒー豆",
-    bean: "使用したコーヒー豆",
+    title: "使用豆の情報",
+    description: "この検証で使用したコーヒーの基本情報",
+    bean: "コーヒー名",
+    required: "必須",
     beanPlaceholder: "例: エチオピア イルガチェフェ",
     lot: "ロット番号 / 焙煎度など",
     lotPlaceholder: "例: Lot #2026-A / 浅煎り",
     url: "商品URL (購入リンク)",
     roastDate: "焙煎日",
   }
-  const subLabelStyle = "text-[11px] font-bold tracking-widest text-neutral-400 uppercase block mb-1.5"
-  const inputStyle = "w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-900 text-sm focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/60 transition-all shadow-sm"
+  const subLabelStyle = "mb-2 block text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-600"
+  const inputStyle = "w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-4 focus:ring-neutral-100"
 
   return (
-    <div className="bg-neutral-50/50 border border-neutral-200 rounded-[20px] p-5 sm:p-6 space-y-4">
-      <h3 className="text-[11px] font-mono font-bold tracking-widest text-neutral-400 uppercase border-b border-neutral-200/60 pb-2">{t.title}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <section className="space-y-6 rounded-2xl border border-neutral-200 bg-neutral-50/45 p-5 shadow-sm sm:p-7">
+      <header className="border-b border-neutral-200 pb-4">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-800">{t.title}</h3>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-500">{t.description}</p>
+      </header>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label className={subLabelStyle}>{t.bean}</label>
+          <label className={subLabelStyle}>
+            {t.bean}
+            <span className="ml-2 font-normal normal-case tracking-normal text-neutral-400">({t.required})</span>
+          </label>
           <input 
             type="text" 
+            required
             placeholder={t.beanPlaceholder}
             value={data.coffeeName} 
             onChange={(e) => handleFieldChange("coffeeName", e.target.value)} 
@@ -66,7 +77,7 @@ export default function CoffeeBeansMetaForm({ data, handleFieldChange, ageingLab
           />
         </div>
         <div className="sm:col-span-2">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <label className={subLabelStyle}>{t.roastDate}</label>
             {ageingLabel && (
               <span className="text-[10px] font-mono font-bold text-neutral-500 bg-neutral-200/60 px-2 py-0.5 rounded mb-1.5">
@@ -82,6 +93,6 @@ export default function CoffeeBeansMetaForm({ data, handleFieldChange, ageingLab
           />
         </div>
       </div>
-    </div>
+    </section>
   )
 }

@@ -184,7 +184,7 @@ export default function AvatarUpload({
   }
 
   return (
-    <div className="bg-white border border-neutral-200/60 pt-6 sm:pt-12 pb-10 sm:pb-20 px-6 sm:px-12 rounded-xl shadow-sm w-full max-w-5xl mx-auto space-y-14">
+    <div className="mx-auto w-full max-w-5xl space-y-10 rounded-2xl border border-neutral-200 bg-white px-5 pb-10 pt-6 shadow-sm sm:px-8 sm:pb-14 sm:pt-10">
       <div>
         <h2 className="text-[18px] font-bold tracking-[0.05em] text-neutral-900 uppercase">
           {t.title}
@@ -237,7 +237,7 @@ export default function AvatarUpload({
 
         <div className="w-full flex items-center justify-center gap-6 flex-wrap">
           <label className="inline-flex items-center cursor-pointer">
-            <span className={`bg-neutral-900 hover:bg-neutral-800 text-white border border-transparent px-7 py-3.5 rounded-full text-[15px] font-medium tracking-wide transition-all duration-200 shadow-sm hover:shadow active:scale-[0.97] ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <span className={`rounded-xl border border-transparent bg-neutral-900 px-7 py-3.5 text-[15px] font-medium tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md active:scale-[0.97] ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
               {uploading ? t.uploading : buttonLabel}
             </span>
 
@@ -255,7 +255,7 @@ export default function AvatarUpload({
               type="button"
               onClick={handleDelete}
               disabled={uploading}
-              className="rounded-full border border-neutral-300 bg-white px-6 py-3.5 text-[13px] font-medium text-neutral-600 transition hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+              className="rounded-xl border border-neutral-300 bg-white px-6 py-3.5 text-[13px] font-medium text-neutral-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
             >
               {t.deleteImage}
             </button>

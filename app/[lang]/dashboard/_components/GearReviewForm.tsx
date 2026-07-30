@@ -355,7 +355,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
   if (loadingInitial) return <div className="h-[620px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
 
   return (
-    <div className="bg-white border border-neutral-200 p-6 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto">
+    <div className="mx-auto w-full max-w-5xl rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
       <div>
         <h2 className="text-base sm:text-lg font-bold tracking-wider text-neutral-900 uppercase">
           {t.sectionTitle}
@@ -561,7 +561,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
             <button
               type="submit"
               disabled={submitting || !title.trim() || !selectedGear || !comment.trim()}
-              className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
+              className="w-full rounded-xl border border-transparent bg-neutral-950 px-10 py-3.5 text-sm font-medium tracking-wider text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-900 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:w-auto"
             >
               {submitting ? t.btnSubmitting : editId ? (isEn ? "Save Changes" : "変更を保存する") : t.btnSubmit}
             </button>

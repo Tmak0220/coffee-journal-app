@@ -179,7 +179,7 @@ export default function NotificationCenter({ lang = "ja" }: Props) {
 
   if (loading) {
     return (
-      <div aria-busy="true" className="mx-auto w-full max-w-5xl animate-pulse rounded-3xl border border-neutral-100 bg-white p-6 shadow-sm sm:p-10">
+      <div aria-busy="true" className="mx-auto w-full max-w-5xl animate-pulse rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
         <div className="h-6 w-40 rounded bg-neutral-100" />
         <div className="mt-8 space-y-4">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -213,7 +213,7 @@ export default function NotificationCenter({ lang = "ja" }: Props) {
   const categories: RequestCategory[] = ["all", "operator", "registration", "profile"]
 
   return (
-    <div className="bg-white border border-neutral-200/70 p-6 sm:p-10 rounded-[32px] shadow-sm w-full max-w-5xl mx-auto space-y-8 animate-fadeIn">
+    <div className="mx-auto w-full max-w-5xl space-y-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm animate-fadeIn sm:p-8">
       <section className="rounded-[24px] border border-sky-100 bg-gradient-to-br from-sky-50/65 via-white to-amber-50/30 p-5 sm:p-6">
         <div className="flex flex-col gap-2 border-b border-neutral-200/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

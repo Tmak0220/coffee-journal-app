@@ -353,7 +353,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
 
       <div className="pt-6 border-t border-neutral-100 space-y-4">
         {(deleteStatusMessage || status) && <div role="status" className={`text-[13px] p-4 rounded-xl border text-center ${(deleteStatusMessage || status)?.type === "success" ? "text-neutral-900 bg-neutral-50 border-neutral-200" : "text-red-700 bg-red-50 border-red-200"}`}>{deleteStatusMessage?.text || status?.text}</div>}
-        <div className="flex flex-col justify-end gap-3 sm:flex-row sm:items-center"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3.5 rounded-full text-[15px] font-semibold transition-colors disabled:opacity-50">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button>{secondaryAction}</div>
+        <div className="flex flex-col justify-end gap-3 sm:flex-row sm:items-center"><button type="submit" disabled={loading || !title.trim() || !startDate} className="w-full rounded-xl bg-neutral-900 px-8 py-3.5 text-[15px] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md disabled:opacity-50 sm:w-auto">{loading ? (editId ? t.updating : t.submitting) : (editId ? t.update : t.submit)}</button>{secondaryAction}</div>
       </div>
     </form>
   )

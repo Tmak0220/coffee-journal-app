@@ -53,11 +53,6 @@ const VIEW_DICT = {
     draftBadge: "下書き",
     privateBadge: "非公開",
     membersOnlyBadge: "会員限定",
-    authorPro: "PROメンバー",
-    authorOwner: "OWNERメンバー",
-    targetExperts: "People向け",
-    targetOrigins: "Places向け",
-    targetBoth: "総合記事",
     requireMemberError: "本機能の利用にはMEMBER登録が必要です。",
     btnGoRegister: "登録画面へ",
     btnSaved: "保存済み",
@@ -72,11 +67,6 @@ const VIEW_DICT = {
     draftBadge: "Draft",
     privateBadge: "Private",
     membersOnlyBadge: "Members Only",
-    authorPro: "PRO Member",
-    authorOwner: "OWNER Member",
-    targetExperts: "For People",
-    targetOrigins: "For Places",
-    targetBoth: "General",
     requireMemberError: "Membership is required to use this feature.",
     btnGoRegister: "Sign Up",
     btnSaved: "Saved",
@@ -338,10 +328,6 @@ export default function BlogPageClient({
                 <time className="font-mono text-[10px] text-neutral-400">
                   {new Date(article.created_at).toLocaleDateString(currentLang === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
                 </time>
-                <span className="text-[10px] text-neutral-400">{article.author_type === "pro" ? t.authorPro : t.authorOwner}</span>
-                <span className="text-[10px] text-neutral-400">
-                  {article.publish_target === "experts" ? t.targetExperts : article.publish_target === "origins" ? t.targetOrigins : t.targetBoth}
-                </span>
               </div>
             </div>
           </header>

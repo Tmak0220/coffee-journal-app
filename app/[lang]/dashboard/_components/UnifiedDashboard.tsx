@@ -105,6 +105,24 @@ function UserProfileGuard({ lang }: { lang: "ja" | "en" }) {
   )
 }
 
+function DashboardSectionHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string
+  title?: string
+  description?: string
+}) {
+  return (
+    <div className="border-b border-neutral-200 pb-5">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-900">{eyebrow}</p>
+      {title && <h3 className="mt-2 text-xl font-bold tracking-tight text-neutral-900">{title}</h3>}
+      {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">{description}</p>}
+    </div>
+  )
+}
+
 /* --- 運営者へのリクエスト送信モーダルコンポーネント --- */
 function AdminRequestModal({ userId, lang, isOpen, onClose }: { userId: string; lang: "ja" | "en"; isOpen: boolean; onClose: () => void }) {
   const { showPopup } = useAppPopup()
@@ -580,36 +598,40 @@ export default function UnifiedDashboard({
 
   return (
     <main className="min-h-screen bg-white pb-16 text-neutral-900 sm:pb-24">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:p-10 md:p-14">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10 lg:px-12 lg:py-14">
         
-        <div className="mb-7 flex flex-col justify-between gap-4 border-b border-neutral-200 pb-5 sm:mb-12 sm:flex-row sm:items-end sm:pb-6">
+        <header className="mb-7 flex flex-col justify-between gap-5 border-b border-neutral-200 pb-6 sm:mb-10 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{t.title}</h1>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400">COFFEE JOURNAL</p>
+            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">{t.title}</h1>
+            <p className="mt-2 text-sm leading-6 text-neutral-500">
+              {isEn ? "Manage profiles, publishing, analytics, and account tools." : "プロフィール、投稿、分析、アカウント機能を管理します。"}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setIsRequestModalOpen(true)}
-              className="text-[11px] font-semibold border border-neutral-900 bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2.5 rounded-xl transition-colors shadow-sm select-none"
+              className="min-h-11 rounded-xl border border-neutral-900 bg-neutral-900 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md focus-visible:ring-4 focus-visible:ring-neutral-200 select-none"
             >
               <span>{isEn ? "Request to the Team" : "運営者へのリクエスト"}</span>
             </button>
-            <span className="text-[11px] font-semibold tracking-[0.08em] border border-neutral-200 bg-neutral-50 text-neutral-700 px-4 py-2 rounded-xl uppercase w-fit select-none">
+            <span className="flex min-h-11 w-fit items-center rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-700 shadow-sm select-none">
               Plan: {profile.membership_tier} ({profile.role})
             </span>
           </div>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-5 md:gap-10">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
           
-          <nav className="flex w-full gap-2 overflow-x-auto pb-2 md:col-span-1 md:flex-col md:gap-1 md:overflow-visible md:pb-0 md:pl-0">
-            <p className="hidden px-3 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-400 select-none md:block">{t.menu}</p>
+          <nav className="flex w-full gap-2 overflow-x-auto rounded-2xl border border-neutral-200 bg-neutral-50/70 p-2 shadow-sm lg:sticky lg:top-28 lg:flex-col lg:gap-1 lg:overflow-visible lg:p-3">
+            <p className="hidden px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 select-none lg:block">{t.menu}</p>
             
             <button
               type="button"
               onClick={() => setActiveTab("personal")}
-              className={`flex h-11 shrink-0 items-center rounded-xl px-4 py-3 text-left text-[13px] font-medium tracking-wide transition-all duration-300 active:scale-[0.98] md:w-full md:px-3.5 md:text-[14px] ${
-                activeTab === "personal" ? "bg-neutral-950 text-white font-semibold shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/60"
+              className={`flex min-h-12 shrink-0 items-center rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] lg:w-full ${
+                activeTab === "personal" ? "bg-neutral-950 text-white shadow-md" : "border border-transparent bg-white/60 text-neutral-600 hover:border-neutral-200 hover:bg-white hover:text-neutral-950 hover:shadow-sm"
               }`}
             >
               <span>{isEn ? "USER" : "ユーザー"}</span>
@@ -619,8 +641,8 @@ export default function UnifiedDashboard({
               <button
                 type="button"
                 onClick={() => setActiveTab("pro_profile")}
-                className={`flex h-11 shrink-0 items-center rounded-xl px-4 py-3 text-left text-[13px] font-medium tracking-wide transition-all duration-300 active:scale-[0.98] md:w-full md:px-3.5 md:text-[14px] ${
-                  activeTab === "pro_profile" ? "bg-neutral-950 text-white font-semibold shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/60"
+                className={`flex min-h-12 shrink-0 items-center rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] lg:w-full ${
+                  activeTab === "pro_profile" ? "bg-neutral-950 text-white shadow-md" : "border border-transparent bg-white/60 text-neutral-600 hover:border-neutral-200 hover:bg-white hover:text-neutral-950 hover:shadow-sm"
                 }`}
               >
                 <span>{isEn ? "PRO" : "プロ"}</span>
@@ -631,8 +653,8 @@ export default function UnifiedDashboard({
               <button
                 type="button"
                 onClick={() => setActiveTab("shop_manage")}
-                className={`flex h-11 shrink-0 items-center rounded-xl px-4 py-3 text-left text-[13px] font-medium tracking-wide transition-all duration-300 active:scale-[0.98] md:w-full md:px-3.5 md:text-[14px] ${
-                  activeTab === "shop_manage" ? "bg-neutral-950 text-white font-semibold shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/60"
+                className={`flex min-h-12 shrink-0 items-center rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] lg:w-full ${
+                  activeTab === "shop_manage" ? "bg-neutral-950 text-white shadow-md" : "border border-transparent bg-white/60 text-neutral-600 hover:border-neutral-200 hover:bg-white hover:text-neutral-950 hover:shadow-sm"
                 }`}
               >
                 <span>{isEn ? "OWNER" : "オーナー"}</span>
@@ -644,8 +666,8 @@ export default function UnifiedDashboard({
                 <button
                   type="button"
                   onClick={() => setActiveTab("curator")}
-                  className={`flex h-11 shrink-0 items-center rounded-xl px-4 py-3 text-left text-[13px] font-medium tracking-wide transition-all duration-300 active:scale-[0.98] md:w-full md:px-3.5 md:text-[14px] ${
-                    activeTab === "curator" ? "bg-neutral-950 text-white font-semibold shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/60"
+                  className={`flex min-h-12 shrink-0 items-center rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] lg:w-full ${
+                    activeTab === "curator" ? "bg-neutral-950 text-white shadow-md" : "border border-transparent bg-white/60 text-neutral-600 hover:border-neutral-200 hover:bg-white hover:text-neutral-950 hover:shadow-sm"
                   }`}
                 >
                   <span>{isEn ? "ADMINISTRATOR" : "アドミニストレーター"}</span>
@@ -654,8 +676,8 @@ export default function UnifiedDashboard({
                 <button
                   type="button"
                   onClick={() => setActiveTab("r2_viewer")}
-                  className={`flex h-11 shrink-0 items-center rounded-xl px-4 py-3 text-left text-[13px] font-medium tracking-wide transition-all duration-300 active:scale-[0.98] md:w-full md:px-3.5 md:text-[14px] ${
-                    activeTab === "r2_viewer" ? "bg-neutral-950 text-white font-semibold shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/60"
+                  className={`flex min-h-12 shrink-0 items-center rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] lg:w-full ${
+                    activeTab === "r2_viewer" ? "bg-neutral-950 text-white shadow-md" : "border border-transparent bg-white/60 text-neutral-600 hover:border-neutral-200 hover:bg-white hover:text-neutral-950 hover:shadow-sm"
                   }`}
                 >
                   <span>{isEn ? "R2 IMAGE VIEWER" : "R2画像チェッカー"}</span>
@@ -664,7 +686,7 @@ export default function UnifiedDashboard({
             )}
           </nav>
 
-          <div className="md:col-span-4 space-y-8 w-full max-w-5xl">
+          <div className="w-full min-w-0 max-w-5xl space-y-8">
             
             <div className="w-full">
               <LanguageSwitcherTabs value={formLanguage} onChange={setFormLanguage} currentUiLang={lang} />
@@ -682,8 +704,8 @@ export default function UnifiedDashboard({
             )}
 
             {activeTab === "personal" && (
-              <div className="space-y-12 animate-fadeIn w-full">
-                <div className="flex w-full flex-col items-center gap-8 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:gap-12 sm:p-12">
+              <div className="w-full space-y-10 animate-fadeIn">
+                <div className="flex w-full flex-col items-center gap-8 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:gap-10 sm:p-8">
                   <div className="w-full flex flex-col items-center">
                     <AvatarUpload
                       userId={profile.id}
@@ -716,13 +738,10 @@ export default function UnifiedDashboard({
                 {userProfileComplete ? (
                   <>
                 {/* ☕️ コーヒーレシピ・ドリップログ作成 */}
-                <div className="border-t border-neutral-200 pt-10 space-y-6 w-full">
-                  <div>
-                    <p className="text-sm tracking-[0.14em] text-neutral-400 font-medium uppercase mb-1">ANALYTICS & RECIPE</p>
-                    <h3 className="text-lg font-normal text-neutral-800">{t.analyticsTitle}</h3>
-                  </div>
+                <section className="w-full space-y-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8">
+                  <DashboardSectionHeading eyebrow="ANALYTICS & RECIPE" title={t.analyticsTitle} />
                   {isPremium && (
-                    <div className="border border-neutral-200 rounded-2xl p-4 sm:p-6 bg-neutral-50/50">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-6">
                       <CoffeeAnalyticsCharts userId={profile.id} lang={formLanguage} />
                     </div>
                   )}
@@ -732,36 +751,36 @@ export default function UnifiedDashboard({
                       lang={formLanguage}
                     />
                   </div>
-                </div>
+                </section>
 
                 {/* ⚙️ 器具レビュー投稿フォーム */}
-                <div className="border-t border-neutral-200 pt-10 space-y-6 w-full">
-                  <div>
-                    <p className="text-sm tracking-[0.14em] text-neutral-400 font-medium uppercase mb-1">GEAR REVIEW</p>
-                  </div>
+                <section className="w-full space-y-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8">
+                  <DashboardSectionHeading
+                    eyebrow="GEAR REVIEW"
+                    description={formLanguage === "en" ? "Record your experience with coffee equipment." : "コーヒー器具の使用体験を記録します。"}
+                  />
                   <div className="w-full">
                     <GearReviewForm lang={formLanguage} />
                   </div>
-                </div>
+                </section>
 
                 {/* 📄 記事・投稿一覧 */}
-                <div className="border-t border-neutral-200 pt-10 w-full">
-                  <p className="text-sm tracking-[0.14em] text-neutral-400 font-medium uppercase mb-2">MY ARTICLES</p>
-                  <h3 className="text-lg font-normal mb-6">{t.articlesTitle}</h3>
+                <section className="w-full space-y-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8">
+                  <DashboardSectionHeading eyebrow="MY ARTICLES" title={t.articlesTitle} />
                   <PostList
                     key={`${formLanguage}-${userPostRefreshKey}`}
                     userId={profile.id}
                     lang={formLanguage}
                   />
-                </div>
+                </section>
                   </>
                 ) : (
                   <UserProfileGuard lang={formLanguage} />
                 )}
 
                 {/* ⚠️ アカウント設定・サポート（デザイン刷新版） */}
-                <div className="border-t border-neutral-200/80 pt-10 pb-4 w-full">
-                  <div className="p-6 sm:p-7 border border-neutral-200/80 bg-neutral-50/50 rounded-[24px] space-y-4">
+                <section className="w-full rounded-2xl border border-neutral-200 bg-neutral-50/60 p-5 shadow-sm sm:p-7">
+                  <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <h4 className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase select-none">
@@ -792,7 +811,7 @@ export default function UnifiedDashboard({
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
 
               </div>
             )}
@@ -803,7 +822,7 @@ export default function UnifiedDashboard({
                   <ProProfileForm 
                     userId={profile.id} 
                     initialUsername={liveUserProfile.username}
-                    initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? liveUserProfile.display_name) : liveUserProfile.display_name}
+                    initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? null) : null}
                     initialDisplayNameEn={expertData ? (expertData.pending_display_name_en ?? expertData.display_name_en ?? null) : null}
                     initialBio={expertData ? expertData.bio_expert : liveUserProfile.bio}
                     initialBioEn={expertData ? expertData.bio_expert_en : null}
@@ -845,7 +864,7 @@ export default function UnifiedDashboard({
                 />
 
                 <CreateBlogForm 
-                  onBlogCreated={() => window.location.reload()} 
+                  onBlogCreated={() => setProPostRefreshKey((key) => key + 1)}
                   lang={formLanguage} 
                   authorType="pro" 
                   membership_tier={profile.membership_tier} 
@@ -856,7 +875,7 @@ export default function UnifiedDashboard({
                     userId={profile.id} 
                     membership_tier={profile.membership_tier}
                     lang={formLanguage} 
-                    onRecipeCreated={() => window.location.reload()}
+                    onRecipeCreated={() => setProPostRefreshKey((key) => key + 1)}
                   />
                 </div>
 
@@ -880,7 +899,7 @@ export default function UnifiedDashboard({
                     initialOriginId={ownerData?.id ?? null}
                     initialSlug={ownerData?.slug ?? null}
                     initialUsername={liveUserProfile.username}
-                    initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? liveUserProfile.display_name}
+                    initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? null}
                     initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null}
                     initialBio={ownerData?.bio ?? liveUserProfile.bio}
                     initialBioEn={ownerData?.bio_en ?? null}

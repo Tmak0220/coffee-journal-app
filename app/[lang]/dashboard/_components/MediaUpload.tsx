@@ -264,7 +264,7 @@ export default function MediaUpload({
 
         <div className="w-full flex items-center justify-center gap-6 flex-wrap">
           <label className="inline-flex items-center cursor-pointer">
-            <span className={`bg-neutral-900 hover:bg-neutral-800 text-white border border-transparent px-7 py-3.5 rounded-full text-[15px] font-medium tracking-wide transition-all duration-200 shadow-sm hover:shadow active:scale-[0.97] ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <span className={`rounded-xl border border-transparent bg-neutral-900 px-7 py-3.5 text-[15px] font-medium tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md active:scale-[0.97] ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
               {uploading ? t.uploading : buttonLabel}
             </span>
 

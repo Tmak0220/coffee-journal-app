@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { useAppPopup } from "@/context/AppPopupContext"
 
 type Category = "all" | "notice" | "blog" | "verification"
 type Visibility = "all" | "draft" | "private" | "members" | "public"
@@ -49,9 +50,7 @@ export default function ProPostList({
   const [category, setCategory] = useState<Category>("all")
   const [visibility, setVisibility] = useState<Visibility>("all")
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
-
-  // 削除対象のアイテムを保持するステート（モーダルの開閉管理用）
-  const [deleteTarget, setDeleteTarget] = useState<ProPostItem | null>(null)
+  const { confirmPopup, showPopup } = useAppPopup()
   const [isDeleting, setIsDeleting] = useState(false)
 
   const t = isEn ? {
@@ -180,22 +179,39 @@ export default function ProPostList({
   const categoryLabel = (value: ProPostItem["category"]) => t[value]
   const visibilityLabel = (value: ProPostItem["visibility"]) => t[value]
 
-  // モーダルでの削除実行処理
-  const executeDelete = async () => {
-    if (!deleteTarget || deleteTarget.category !== "notice") return
+  const executeDelete = async (target: ProPostItem) => {
+    if (target.category !== "notice" || isDeleting) return
+    const confirmed = await confirmPopup({
+      title: t.deleteConfirmTitle,
+      message: t.deleteConfirm,
+      confirmLabel: t.confirmDelete,
+      cancelLabel: t.cancel,
+      danger: true,
+    })
+    if (!confirmed) return
+
     setIsDeleting(true)
     try {
       const response = await fetch("/api/delete-broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: deleteTarget.id }),
+        body: JSON.stringify({ id: target.id }),
       })
       if (!response.ok) {
         console.error("Failed to delete broadcast:", await response.text())
+        showPopup(
+          isEn ? "We couldn't delete the announcement." : "お知らせを削除できませんでした。",
+          "error",
+          isEn ? "Unable to delete" : "削除に失敗しました",
+        )
         return
       }
-      setItems(current => current.filter(candidate => !(candidate.category === "notice" && candidate.id === deleteTarget.id)))
-      setDeleteTarget(null)
+      setItems(current => current.filter(candidate => !(candidate.category === "notice" && candidate.id === target.id)))
+      showPopup(
+        isEn ? "The announcement has been deleted." : "お知らせを削除しました。",
+        "success",
+        isEn ? "Announcement deleted" : "削除しました",
+      )
     } finally {
       setIsDeleting(false)
     }
@@ -203,7 +219,7 @@ export default function ProPostList({
 
   return (
     <>
-      <section className="w-full max-w-5xl mx-auto space-y-8 rounded-xl border border-neutral-200 bg-white px-6 pb-10 pt-6 shadow-sm sm:px-10 sm:pb-16 sm:pt-10">
+      <section className="mx-auto w-full max-w-5xl space-y-8 rounded-2xl border border-neutral-200 bg-white px-5 pb-10 pt-6 shadow-sm sm:px-8 sm:pb-12 sm:pt-8">
         <div className="flex flex-col gap-5 border-b border-neutral-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-[15px] font-bold uppercase tracking-wider text-neutral-900">{t.title}</h2>
@@ -267,7 +283,8 @@ export default function ProPostList({
                     {item.category === "notice" && (
                       <button
                         type="button"
-                        onClick={() => setDeleteTarget(item)}
+                        onClick={() => void executeDelete(item)}
+                        disabled={isDeleting}
                         className="col-span-2 rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-center text-xs font-medium text-red-600 transition hover:bg-red-50"
                       >
                         {t.delete}
@@ -281,45 +298,6 @@ export default function ProPostList({
         )}
       </section>
 
-      {/* 削除確認ポップアップ (モーダル) */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* バックドロップ */}
-          <div
-            className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity"
-            onClick={() => !isDeleting && setDeleteTarget(null)}
-          />
-
-          {/* ポップアップ本体 */}
-          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-white p-6 shadow-xl border border-neutral-100 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-sm font-bold text-neutral-900">
-              {t.deleteConfirmTitle}
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-              {t.deleteConfirm}
-            </p>
-
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => setDeleteTarget(null)}
-                className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50 disabled:opacity-50"
-              >
-                {t.cancel}
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={executeDelete}
-                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
-              >
-                {isDeleting ? t.deleting : t.confirmDelete}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

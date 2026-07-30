@@ -288,7 +288,7 @@ export default function MinimalCalendar({
   return (
     <div 
       ref={calendarRef} 
-      className="w-full max-w-sm mx-auto bg-white border border-neutral-200/80 rounded-3xl p-4 sm:p-5 shadow-xs"
+      className="mx-auto w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5"
     >
       <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-neutral-100 select-none">
         <span className="text-sm sm:text-base font-semibold tracking-wider text-neutral-800">

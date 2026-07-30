@@ -14,11 +14,12 @@ type B2BInquiryPanelProps = {
   currentUserTier: string | null
   lang: "ja" | "en"
   mode?: "public" | "inbox" | "sent"
+  className?: string
 }
 
-export default function B2BInquiryPanel({ originId, ownerId, currentUserId, currentUserTier, lang, mode = "public" }: B2BInquiryPanelProps) {
+export default function B2BInquiryPanel({ originId, ownerId, currentUserId, currentUserTier, lang, mode = "public", className = "" }: B2BInquiryPanelProps) {
   const isEn = lang === "en"
-  const { showPopup } = useAppPopup()
+  const { showPopup, confirmPopup } = useAppPopup()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -27,6 +28,7 @@ export default function B2BInquiryPanel({ originId, ownerId, currentUserId, curr
   const [body, setBody] = useState("")
   const [reply, setReply] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
   const [recipientIsBusiness, setRecipientIsBusiness] = useState(false)
 
   const canUse = currentUserTier === "pro" || currentUserTier === "business"
@@ -78,7 +80,7 @@ export default function B2BInquiryPanel({ originId, ownerId, currentUserId, curr
       showPopup(isEn ? "We couldn't send your inquiry. Please try again." : "問い合わせを送信できませんでした。時間をおいて、もう一度お試しください。", "error", isEn ? "Not sent" : "送信に失敗しました")
     } else {
       setBody(""); setCompany(""); setActiveId(data as string)
-      showPopup(isEn ? "Your business inquiry has been sent." : "ビジネス問い合わせを送信しました。", "success", isEn ? "Inquiry sent" : "送信しました")
+      showPopup(isEn ? "Your inquiry has been sent." : "問い合わせを送信しました。", "success", isEn ? "Inquiry sent" : "送信しました")
       await loadThreads()
     }
     setSubmitting(false)
@@ -96,22 +98,122 @@ export default function B2BInquiryPanel({ originId, ownerId, currentUserId, curr
     setSubmitting(false)
   }
 
-  const subjectLabel = (value: string) => ({ wholesale: isEn ? "Wholesale" : "卸売り・仕入れ", collaboration: isEn ? "Collaboration" : "イベント・コラボ", media: isEn ? "Media" : "取材・メディア", large_order: isEn ? "Bulk order" : "大口注文", other: isEn ? "Other" : "その他" }[value] || value)
+  const deleteMessage = async (messageId: string) => {
+    if (deletingMessageId) return
+    const confirmed = await confirmPopup({
+      title: isEn ? "Delete message" : "メッセージを削除",
+      message: isEn
+        ? "Delete this message? This action cannot be undone."
+        : "このメッセージを削除しますか？この操作は取り消せません。",
+      confirmLabel: isEn ? "Delete" : "削除する",
+      cancelLabel: isEn ? "Cancel" : "キャンセル",
+      danger: true,
+    })
+    if (!confirmed) return
+
+    setDeletingMessageId(messageId)
+    try {
+      const response = await fetch("/api/delete-b2b-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: messageId }),
+      })
+      if (!response.ok) throw new Error("Delete failed")
+      setMessages((current) => current.filter((message) => message.id !== messageId))
+      showPopup(
+        isEn ? "The message has been deleted." : "メッセージを削除しました。",
+        "success",
+        isEn ? "Message deleted" : "削除しました",
+      )
+    } catch (error) {
+      console.error("Failed to delete B2B message:", error)
+      showPopup(
+        isEn ? "We couldn't delete the message." : "メッセージを削除できませんでした。",
+        "error",
+        isEn ? "Unable to delete" : "削除に失敗しました",
+      )
+    } finally {
+      setDeletingMessageId(null)
+    }
+  }
+
+  const subjectLabel = (value: string) => ({
+    wholesale: isEn ? "Wholesale and sourcing" : "卸売・仕入れについて",
+    collaboration: isEn ? "Events and collaborations" : "イベント・コラボレーション",
+    media: isEn ? "Media and press" : "取材・メディア掲載",
+    large_order: isEn ? "Bulk orders" : "大口注文について",
+    other: isEn ? "Other business inquiries" : "その他のビジネス相談",
+  }[value] || value)
   const active = conversations.find((item) => item.id === activeId)
   const activeMessages = messages.filter((item) => item.conversation_id === activeId)
   const inputClass = "w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-[13px] outline-none transition focus:border-neutral-500"
 
-  return <section className="mt-14 rounded-3xl border border-neutral-200/70 bg-white/80 p-6 shadow-sm sm:p-8">
-    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400">B2B INQUIRIES</p>
-    <h2 className="mt-2 text-lg font-medium text-neutral-900">{mode === "inbox" ? (isEn ? "Received inquiries" : "届いたビジネス問い合わせ") : mode === "sent" ? (isEn ? "Sent inquiries" : "送信したビジネス問い合わせ") : (isEn ? "Contact this business" : "ビジネスについて問い合わせる")}</h2>
-    <p className="mt-2 text-xs leading-6 text-neutral-500">{mode === "inbox" ? (isEn ? "Manage and reply to inquiries from professional and business members." : "プロ会員・ビジネス会員から届いた問い合わせを管理し、返信できます。") : mode === "sent" ? (isEn ? "Continue your business inquiry conversations here." : "送信済みの問い合わせへの返信と、その後のやり取りはこちらで行えます。") : (isEn ? "Professional and business members can contact this business directly." : "プロ会員・ビジネス会員として、この運営者へ直接問い合わせできます。")}</p>
+  return <section className={`rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8 ${className}`}>
+    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-900">B2B INQUIRIES</p>
+    <h2 className="mt-2 text-xl font-bold tracking-tight text-neutral-900">{mode === "inbox" ? (isEn ? "Received inquiries" : "届いたビジネス問い合わせ") : mode === "sent" ? (isEn ? "Sent inquiries" : "送信したビジネス問い合わせ") : (isEn ? "Business inquiry" : "ビジネスに関する問い合わせ")}</h2>
+    <p className="mt-2 text-xs leading-6 text-neutral-500">{mode === "inbox" ? (isEn ? "Manage and reply to inquiries from professional and business members." : "届いたビジネス問い合わせの確認と返信ができます。") : mode === "sent" ? (isEn ? "Continue your business inquiry conversations here." : "送信した問い合わせの確認や、その後のやり取りができます。") : (isEn ? "Contact this account directly about business inquiries." : "ビジネスに関して、このアカウントへ直接問い合わせできます。")}</p>
 
     {mode !== "public" && conversations.length > 0 && <div className="mt-7 grid gap-5 md:grid-cols-[220px_1fr]">
       <div className="space-y-2">{conversations.map((item) => <button key={item.id} type="button" onClick={() => setActiveId(item.id)} className={`w-full rounded-xl border p-3 text-left transition ${activeId === item.id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"}`}><span className="block text-xs font-semibold">{subjectLabel(item.subject_type)}</span><span className="mt-1 block truncate text-[10px] opacity-60">{item.company_name || new Date(item.created_at).toLocaleDateString(isEn ? "en-US" : "ja-JP")}</span></button>)}</div>
-      {active && <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 sm:p-5"><div className="max-h-80 space-y-3 overflow-y-auto pr-1">{activeMessages.map((message) => { const mine = message.sender_id === currentUserId; return <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${mine ? "bg-neutral-900 text-white" : "border border-neutral-200 bg-white text-neutral-700"}`}><p className="whitespace-pre-wrap">{message.body}</p><p className="mt-1.5 text-[9px] opacity-50">{new Date(message.created_at).toLocaleString(isEn ? "en-US" : "ja-JP")}</p></div></div> })}</div><form onSubmit={sendReply} className="mt-4 flex gap-2"><textarea value={reply} onChange={(event) => setReply(event.target.value)} rows={2} maxLength={2000} placeholder={isEn ? "Write a reply..." : "返信を入力..."} className={`${inputClass} resize-none`} required /><button disabled={submitting} className="shrink-0 rounded-xl bg-neutral-900 px-5 text-xs font-semibold text-white disabled:opacity-50">{isEn ? "SEND" : "送信"}</button></form></div>}
+      {active && (
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-5">
+          <div className="max-h-96 space-y-4 overflow-y-auto pr-1">
+            {activeMessages.map((message) => {
+              const mine = message.sender_id === currentUserId
+              return (
+                <div key={message.id} className={`group flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[82%] rounded-2xl px-4 py-3.5 text-xs leading-relaxed shadow-sm ${
+                    mine
+                      ? "rounded-br-md bg-neutral-900 text-white"
+                      : "rounded-bl-md border border-neutral-200 bg-white text-neutral-700"
+                  }`}>
+                    <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+                      mine ? "text-white/45" : "text-neutral-400"
+                    }`}>
+                      {mine ? (isEn ? "You" : "自分") : (isEn ? "From account" : "相手から")}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                    <div className="mt-2.5 flex items-center justify-between gap-4">
+                      <time className={`text-[9px] ${mine ? "text-white/45" : "text-neutral-400"}`}>
+                        {new Date(message.created_at).toLocaleString(isEn ? "en-US" : "ja-JP")}
+                      </time>
+                      {mine && (
+                        <button
+                          type="button"
+                          onClick={() => void deleteMessage(message.id)}
+                          disabled={deletingMessageId === message.id}
+                          className="text-[9px] font-medium text-white/50 underline-offset-2 transition hover:text-red-200 hover:underline disabled:opacity-40"
+                        >
+                          {deletingMessageId === message.id
+                            ? (isEn ? "Deleting..." : "削除中...")
+                            : (isEn ? "Delete" : "削除")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <form onSubmit={sendReply} className="mt-5 flex gap-2 border-t border-neutral-200/70 pt-4">
+            <textarea
+              value={reply}
+              onChange={(event) => setReply(event.target.value)}
+              rows={2}
+              maxLength={2000}
+              placeholder={isEn ? "Write a reply..." : "返信を入力してください。"}
+              className={`${inputClass} resize-none`}
+              required
+            />
+            <button disabled={submitting} className="shrink-0 rounded-xl bg-neutral-900 px-5 text-xs font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-50">
+              {isEn ? "SEND" : "送信"}
+            </button>
+          </form>
+        </div>
+      )}
     </div>}
 
-    {mode === "public" && conversations.length === 0 && <form onSubmit={startInquiry} className="mt-7 space-y-4 border-t border-neutral-100 pt-7"><div className="grid gap-4 sm:grid-cols-2"><select value={subject} onChange={(event) => setSubject(event.target.value)} className={inputClass}><option value="wholesale">{subjectLabel("wholesale")}</option><option value="collaboration">{subjectLabel("collaboration")}</option><option value="media">{subjectLabel("media")}</option><option value="large_order">{subjectLabel("large_order")}</option><option value="other">{subjectLabel("other")}</option></select><input value={company} onChange={(event) => setCompany(event.target.value)} maxLength={120} placeholder={isEn ? "Company / organization (optional)" : "会社・所属名（任意）"} className={inputClass} /></div><textarea value={body} onChange={(event) => setBody(event.target.value)} rows={5} maxLength={2000} placeholder={isEn ? "Describe your inquiry..." : "問い合わせ内容を入力してください..."} className={`${inputClass} resize-y`} required /><button disabled={submitting} className="rounded-xl bg-neutral-900 px-7 py-3.5 text-xs font-semibold tracking-wide text-white transition hover:bg-neutral-700 disabled:opacity-50">{submitting ? (isEn ? "SENDING..." : "送信中...") : (isEn ? "SEND INQUIRY" : "問い合わせを送信")}</button></form>}
+    {mode === "public" && conversations.length === 0 && <form onSubmit={startInquiry} className="mt-7 space-y-4 border-t border-neutral-100 pt-7"><div className="grid gap-4 sm:grid-cols-2"><select value={subject} onChange={(event) => setSubject(event.target.value)} className={inputClass}><option value="wholesale">{subjectLabel("wholesale")}</option><option value="collaboration">{subjectLabel("collaboration")}</option><option value="media">{subjectLabel("media")}</option><option value="large_order">{subjectLabel("large_order")}</option><option value="other">{subjectLabel("other")}</option></select><input value={company} onChange={(event) => setCompany(event.target.value)} maxLength={120} placeholder={isEn ? "Company or organization (optional)" : "会社名・所属名（任意）"} className={inputClass} /></div><textarea value={body} onChange={(event) => setBody(event.target.value)} rows={5} maxLength={2000} placeholder={isEn ? "Enter the details of your inquiry..." : "お問い合わせ内容をご入力ください。"} className={`${inputClass} resize-y`} required /><button disabled={submitting} className="rounded-xl bg-neutral-900 px-7 py-3.5 text-xs font-semibold tracking-wide text-white transition hover:bg-neutral-700 disabled:opacity-50">{submitting ? (isEn ? "SENDING..." : "送信中...") : (isEn ? "SEND INQUIRY" : "問い合わせを送信する")}</button></form>}
     {mode === "inbox" && conversations.length === 0 && <div className="mt-7 rounded-2xl border border-dashed border-neutral-200 px-6 py-10 text-center text-xs text-neutral-400">{isEn ? "No business inquiries yet." : "現在、届いているビジネス問い合わせはありません。"}</div>}
     {mode === "sent" && conversations.length === 0 && <div className="mt-7 rounded-2xl border border-dashed border-neutral-200 px-6 py-10 text-center text-xs text-neutral-400">{isEn ? "No sent business inquiries yet." : "送信済みのビジネス問い合わせはありません。"}</div>}
   </section>

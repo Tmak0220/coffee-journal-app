@@ -9,12 +9,21 @@ export type RoastModuleData = {
   roasterMachine?: string
   batchSize?: string       // 追加: 投入量
   chargeTemp?: string
+  turningPointTime?: string
+  turningPointTemp?: string
+  yellowingTime?: string
   ror?: string
   drumSpeed?: string
   firstCrack?: string
+  firstCrackTemp?: string
+  secondCrackTime?: string
   dropTemp?: string        // 追加: 煎り止め温度
   totalTime?: string       // 追加: 総焙煎時間
+  developmentTime?: string
   dtr?: string             // 追加: DTR (Development Time Ratio)
+  greenWeight?: string
+  roastedWeight?: string
+  weightLoss?: string
   roastDegree?: string     // 追加: 焙煎度 / カラー値
   notes?: string
 }
@@ -26,12 +35,21 @@ type Props = {
     roasterMachine?: string
     batchSize?: string
     chargeTemp?: string
+    turningPointTime?: string
+    turningPointTemp?: string
+    yellowingTime?: string
     ror?: string
     drumSpeed?: string
     firstCrack?: string
+    firstCrackTemp?: string
+    secondCrackTime?: string
     dropTemp?: string
     totalTime?: string
+    developmentTime?: string
     dtr?: string
+    greenWeight?: string
+    roastedWeight?: string
+    weightLoss?: string
     roastDegree?: string
     notes?: string
   }
@@ -45,19 +63,28 @@ const roastProfileDict = {
     placeholderMachine: "例: Aillio Bullet R1 V2",
     labelBatchSize: "投入量 (Batch Size)",
     placeholderBatchSize: "例: 450g / 1.0kg",
-    labelChargeTemp: "投入温度 (Charge °C)",
-    labelRor: "平均 RoR",
-    labelDrumSpeed: "回転数（焙煎）",
+    labelChargeTemp: "投入温度（Charge Temperature）",
+    labelTurningPointTime: "ボトム到達時間（Turning Point）",
+    labelTurningPointTemp: "ボトム温度",
+    labelYellowingTime: "黄変到達時間（Yellowing）",
+    labelRor: "平均昇温率（RoR）",
+    labelDrumSpeed: "ドラム回転数",
     placeholderDrumSpeed: "例: 55 rpm",
-    labelFirstCrack: "1ハゼ (1st Crack)",
-    labelDropTemp: "煎り止め温度 (Drop °C)",
-    labelTotalTime: "総時間 (Total Time)",
-    labelDtr: "DTR (Development Ratio)",
+    labelFirstCrack: "1ハゼ開始時間",
+    labelFirstCrackTemp: "1ハゼ開始温度",
+    labelSecondCrackTime: "2ハゼ開始時間",
+    labelDropTemp: "煎り止め温度（Drop Temperature）",
+    labelTotalTime: "総焙煎時間",
+    labelDtr: "デベロップメント比率（DTR）",
     placeholderDtr: "例: 15.5%",
-    labelRoastDegree: "焙煎度 / カラー値 (Agtron)",
-    placeholderRoastDegree: "例: Mid-Light / 62",
-    labelNotes: "ダンパー・火力調整の推移メモ",
-    placeholderNotes: "イエローまで一気に熱を入れ、ドライエンドから火力を絞ってデベロップメントタイムを1分30秒に調整..."
+    labelRoastDegree: "焙煎度 / カラー値（豆・粉）",
+    labelGreenWeight: "焙煎前重量",
+    labelRoastedWeight: "焙煎後重量",
+    labelWeightLoss: "焙煎減量率",
+    labelDevelopmentTime: "デベロップメントタイム（1ハゼ後）",
+    placeholderRoastDegree: "例：Mid-Light / 豆 62・粉 65",
+    labelNotes: "火力・風量（ダンパー）調整ログ",
+    placeholderNotes: "例：0:00 火力80%・ダンパー20%、黄変後に火力を60%へ変更、1ハゼ開始時にダンパーを70%へ。変更時刻と設定値、その時のRoRや豆の反応を記録してください。"
   },
   en: {
     labelMachine: "Roaster Machine Used",
@@ -65,18 +92,27 @@ const roastProfileDict = {
     labelBatchSize: "Batch Size",
     placeholderBatchSize: "e.g. 450g / 1.0kg",
     labelChargeTemp: "Charge Temperature °C",
+    labelTurningPointTime: "Turning Point Time",
+    labelTurningPointTemp: "Turning Point Temperature",
+    labelYellowingTime: "Yellowing Time",
     labelRor: "Avg RoR",
     labelDrumSpeed: "Drum Speed",
     placeholderDrumSpeed: "e.g. 55 rpm",
     labelFirstCrack: "1st Crack",
+    labelFirstCrackTemp: "1st Crack Temperature",
+    labelSecondCrackTime: "2nd Crack Time",
     labelDropTemp: "Drop Temperature °C",
     labelTotalTime: "Total Time",
     labelDtr: "DTR (%)",
     placeholderDtr: "e.g. 15.5%",
-    labelRoastDegree: "Roast Degree / Agtron",
-    placeholderRoastDegree: "e.g. Mid-Light / 62",
-    labelNotes: "Airflow & Heat Adjustment Notes",
-    placeholderNotes: "Apply high heat until yellowing, then cut back gas at the dry end to manage a 1m 30s development time..."
+    labelRoastDegree: "Roast Degree / Color (Whole / Ground)",
+    labelGreenWeight: "Green Weight",
+    labelRoastedWeight: "Roasted Weight",
+    labelWeightLoss: "Weight Loss",
+    labelDevelopmentTime: "Development Time",
+    placeholderRoastDegree: "e.g. Mid-Light / whole 62 / ground 65",
+    labelNotes: "Heat & Airflow Adjustment Log",
+    placeholderNotes: "e.g. 0:00 gas 80% / airflow 20%; reduce gas to 60% after yellowing; increase airflow to 70% at first crack. Record each change, its time, RoR, and the bean response."
   }
 }
 
@@ -88,23 +124,72 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
   const roasterMachine = module?.roasterMachine || ""
   const batchSize = module?.batchSize || ""
   const chargeTemp = module?.chargeTemp || ""
+  const turningPointTime = module?.turningPointTime || ""
+  const turningPointTemp = module?.turningPointTemp || ""
+  const yellowingTime = module?.yellowingTime || ""
   const ror = module?.ror || ""
   const drumSpeed = module?.drumSpeed || ""
   const firstCrack = module?.firstCrack || ""
+  const firstCrackTemp = module?.firstCrackTemp || ""
+  const secondCrackTime = module?.secondCrackTime || ""
   const dropTemp = module?.dropTemp || ""
   const totalTime = module?.totalTime || ""
+  const developmentTime = module?.developmentTime || ""
   const dtr = module?.dtr || ""
   const roastDegree = module?.roastDegree || ""
+  const greenWeight = module?.greenWeight || ""
+  const roastedWeight = module?.roastedWeight || ""
+  const weightLoss = module?.weightLoss || ""
   const notes = module?.notes || ""
 
-  // 共通スタイル定義（よりソリッドでラボラトリーライクなUIへ）
-  const inputBaseStyle = "w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-900 text-sm focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/60 transition-all shadow-sm"
-  const subLabelStyle = "text-[11px] font-bold tracking-widest text-neutral-400 uppercase block mb-1.5"
+  const inputBaseStyle = "w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm transition placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-4 focus:ring-neutral-100"
+  const subLabelStyle = "mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-600"
+  const alignedProfileLabelStyle = "flex min-h-[3.25rem] items-end pb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-600 sm:text-[11px]"
+
+  const parseTime = (value: string) => {
+    const parts = value.trim().split(":")
+    if (parts.length !== 2) return null
+    const minutes = Number(parts[0])
+    const seconds = Number(parts[1])
+    if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || minutes < 0 || seconds < 0 || seconds >= 60) return null
+    return minutes * 60 + seconds
+  }
+
+  const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+
+  const handlePhaseTimeChange = (field: "firstCrack" | "totalTime", value: string) => {
+    const nextFirstCrack = field === "firstCrack" ? value : firstCrack
+    const nextTotalTime = field === "totalTime" ? value : totalTime
+    const firstCrackSeconds = parseTime(nextFirstCrack)
+    const totalSeconds = parseTime(nextTotalTime)
+    const update: Partial<RoastModuleData> = { [field]: value }
+
+    if (firstCrackSeconds != null && totalSeconds != null && totalSeconds > 0 && totalSeconds >= firstCrackSeconds) {
+      const developmentSeconds = totalSeconds - firstCrackSeconds
+      update.developmentTime = formatTime(developmentSeconds)
+      update.dtr = `${Math.round((developmentSeconds / totalSeconds) * 1000) / 10}%`
+    } else {
+      update.developmentTime = ""
+      update.dtr = ""
+    }
+    onChange(update)
+  }
+
+  const handleWeightChange = (field: "greenWeight" | "roastedWeight", value: string) => {
+    const nextGreen = field === "greenWeight" ? value : greenWeight
+    const nextRoasted = field === "roastedWeight" ? value : roastedWeight
+    const green = Number(nextGreen)
+    const roasted = Number(nextRoasted)
+    const update: Partial<RoastModuleData> = { [field]: value }
+    update.weightLoss = green > 0 && roasted >= 0 && roasted <= green
+      ? `${Math.round(((green - roasted) / green) * 1000) / 10}%`
+      : ""
+    onChange(update)
+  }
 
   return (
-    <div className="space-y-6 text-neutral-900 font-sans">
-      {/* 基本設定: 焙煎機 & 投入量 */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div className="space-y-5 font-sans text-neutral-900">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="sm:col-span-2">
           <label className={subLabelStyle}>{t.labelMachine}</label>
           <input 
@@ -127,106 +212,211 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
         </div>
       </div>
 
-      {/* プロファイル時系列データ (2段構成) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-neutral-50/50 border border-neutral-100 rounded-xl p-4">
-        {/* 上段 */}
-        <div>
-          <label className={subLabelStyle}>{t.labelChargeTemp}</label>
-          <input 
-            type="text" 
-            placeholder="200°C" 
-            value={chargeTemp} 
-            onChange={(e) => onChange?.({ chargeTemp: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.chargeTemp || ""}`} 
-          />
+      <section className="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-700">
+            {currentLang === "en" ? "Roast profile" : "焙煎プロファイル"}
+          </p>
+          <span className="text-[10px] font-medium text-neutral-400">
+            {currentLang === "en" ? "Time & temperature" : "時間・温度"}
+          </span>
         </div>
-        <div>
-          <label className={subLabelStyle}>{t.labelFirstCrack}</label>
-          <input 
-            type="text" 
-            placeholder="8:45" 
-            value={firstCrack} 
-            onChange={(e) => onChange?.({ firstCrack: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.firstCrack || ""}`} 
-          />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelChargeTemp}</label>
+            <input
+              type="text"
+              placeholder="200°C"
+              value={chargeTemp}
+              onChange={(e) => onChange?.({ chargeTemp: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.chargeTemp || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelTurningPointTime}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="1:20"
+              value={turningPointTime}
+              onChange={(e) => onChange?.({ turningPointTime: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.turningPointTime || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelTurningPointTemp}</label>
+            <input
+              type="text"
+              placeholder="85°C"
+              value={turningPointTemp}
+              onChange={(e) => onChange?.({ turningPointTemp: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.turningPointTemp || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelYellowingTime}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="4:30"
+              value={yellowingTime}
+              onChange={(e) => onChange?.({ yellowingTime: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.yellowingTime || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelFirstCrack}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="8:45"
+              value={firstCrack}
+              onChange={(e) => handlePhaseTimeChange("firstCrack", e.target.value)}
+              className={`${inputBaseStyle} ${diffClasses?.firstCrack || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelFirstCrackTemp}</label>
+            <input
+              type="text"
+              placeholder="196°C"
+              value={firstCrackTemp}
+              onChange={(e) => onChange?.({ firstCrackTemp: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.firstCrackTemp || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelSecondCrackTime}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="11:45"
+              value={secondCrackTime}
+              onChange={(e) => onChange?.({ secondCrackTime: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.secondCrackTime || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelDropTemp}</label>
+            <input
+              type="text"
+              placeholder="215°C"
+              value={dropTemp}
+              onChange={(e) => onChange?.({ dropTemp: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.dropTemp || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelTotalTime}</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="10:30"
+              value={totalTime}
+              onChange={(e) => handlePhaseTimeChange("totalTime", e.target.value)}
+              className={`${inputBaseStyle} ${diffClasses?.totalTime || ""}`}
+            />
+          </div>
         </div>
-        <div>
-          <label className={subLabelStyle}>{t.labelRor}</label>
-          <input 
-            type="text" 
-            placeholder="12°C/min" 
-            value={ror} 
-            onChange={(e) => onChange?.({ ror: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.ror || ""}`} 
-          />
+
+        <div className="mt-5 grid grid-cols-1 gap-4 border-t border-neutral-200 pt-5 sm:grid-cols-2">
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelRor}</label>
+            <input
+              type="text"
+              placeholder="12°C/min"
+              value={ror}
+              onChange={(e) => onChange?.({ ror: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.ror || ""}`}
+            />
+          </div>
+          <div>
+            <label className={alignedProfileLabelStyle}>{t.labelDrumSpeed}</label>
+            <input
+              type="text"
+              placeholder={t.placeholderDrumSpeed}
+              value={drumSpeed}
+              onChange={(e) => onChange?.({ drumSpeed: e.target.value })}
+              className={`${inputBaseStyle} ${diffClasses?.drumSpeed || ""}`}
+            />
+          </div>
         </div>
-        <div>
-          <label className={subLabelStyle}>{t.labelDrumSpeed}</label>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <MetricCard label={t.labelDevelopmentTime} value={developmentTime || "—"} diffClass={diffClasses?.developmentTime} />
+          <MetricCard label={t.labelDtr} value={dtr || "—"} diffClass={diffClasses?.dtr} />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+        <div className="mb-4 border-b border-neutral-200 pb-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-700">
+            {currentLang === "en" ? "Roast outcome" : "焙煎結果"}
+          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
+            {currentLang === "en"
+              ? "Record color and mass loss separately to compare roasts at a similar endpoint."
+              : "近い仕上がり同士を比較できるよう、カラー値と減量率を分けて記録します。"}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <label className={subLabelStyle}>{t.labelGreenWeight} / g</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="450"
+              value={greenWeight}
+              onChange={(e) => handleWeightChange("greenWeight", e.target.value)}
+              className={`${inputBaseStyle} ${diffClasses?.greenWeight || ""}`}
+            />
+          </div>
+          <div>
+            <label className={subLabelStyle}>{t.labelRoastedWeight} / g</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="390"
+              value={roastedWeight}
+              onChange={(e) => handleWeightChange("roastedWeight", e.target.value)}
+              className={`${inputBaseStyle} ${diffClasses?.roastedWeight || ""}`}
+            />
+          </div>
+          <MetricCard label={t.labelWeightLoss} value={weightLoss || "—"} diffClass={diffClasses?.weightLoss} />
+        </div>
+        <div className="mt-4">
+          <label className={subLabelStyle}>{t.labelRoastDegree}</label>
           <input
             type="text"
-            placeholder={t.placeholderDrumSpeed}
-            value={drumSpeed}
-            onChange={(e) => onChange?.({ drumSpeed: e.target.value })}
-            className={`${inputBaseStyle} ${diffClasses?.drumSpeed || ""}`}
+            placeholder={t.placeholderRoastDegree}
+            value={roastDegree}
+            onChange={(e) => onChange?.({ roastDegree: e.target.value })}
+            className={`${inputBaseStyle} ${diffClasses?.roastDegree || ""}`}
           />
         </div>
+      </section>
 
-        {/* 下段: 終了時のデータ */}
-        <div>
-          <label className={subLabelStyle}>{t.labelDropTemp}</label>
-          <input 
-            type="text" 
-            placeholder="215°C" 
-            value={dropTemp} 
-            onChange={(e) => onChange?.({ dropTemp: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.dropTemp || ""}`} 
-          />
-        </div>
-        <div>
-          <label className={subLabelStyle}>{t.labelTotalTime}</label>
-          <input 
-            type="text" 
-            placeholder="10:30" 
-            value={totalTime} 
-            onChange={(e) => onChange?.({ totalTime: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.totalTime || ""}`} 
-          />
-        </div>
-        <div>
-          <label className={subLabelStyle}>{t.labelDtr}</label>
-          <input 
-            type="text" 
-            placeholder={t.placeholderDtr} 
-            value={dtr} 
-            onChange={(e) => onChange?.({ dtr: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.dtr || ""}`} 
-          />
-        </div>
-      </div>
-
-      {/* 仕上げ・焙煎度 */}
-      <div>
-        <label className={subLabelStyle}>{t.labelRoastDegree}</label>
-        <input 
-          type="text" 
-          placeholder={t.placeholderRoastDegree} 
-          value={roastDegree} 
-          onChange={(e) => onChange?.({ roastDegree: e.target.value })} 
-          className={`${inputBaseStyle} ${diffClasses?.roastDegree || ""}`} 
-        />
-      </div>
-
-      {/* メモエリア */}
       <div>
         <label className={subLabelStyle}>{t.labelNotes}</label>
-        <textarea 
-          rows={3} 
-          placeholder={t.placeholderNotes} 
-          value={notes} 
-          onChange={(e) => onChange?.({ notes: e.target.value })} 
-          className={`w-full border border-neutral-200 rounded-xl p-4 bg-white text-neutral-900 text-sm focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/60 transition-all shadow-sm resize-y min-h-[95px] leading-relaxed ${diffClasses?.notes || ""}`} 
+        <textarea
+          rows={4}
+          placeholder={t.placeholderNotes}
+          value={notes}
+          onChange={(e) => onChange?.({ notes: e.target.value })}
+          className={`min-h-[132px] w-full resize-y rounded-xl border border-neutral-300 bg-white p-4 text-sm leading-relaxed text-neutral-900 shadow-sm transition placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-4 focus:ring-neutral-100 ${diffClasses?.notes || ""}`}
         />
       </div>
+    </div>
+  )
+}
+
+function MetricCard({ label, value, diffClass = "" }: { label: string; value: string; diffClass?: string }) {
+  return (
+    <div className={`rounded-xl border border-neutral-200 bg-neutral-50/80 px-4 py-3 ${diffClass}`}>
+      <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-neutral-500">{label}</span>
+      <p className="mt-1.5 text-lg font-semibold text-neutral-900">{value}</p>
     </div>
   )
 }

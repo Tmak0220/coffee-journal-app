@@ -873,7 +873,7 @@ export default function OwnerProfileForm({
           </div>
         )}
       </div>
-      <div className="bg-white border border-neutral-200/60 pt-6 sm:pt-12 pb-10 sm:pb-16 px-6 sm:px-12 rounded-xl shadow-sm w-full space-y-12 animate-fade-in">
+      <div className="w-full space-y-10 rounded-2xl border border-neutral-200 bg-white px-5 pb-10 pt-6 shadow-sm animate-fade-in sm:px-8 sm:pb-12 sm:pt-10">
         
         <div className="space-y-10">
           <div className="w-full">
@@ -1162,7 +1162,7 @@ export default function OwnerProfileForm({
               <button 
                 type="submit" 
                 disabled={loading} 
-                className="bg-neutral-900 hover:bg-neutral-800 text-white font-medium px-7 py-3.5 rounded-full text-[15px] tracking-wide transition-all duration-200 active:scale-[0.97] disabled:opacity-50"
+                className="rounded-xl bg-neutral-900 px-7 py-3.5 text-[15px] font-medium tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md active:scale-[0.97] disabled:opacity-50"
               >
                 {loading ? t.loading : isProfileCompleted ? t.submitButton : t.submitRequestButton}
               </button>
@@ -1288,7 +1288,7 @@ export default function OwnerProfileForm({
                   <button
                     type="submit"
                     disabled={formLoading}
-                    className="w-full sm:w-auto bg-neutral-900 hover:bg-neutral-800 text-white font-semibold px-8 py-3.5 rounded-full text-[15px] tracking-wide transition-all duration-200 shadow-sm hover:shadow active:scale-[0.97] disabled:opacity-50 text-center"
+                    className="w-full rounded-xl bg-neutral-900 px-8 py-3.5 text-center text-[15px] font-semibold tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-md active:scale-[0.97] disabled:opacity-50 sm:w-auto"
                   >
                     {formLoading ? t.loading : t.submitCalendarForm}
                   </button>

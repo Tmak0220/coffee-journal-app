@@ -37,22 +37,85 @@ export default function LabLogSection({
   const isAdmin = currentUserEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase()
   const MAX_CHARS = 500
 
-  const coffeeVariables = lang === "en" ? [
-    "Pour Rate", "Brew Temperature", "Grind Size", "Agitation Count", "Brew Ratio", "Bloom Time", "Total Brew Time", "Gears",
-    "GH", "KH", "Mineral Composition",
-    "Roast Degree", "Roast Profile", "Drum Speed", "DTR", "RoR",
-    "Cupping Score"
-  ] : [
-    "注湯速度", "抽出温度", "挽き目（粒度）", "攪拌回数（抽出）", "粉水比", "蒸らし時間", "総抽出時間", "器具",
-    "総硬度（GH）", "炭酸塩硬度（KH）", "ミネラル配合",
-    "焙煎度", "焙煎プロファイル", "回転数（焙煎）", "DTR（発達時間比率）", "RoR（変化率）",
-    "カッピングスコア"
-  ]
+  const variableGroups = lang === "en"
+    ? [
+        {
+          label: "BREWING",
+          values: [
+            "Pour Rate", "Brew Temperature", "Grind Size", "Agitation Count",
+            "Brew Ratio", "Bloom Time", "Total Brew Time", "Measured TDS",
+            "Extraction Yield (EY)", "Pour / Process Steps", "Gears",
+          ],
+        },
+        {
+          label: "WATER",
+          values: [
+            "Total Hardness (GH)", "Alkalinity (KH)", "Water TDS", "pH",
+            "Calcium (Ca²⁺)", "Magnesium (Mg²⁺)", "Sodium Bicarbonate (NaHCO₃)",
+            "Mineral Composition",
+          ],
+        },
+        {
+          label: "ROASTING",
+          values: [
+            "Roaster Machine", "Batch Size", "Charge Temperature",
+            "Turning Point Time", "Turning Point Temperature", "Yellowing Time",
+            "1st Crack Time", "1st Crack Temperature", "2nd Crack Time",
+            "Drop Temperature", "Total Roast Time", "Average RoR", "Drum Speed",
+            "Development Time", "Development Ratio (DTR)", "Roast Degree / Color",
+            "Green Weight", "Roasted Weight", "Weight Loss",
+            "Heat & Airflow Adjustment",
+          ],
+        },
+        {
+          label: "CUPPING",
+          values: ["Cupping Standard", "Cupping Attributes", "Cupping Score"],
+        },
+      ]
+    : [
+        {
+          label: "抽出",
+          values: [
+            "注湯速度", "抽出温度", "挽き目（粒度）", "攪拌回数（抽出）",
+            "粉水比", "蒸らし時間", "総抽出時間", "測定TDS",
+            "抽出収率（EY）", "注湯・工程", "使用器具",
+          ],
+        },
+        {
+          label: "水質",
+          values: [
+            "総硬度（GH）", "アルカリ度（KH）", "水のTDS", "pH",
+            "カルシウム（Ca²⁺）", "マグネシウム（Mg²⁺）",
+            "炭酸水素ナトリウム（NaHCO₃）", "ミネラル配合",
+          ],
+        },
+        {
+          label: "焙煎",
+          values: [
+            "使用焙煎機", "投入量", "投入温度", "ボトム到達時間",
+            "ボトム温度", "黄変到達時間", "1ハゼ開始時間", "1ハゼ開始温度",
+            "2ハゼ開始時間", "煎り止め温度", "総焙煎時間", "平均昇温率（RoR）",
+            "ドラム回転数", "デベロップメントタイム（1ハゼ後）",
+            "デベロップメント比率（DTR）", "焙煎度・カラー値",
+            "焙煎前重量", "焙煎後重量", "焙煎減量率", "火力・風量調整",
+          ],
+        },
+        {
+          label: "カッピング",
+          values: ["評価基準（SCA・COE）", "カッピング評価項目", "カッピングスコア"],
+        },
+      ]
 
-  const extendedVariables = Array.from(new Set([...presetVariables, ...coffeeVariables]))
+  const knownVariables = new Set(variableGroups.flatMap(group => group.values))
+  const additionalVariables = Array.from(new Set([
+    ...presetVariables,
+    ...(data.selectedVariables || []),
+  ])).filter(variable => !knownVariables.has(variable))
+  const displayedGroups = additionalVariables.length > 0
+    ? [...variableGroups, { label: lang === "en" ? "OTHER" : "その他", values: additionalVariables }]
+    : variableGroups
 
-  const subLabelStyle = "text-[13px] font-bold tracking-wide text-neutral-900 block mb-1.5"
-  const textareaStyle = "w-full text-sm border border-neutral-200 rounded-xl p-4 bg-white text-neutral-900 focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/70 transition-colors shadow-sm resize-y min-h-[100px] leading-relaxed"
+  const textareaStyle = "w-full min-h-36 resize-y rounded-xl border border-neutral-200 bg-white p-4 text-sm leading-7 text-neutral-900 shadow-sm transition-all placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-4 focus:ring-neutral-100 sm:p-5"
 
   const handleTextChange = (field: "logPurpose" | "logProcess" | "logConclusion", value: string) => {
     if (!isAdmin && value.length > MAX_CHARS) {
@@ -73,40 +136,61 @@ export default function LabLogSection({
   }
 
   return (
-    <div className="border border-neutral-200 rounded-xl p-6 sm:p-8 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.01)] space-y-6">
-      <div className="border-b border-neutral-100 pb-4">
-        <h2 className="text-[11px] font-bold tracking-widest text-neutral-400 uppercase">
+    <section className="space-y-7 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
+      <div className="border-b border-neutral-200 pb-5">
+        <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-900">
           {t.sectionVerification}
         </h2>
-        <p className="text-[13px] font-normal tracking-wide text-neutral-500 mt-1">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
           {t.subSectionVerification}
         </p>
       </div>
 
       {/* 検証変数の選択 */}
-      <div className="space-y-3">
-        <label className={subLabelStyle}>{t.labelVariableTags}</label>
-        <div className="flex flex-wrap gap-2">
-          {extendedVariables.map((variable) => {
-            const isSelected = (data?.selectedVariables || []).includes(variable)
-            return (
-              <button
-                key={variable}
-                type="button"
-                onClick={() => onToggleVariableTag(variable)}
-                className={`text-[13px] px-3.5 py-1.5 rounded-xl font-medium transition-all border ${
-                  isSelected
-                    ? "bg-neutral-950 text-white border-transparent shadow-sm"
-                    : "bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50"
-                }`}
-              >
-                {variable}
-              </button>
-            )
-          })}
+      <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-6">
+        <div>
+          <h3 className="text-sm font-bold text-neutral-900">{t.labelVariableTags}</h3>
+          <p className="mt-1 text-xs leading-5 text-neutral-500">
+            {lang === "en"
+              ? "Select every variable compared in this verification."
+              : "今回の検証で比較した項目をすべて選択してください。"}
+          </p>
+        </div>
+        <div className="space-y-5">
+          {displayedGroups.map(group => (
+            <div key={group.label}>
+              <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {group.values.map((variable) => {
+                  const isSelected = (data?.selectedVariables || []).includes(variable)
+                  return (
+                    <button
+                      key={variable}
+                      type="button"
+                      onClick={() => onToggleVariableTag(variable)}
+                      aria-pressed={isSelected}
+                      className={`flex min-h-12 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neutral-200 sm:px-5 ${
+                        isSelected
+                          ? "border-neutral-950 bg-neutral-950 text-white shadow-md"
+                          : "border-neutral-200 bg-white text-neutral-700 shadow-sm hover:-translate-y-0.5 hover:border-neutral-400 hover:shadow-md"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`size-2 rounded-full ${isSelected ? "bg-emerald-400" : "bg-neutral-200"}`}
+                      />
+                      {variable}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
         
-        <div className="flex items-center gap-2 max-w-md pt-1">
+        <div className="flex max-w-xl flex-col gap-2 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center">
           <input
             type="text"
             placeholder={t.placeholderVariableTags}
@@ -118,24 +202,30 @@ export default function LabLogSection({
                 onAddCustomVariableTag()
               }
             }}
-            className="flex-1 border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-900 text-[13px] focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400/70 transition-colors"
+            className="min-h-12 flex-1 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm transition-all placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-4 focus:ring-neutral-100"
           />
           <button
             type="button"
             onClick={onAddCustomVariableTag}
-            className="bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-[13px] font-semibold px-4 py-2.5 rounded-xl transition-colors shrink-0"
+            className="min-h-12 shrink-0 rounded-xl border border-neutral-900 bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-neutral-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neutral-200"
           >
             {lang === "en" ? "Add" : "追加"}
           </button>
         </div>
       </div>
 
-      <hr className="border-neutral-100 my-2" />
-
       {/* 考察入力フォームエリア */}
-      <div className="space-y-6">
-        <div>
-          <label className={subLabelStyle}>{t.labelLogPurpose}</label>
+      <div className="grid gap-4">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 font-mono text-xs font-bold text-white">01</span>
+            <div>
+              <label className="block text-sm font-bold text-neutral-900">{t.labelLogPurpose.replace(/^1\.\s*/, "")}</label>
+              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                {lang === "en" ? "Define the question and expected outcome before comparing patterns." : "比較する前に、検証したい問いと予想した結果を整理します。"}
+              </p>
+            </div>
+          </div>
           <textarea
             value={data?.logPurpose || ""}
             onChange={(e) => handleTextChange("logPurpose", e.target.value)}
@@ -145,8 +235,16 @@ export default function LabLogSection({
           {renderCharCounter(data?.logPurpose)}
         </div>
 
-        <div>
-          <label className={subLabelStyle}>{t.labelLogProcess}</label>
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 font-mono text-xs font-bold text-white">02</span>
+            <div>
+              <label className="block text-sm font-bold text-neutral-900">{t.labelLogProcess.replace(/^2\.\s*/, "")}</label>
+              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                {lang === "en" ? "Record what changed between patterns and what remained constant." : "各パターンで変更した条件と、共通にした条件を記録します。"}
+              </p>
+            </div>
+          </div>
           <textarea
             value={data?.logProcess || ""}
             onChange={(e) => handleTextChange("logProcess", e.target.value)}
@@ -156,8 +254,16 @@ export default function LabLogSection({
           {renderCharCounter(data?.logProcess)}
         </div>
 
-        <div>
-          <label className={subLabelStyle}>{t.labelLogConclusion}</label>
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 font-mono text-xs font-bold text-white">03</span>
+            <div>
+              <label className="block text-sm font-bold text-neutral-900">{t.labelLogConclusion.replace(/^3\.\s*/, "")}</label>
+              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                {lang === "en" ? "Connect sensory observations and measurements to the next verification." : "官能評価と測定値を結び付け、次の検証につながる結論をまとめます。"}
+              </p>
+            </div>
+          </div>
           <textarea
             value={data?.logConclusion || ""}
             onChange={(e) => handleTextChange("logConclusion", e.target.value)}
@@ -167,6 +273,6 @@ export default function LabLogSection({
           {renderCharCounter(data?.logConclusion)}
         </div>
       </div>
-    </div>
+    </section>
   )
 }

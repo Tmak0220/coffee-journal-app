@@ -141,7 +141,7 @@ export default function BroadcastNotificationForm({
   }
 
   return (
-    <div className="bg-white border border-neutral-200 pt-6 sm:pt-10 pb-10 sm:pb-16 px-6 sm:px-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto space-y-8 animate-fadeIn">
+    <div className="mx-auto w-full max-w-5xl space-y-8 rounded-2xl border border-neutral-200 bg-white px-5 pb-10 pt-6 shadow-sm animate-fadeIn sm:px-8 sm:pb-12 sm:pt-8">
       
       <div className="border-b border-neutral-100 pb-5">
         <h2 className="text-[15px] font-bold tracking-wider text-neutral-900 uppercase">

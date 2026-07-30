@@ -114,7 +114,7 @@ export default function FormPublishSettings({
         <button 
           type="submit" 
           disabled={submitting || disabled}
-          className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-full text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50 min-w-[240px]"
+          className="min-w-[240px] w-full rounded-xl border border-transparent bg-neutral-950 px-10 py-3.5 text-sm font-medium tracking-wider text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-900 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:w-auto"
         >
           {submitting 
             ? (dict?.submitting || "送信中...") 

@@ -40,7 +40,10 @@ export async function generateMetadata({ params }: Props) {
     }
   }
 
-  const name = (isEn ? expertData.display_name_en : expertData.display_name) || expertData.display_name || userData.display_name || userData.username || "Professional"
+  const name = (isEn ? expertData.display_name_en : expertData.display_name)
+    || expertData.display_name
+    || userData.username
+    || "Professional"
 
   return {
     title: isEn 

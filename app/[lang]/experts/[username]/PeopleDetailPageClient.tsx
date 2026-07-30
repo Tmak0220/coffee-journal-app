@@ -164,7 +164,10 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         username: userData.username || "",
         avatar_url: userData.avatar_url,
         cover_url: userData.cover_url,
-        display_name: (isEn ? expertData.display_name_en : expertData.display_name) || expertData.display_name || userData.display_name || userData.username || "",
+        display_name: (isEn ? expertData.display_name_en : expertData.display_name)
+          || expertData.display_name
+          || userData.username
+          || "",
         bio: isEn ? expertData.bio_expert_en : expertData.bio_expert,
         base_shop: isEn ? expertData.current_store_en : expertData.current_store,
         achievements: isEn ? expertData.awards_en : expertData.awards,
@@ -203,6 +206,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         .select("id, title, content, link_url, link_source, target_group, created_at, lang")
         .eq("user_id", userData.id)
         .eq("lang", isEn ? "en" : "ja")
+        .in("target_group", viewerIsPremium ? ["all", "premium"] : ["all"])
         .order("created_at", { ascending: false })
 
       setNotifications((noticeData || []).map((notice: any) => ({
@@ -345,16 +349,17 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
       </div>
 
       <div className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 py-6 sm:-mt-16 sm:p-12">
-        <div className="flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-border/40 pb-10">
-          <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
-            {profile.avatar_url ? (
-              <Image src={profile.avatar_url} alt="" fill className="object-cover" />
-            ) : (
-              <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-zinc-400 text-xs">NO IMAGE</div>
-            )}
-          </div>
-          
-          <div className="flex-1 text-center md:text-left space-y-3 pb-2">
+        <div className="grid grid-cols-1 items-end gap-8 border-b border-border/40 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
+            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
+              {profile.avatar_url ? (
+                <Image src={profile.avatar_url} alt="" fill className="object-cover" />
+              ) : (
+                <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-zinc-400 text-xs">NO IMAGE</div>
+              )}
+            </div>
+            
+            <div className="flex-1 text-center md:text-left space-y-3 pb-2">
             <div className="flex justify-center md:justify-start">
               <span className={`rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${specialtyAccent}`}>
                 {specialty}
@@ -392,7 +397,14 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
                 </button>
               )}
             </div>
+            </div>
           </div>
+
+          <PublicProfileCalendar
+            targetUserId={profile.id}
+            lang={isEn ? "en" : "ja"}
+            className="w-full lg:translate-y-8"
+          />
         </div>
 
         {hasExpertDetails && (
@@ -413,12 +425,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
             )}
           </div>
         )}
-
-        <PublicProfileCalendar
-          targetUserId={profile.id}
-          lang={isEn ? "en" : "ja"}
-          className="mt-10"
-        />
 
         <ProfileTimeline
           items={notifications}

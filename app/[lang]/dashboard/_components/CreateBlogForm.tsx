@@ -32,10 +32,10 @@ const BLOG_FORM_DICT = {
     mainTitle: "PUBLISH ARTICLE",
     mainDesc: "記事の作成",
     labelTitle: "TITLE",
-    subTitle: "記事のタイトルを入力してください（最大100文字）",
+    subTitle: "記事のタイトルを入力してください",
     placeholderTitle: "記事のタイトル",
     labelContent: "CONTENT",
-    subContent: "記事の本文を入力してください（最大10,000文字）",
+    subContent: "記事の本文を入力してください",
     placeholderContent: "内容をご記入ください。",
     imageRequiredError: "カバー画像のアップロードは必須です。",
     loginRequired: "ログインしてください",
@@ -57,10 +57,10 @@ const BLOG_FORM_DICT = {
     mainTitle: "PUBLISH ARTICLE",
     mainDesc: "Create New Post",
     labelTitle: "TITLE",
-    subTitle: "Please enter the article title (Max 100 characters)",
+    subTitle: "Please enter the article title",
     placeholderTitle: "Title",
     labelContent: "CONTENT",
-    subContent: "Please enter the article content (Max 10,000 characters)",
+    subContent: "Please enter the article content",
     placeholderContent: "Your content here...",
     imageRequiredError: "Hero image is required.",
     loginRequired: "Please log in",
@@ -179,9 +179,10 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         publish_target: finalCategory,
         membership_tier: normalizedTier
       }
-      const { error } = editId
-        ? await supabase.from("blogs").update(payload).eq("id", editId).eq("user_id", user.id)
-        : await supabase.from("blogs").insert(payload)
+      const blogQuery = editId
+        ? supabase.from("blogs").update(payload).eq("id", editId).eq("user_id", user.id)
+        : supabase.from("blogs").insert(payload)
+      const { data: savedBlog, error } = await blogQuery.select("id").single()
 
       if (error) throw error
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
@@ -192,8 +193,9 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       setRemovedImageUrls([])
 
       setStatusMessage({ text: editId ? (currentLang === "en" ? "Article updated." : "ブログ記事を更新しました。") : t.successMessage, type: "success" })
-      if (editId) {
-        router.push(`/${currentLang}/blogs/${editId}`)
+      if (savedBlog?.id) {
+        onBlogCreated()
+        router.push(`/${currentLang}/blogs/${savedBlog.id}`)
         router.refresh()
         return
       }
@@ -217,7 +219,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
   if (loadingInitial) return <div className="h-[620px] animate-pulse rounded-xl border border-neutral-100 bg-neutral-50" />
 
   return (
-    <div className="bg-white border border-neutral-200 p-4 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto text-left transition-all duration-300">
+    <div className="mx-auto w-full max-w-5xl rounded-2xl border border-neutral-200 bg-white p-5 text-left shadow-sm transition-all duration-300 sm:p-8">
       <div>
         <h2 className="text-base sm:text-lg font-bold tracking-wider text-neutral-900 uppercase">
           {t.mainTitle}
@@ -242,14 +244,9 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
           
           {/* タイトル入力欄 */}
           <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <p className="text-xs sm:text-[13px] tracking-[0.14em] text-neutral-900 font-bold uppercase">
-                {t.labelTitle}
-              </p>
-              <span className="text-[10px] sm:text-[11px] font-mono text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-100">
-                {title.length} / 100
-              </span>
-            </div>
+            <p className="text-xs sm:text-[13px] tracking-[0.14em] text-neutral-900 font-bold uppercase">
+              {t.labelTitle}
+            </p>
             <p className="text-[11px] sm:text-xs text-neutral-500 leading-relaxed">{t.subTitle}</p>
             <input 
               type="text" 
@@ -260,18 +257,18 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
               onChange={(e) => setTitle(e.target.value)} 
               className="w-full text-sm sm:text-[15px] border border-neutral-300 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 bg-white text-neutral-900 focus:outline-none focus:border-neutral-400 focus:ring-4 focus:ring-neutral-100 placeholder:text-neutral-400 transition-all duration-300 shadow-sm" 
             />
+            <div className="flex justify-end pt-1">
+              <span className="text-[10px] sm:text-[11px] font-mono text-neutral-400">
+                {title.length} / 100
+              </span>
+            </div>
           </div>
 
           {/* 本文入力欄 */}
           <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <p className="text-xs sm:text-[13px] tracking-[0.14em] text-neutral-900 font-bold uppercase">
-                {t.labelContent}
-              </p>
-              <span className="text-[10px] sm:text-[11px] font-mono text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-100">
-                {content.length.toLocaleString()} / 10,000
-              </span>
-            </div>
+            <p className="text-xs sm:text-[13px] tracking-[0.14em] text-neutral-900 font-bold uppercase">
+              {t.labelContent}
+            </p>
             <p className="text-[11px] sm:text-xs text-neutral-500 leading-relaxed">{t.subContent}</p>
             <textarea 
               required 
@@ -282,6 +279,11 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
               onChange={(e) => setContent(e.target.value)} 
               className="w-full text-sm sm:text-[15px] border border-neutral-300 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 bg-white text-neutral-900 focus:outline-none focus:border-neutral-400 focus:ring-4 focus:ring-neutral-100 placeholder:text-neutral-400 resize-none leading-relaxed transition-all duration-300 shadow-sm min-h-[200px]" 
             />
+            <div className="flex justify-end pt-1">
+              <span className="text-[10px] sm:text-[11px] font-mono text-neutral-400">
+                {content.length.toLocaleString()} / 10,000
+              </span>
+            </div>
           </div>
         </div>
 

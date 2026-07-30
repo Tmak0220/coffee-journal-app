@@ -236,13 +236,21 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     return () => { isMounted = false; subscription.unsubscribe() }
   }, [slug, origin.owner_id])
 
+  const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
+
   const fetchTimelineData = async () => {
     if (!slug) return
     const followCountQuery = origin.owner_id
       ? supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", origin.owner_id)
       : supabase.from("origin_follows").select("*", { count: "exact", head: true }).eq("origin_slug", slug)
     const [noticeRes, followCountRes] = await Promise.all([
-      supabase.from("notifications").select("id, title, content, link_url, link_source, target_group, created_at, lang").eq("origin_slug", slug).eq("lang", lang).order("created_at", { ascending: false }),
+      supabase
+        .from("notifications")
+        .select("id, title, content, link_url, link_source, target_group, created_at, lang")
+        .eq("origin_slug", slug)
+        .eq("lang", lang)
+        .in("target_group", isPremiumUser ? ["all", "premium"] : ["all"])
+        .order("created_at", { ascending: false }),
       followCountQuery,
     ])
     setNotifications((noticeRes.data || []).map((notice: any) => ({
@@ -252,9 +260,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     setFollowersCount(followCountRes.count || 0)
   }
 
-  useEffect(() => { fetchTimelineData() }, [lang, slug, origin.owner_id])
-
-  const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
+  useEffect(() => { fetchTimelineData() }, [lang, slug, origin.owner_id, isPremiumUser])
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -356,52 +362,60 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       </div>
 
       <div className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 py-6 sm:-mt-16 sm:p-12">
-        <div className="flex flex-col md:flex-row items-center md:items-end gap-6 border-b border-border/40 pb-10">
-          <div className="relative w-32 h-32 rounded-3xl overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
-            {origin.avatar_url ? (
-              <Image src={origin.avatar_url} alt="" fill className="object-cover" />
-            ) : (
-              <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${originAccent.fallback} font-mono text-3xl text-white`}>
-                {origin.name ? origin.name[0] : "O"}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex-1 text-center md:text-left space-y-3 pb-2">
-            <div className="flex items-center justify-center md:justify-start gap-2.5 flex-wrap">
-              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${originAccent.badge}`}>
-                {originTypeLabel}
-              </span>
-              {origin.tags && origin.tags.length > 0 && origin.tags.map((tag, idx) => (
-                <span key={idx} className="text-[10px] bg-zinc-50 text-subtle px-2 py-0.5 rounded font-mono">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayName}</h1>
-
-            <div className="flex items-center justify-center md:justify-start gap-6 pt-1">
-              <div className="text-left">
-                <span className="text-[10px] tracking-wider text-subtle font-mono uppercase block">{dict.followers}</span>
-                <span className="text-lg font-bold text-foreground tabular-nums">{followersCount}</span>
-              </div>
-
-              {!isOwner && (
-                <button
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                  className={`rounded-xl border px-6 py-2.5 text-xs font-semibold tracking-wide transition ${
-                    following 
-                      ? "border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200" 
-                      : "border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-700"
-                  }`}
-                >
-                  {following ? dict.following : dict.follow}
-                </button>
+        <div className="grid grid-cols-1 items-end gap-8 border-b border-border/40 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
+            <div className="relative w-32 h-32 rounded-3xl overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
+              {origin.avatar_url ? (
+                <Image src={origin.avatar_url} alt="" fill className="object-cover" />
+              ) : (
+                <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${originAccent.fallback} font-mono text-3xl text-white`}>
+                  {origin.name ? origin.name[0] : "O"}
+                </div>
               )}
             </div>
+
+            <div className="flex-1 text-center md:text-left space-y-3 pb-2">
+              <div className="flex items-center justify-center md:justify-start gap-2.5 flex-wrap">
+                <span className={`rounded border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest ${originAccent.badge}`}>
+                  {originTypeLabel}
+                </span>
+                {origin.tags && origin.tags.length > 0 && origin.tags.map((tag, idx) => (
+                  <span key={idx} className="text-[10px] bg-zinc-50 text-subtle px-2 py-0.5 rounded font-mono">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayName}</h1>
+
+              <div className="flex items-center justify-center md:justify-start gap-6 pt-1">
+                <div className="text-left">
+                  <span className="text-[10px] tracking-wider text-subtle font-mono uppercase block">{dict.followers}</span>
+                  <span className="text-lg font-bold text-foreground tabular-nums">{followersCount}</span>
+                </div>
+
+                {!isOwner && (
+                  <button
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    className={`rounded-xl border px-6 py-2.5 text-xs font-semibold tracking-wide transition ${
+                      following 
+                        ? "border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200" 
+                        : "border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-700"
+                    }`}
+                  >
+                    {following ? dict.following : dict.follow}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
+
+          <PublicProfileCalendar
+            targetUserId={origin.owner_id}
+            lang={lang}
+            className="w-full lg:translate-y-8"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
@@ -461,13 +475,15 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           )}
         </div>
 
-        <PublicProfileCalendar
-          targetUserId={origin.owner_id}
+        <B2BInquiryPanel
+          originId={origin.id}
+          ownerId={origin.owner_id}
+          currentUserId={currentUserId}
+          currentUserTier={currentUserTier}
           lang={lang}
-          className="mt-12"
+          mode="public"
+          className="mt-12 w-full"
         />
-
-        <B2BInquiryPanel originId={origin.id} ownerId={origin.owner_id} currentUserId={currentUserId} currentUserTier={currentUserTier} lang={lang} mode="public" />
 
         <ProfileTimeline
           items={notifications}

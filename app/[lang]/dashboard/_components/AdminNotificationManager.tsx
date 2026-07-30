@@ -541,7 +541,7 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
 
   if (loading) {
     return (
-      <div aria-busy="true" className="mx-auto w-full max-w-5xl animate-pulse rounded-[32px] border border-neutral-100 bg-white p-6 shadow-sm sm:p-10">
+      <div aria-busy="true" className="mx-auto w-full max-w-5xl animate-pulse rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
         <div className="h-6 w-48 rounded bg-neutral-100" />
         <div className="mt-8 space-y-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -578,7 +578,7 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
   ]
 
   return (
-    <div className="bg-white border border-neutral-200/70 p-6 sm:p-10 rounded-[32px] shadow-sm w-full max-w-5xl mx-auto space-y-8 animate-fadeIn">
+    <div className="mx-auto w-full max-w-5xl space-y-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm animate-fadeIn sm:p-8">
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-5 border-b border-neutral-100 pb-6">
         <div className="text-left">

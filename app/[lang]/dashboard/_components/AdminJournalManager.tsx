@@ -271,7 +271,7 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
   return (
     <div className="space-y-12 w-full max-w-5xl mx-auto">
       
-      <div className="space-y-10 bg-white border border-neutral-200 p-6 sm:p-10 rounded-xl shadow-sm">
+      <div className="space-y-10 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
         <div>
           <h2 className="text-[15px] font-semibold tracking-wider text-neutral-900 uppercase">
             {editingId ? formUi.formTitleEdit : formUi.formTitle}
@@ -398,7 +398,7 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
         </form>
       </div>
 
-      <div className="bg-white border border-neutral-200 p-6 sm:p-10 rounded-xl shadow-sm space-y-8">
+      <div className="space-y-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
         
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2 border-b border-neutral-100">
           <div>
