@@ -13,6 +13,8 @@ import CoffeeBeansMetaForm from "./CoffeeBeansMetaForm"
 import FormPublishSettings from "./FormPublishSettings"
 import { useRouter } from "next/navigation"
 import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
+import { useAppPopup } from "@/context/AppPopupContext"
+import { numericPart } from "@/components/ui/UnitNumberInput"
 
 export type RecipeModuleData = {
   id: string
@@ -137,6 +139,134 @@ type TargetCategoryType = "experts" | "origins" | "both"
 
 const ADMIN_EMAIL = "rivu65622252@gmail.com"
 
+const hasText = (value: unknown) => typeof value === "string" && value.trim().length > 0
+
+const hasPatternContent = (pattern: VerificationPattern) => pattern.modules.some((module) => {
+  if (module.type === "recipe") {
+    return [
+      module.temp,
+      module.grindSize,
+      module.ratio,
+      module.tds,
+      module.bloomTime,
+      module.totalTime,
+    ].some(hasText)
+      || module.gears.some((gear) => gear.gearId !== null || hasText(gear.name))
+      || module.pourSteps.some((step) => hasText(step.amount) || hasText(step.time))
+  }
+
+  if (module.type === "water") {
+    return [
+      module.name,
+      module.gh,
+      module.kh,
+      module.waterTds,
+      module.ph,
+      module.minerals,
+      module.calcCa,
+      module.calcMg,
+      module.calcNaBi,
+    ].some(hasText) || module.isAutoCalc === true
+  }
+
+  if (module.type === "roast") {
+    return Object.entries(module).some(([key, value]) => (
+      key !== "id" && key !== "type" && hasText(value)
+    ))
+  }
+
+  // A cupping module has intentionally selected numeric scores even when
+  // its free-text note is empty, so adding the module itself is meaningful.
+  return [
+    module.aroma,
+    module.flavor,
+    module.aftertaste,
+    module.acidity,
+    module.body,
+    module.balance,
+    module.overall,
+  ].some((value) => Number.isFinite(value)) || hasText(module.notes)
+})
+
+const nullableNumber = (value: string | undefined) => {
+  if (!hasText(value)) return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+const normalizePatternUnits = (patterns: VerificationPattern[]): VerificationPattern[] => patterns.map((pattern) => ({
+  ...pattern,
+  modules: pattern.modules.map((module) => {
+    if (module.type === "recipe") {
+      return {
+        ...module,
+        temp: numericPart(module.temp),
+        ratio: numericPart(module.ratio),
+        tds: numericPart(module.tds),
+        bloomTime: numericPart(module.bloomTime),
+      }
+    }
+    if (module.type === "water") {
+      return {
+        ...module,
+        gh: numericPart(module.gh),
+        kh: numericPart(module.kh),
+        waterTds: numericPart(module.waterTds),
+        ph: numericPart(module.ph),
+        calcCa: numericPart(module.calcCa),
+        calcMg: numericPart(module.calcMg),
+        calcNaBi: numericPart(module.calcNaBi),
+      }
+    }
+    if (module.type === "roast") {
+      return {
+        ...module,
+        batchSize: numericPart(module.batchSize),
+        chargeTemp: numericPart(module.chargeTemp),
+        turningPointTemp: numericPart(module.turningPointTemp),
+        ror: numericPart(module.ror),
+        drumSpeed: numericPart(module.drumSpeed),
+        firstCrackTemp: numericPart(module.firstCrackTemp),
+        dropTemp: numericPart(module.dropTemp),
+        greenWeight: numericPart(module.greenWeight),
+        roastedWeight: numericPart(module.roastedWeight),
+      }
+    }
+    return module
+  }),
+}))
+
+const isValidMinuteSecond = (value: string | undefined) => {
+  if (!hasText(value)) return true
+  const match = value!.trim().match(/^(\d+):(\d{2})$/)
+  return Boolean(match && Number(match[2]) < 60)
+}
+
+const findInvalidTimeField = (patterns: VerificationPattern[]) => {
+  for (let patternIndex = 0; patternIndex < patterns.length; patternIndex += 1) {
+    const pattern = patterns[patternIndex]
+    for (const module of pattern.modules) {
+      if (module.type === "recipe") {
+        if (!isValidMinuteSecond(module.totalTime)) return { patternIndex, field: "totalTime" }
+        const invalidStep = module.pourSteps.find((step) => !isValidMinuteSecond(step.time))
+        if (invalidStep) return { patternIndex, field: "stepTime" }
+      }
+      if (module.type === "roast") {
+        const fields = [
+          ["turningPointTime", module.turningPointTime],
+          ["yellowingTime", module.yellowingTime],
+          ["firstCrack", module.firstCrack],
+          ["secondCrackTime", module.secondCrackTime],
+          ["totalTime", module.totalTime],
+        ] as const
+        const invalid = fields.find(([, value]) => !isValidMinuteSecond(value))
+        if (invalid) return { patternIndex, field: invalid[0] }
+      }
+    }
+  }
+  return null
+}
+
 const RECIPE_FORM_DICT = {
   ja: {
     mainTitle: "PUBLISH RECIPE",
@@ -189,6 +319,7 @@ export default function PublishProRecipeForm({
   deleteStatusMessage,
 }: Props) {
   const router = useRouter()
+  const { showPopup } = useAppPopup()
   const currentLang = lang === "en" ? "en" : "ja"
   const dict = RECIPE_FORM_DICT[currentLang]
   
@@ -567,6 +698,47 @@ export default function PublishProRecipeForm({
 
       if (!currentUserId) {
         setStatusMessage({ type: "error", text: dict.loginRequired })
+        showPopup(
+          dict.loginRequired,
+          "error",
+          currentLang === "en" ? "Unable to publish" : "投稿できません"
+        )
+        setSubmitting(false)
+        return
+      }
+
+      const emptyPatternIndex = data.verifications.findIndex((pattern) => !hasPatternContent(pattern))
+      if (data.verifications.length === 0 || emptyPatternIndex >= 0) {
+        const patternLabel = emptyPatternIndex >= 0
+          ? data.verifications[emptyPatternIndex]?.title.trim()
+            || `${currentLang === "en" ? "Verification Pattern" : "検証パターン"} ${String.fromCharCode(65 + emptyPatternIndex)}`
+          : currentLang === "en" ? "Verification pattern" : "検証パターン"
+        const message = currentLang === "en"
+          ? `${patternLabel} is empty. Enter at least one item in its recipe, water, cupping, or roasting section. Empty patterns cannot be published.`
+          : `${patternLabel}が空です。レシピ、水質、カッピング、焙煎のいずれかに1項目以上入力してください。空のまま投稿することはできません。`
+        setStatusMessage({ type: "error", text: message })
+        showPopup(
+          message,
+          "error",
+          currentLang === "en" ? "Unable to publish" : "投稿できません"
+        )
+        setSubmitting(false)
+        return
+      }
+
+      const invalidTime = findInvalidTimeField(data.verifications)
+      if (invalidTime) {
+        const patternLabel = data.verifications[invalidTime.patternIndex]?.title.trim()
+          || `${currentLang === "en" ? "Verification Pattern" : "検証パターン"} ${String.fromCharCode(65 + invalidTime.patternIndex)}`
+        const message = currentLang === "en"
+          ? `${patternLabel} contains an invalid time. Enter time as minutes:seconds, for example 8:45.`
+          : `${patternLabel}の時間形式が正しくありません。8:45のように「分:秒」で入力してください。`
+        setStatusMessage({ type: "error", text: message })
+        showPopup(
+          message,
+          "error",
+          currentLang === "en" ? "Unable to publish" : "投稿できません"
+        )
         setSubmitting(false)
         return
       }
@@ -576,6 +748,11 @@ export default function PublishProRecipeForm({
         : data.heroImageUrl ? [data.heroImageUrl] : []
       if (imageUrls.length === 0) {
         setStatusMessage({ type: "error", text: dict.imageRequiredError })
+        showPopup(
+          dict.imageRequiredError,
+          "error",
+          currentLang === "en" ? "Unable to publish" : "投稿できません"
+        )
         setSubmitting(false)
         return
       }
@@ -585,7 +762,8 @@ export default function PublishProRecipeForm({
       const finalTargetCategory: TargetCategoryType =
         normalizedTier === "business" ? targetCategory : "experts"
 
-      const primaryPattern = data.verifications.find(pattern => pattern.isBest) || data.verifications[0]
+      const normalizedPatterns = normalizePatternUnits(data.verifications)
+      const primaryPattern = normalizedPatterns.find(pattern => pattern.isBest) || normalizedPatterns[0]
       const recipeModule = primaryPattern?.modules.find((module): module is RecipeModuleData => module.type === "recipe")
       const waterModule = primaryPattern?.modules.find((module): module is WaterModuleData => module.type === "water")
       const roastModule = primaryPattern?.modules.find((module): module is RoastModuleData => module.type === "roast")
@@ -595,19 +773,19 @@ export default function PublishProRecipeForm({
         recipe_title: data.coffeeName.trim(),
         bean_name: data.coffeeName.trim(),
         image_urls: permanentImageUrls.length ? permanentImageUrls : null,
-        verification_patterns: data.verifications,
+        verification_patterns: normalizedPatterns,
         water_name: waterModule?.name?.trim() || null,
-        gh: waterModule?.gh ? Number(waterModule.gh) : null,
-        kh: waterModule?.kh ? Number(waterModule.kh) : null,
+        gh: nullableNumber(waterModule?.gh),
+        kh: nullableNumber(waterModule?.kh),
         minerals: waterModule?.minerals?.trim() || null,
         selected_variables: data.selectedVariables || [],
         log_purpose: data.logPurpose?.trim() || null,
         log_process: data.logProcess?.trim() || null,
         log_conclusion: data.logConclusion?.trim() || null,
-        temp: recipeModule?.temp ? Number(recipeModule.temp) : null,
+        temp: nullableNumber(recipeModule?.temp),
         grind_size: recipeModule?.grindSize?.trim() || null,
-        ratio: recipeModule?.ratio ? Number(recipeModule.ratio) : null,
-        tds: recipeModule?.tds ? Number(recipeModule.tds) : null,
+        ratio: nullableNumber(recipeModule?.ratio),
+        tds: nullableNumber(recipeModule?.tds),
         bloom_time: recipeModule?.bloomTime?.trim() || null,
         total_time: recipeModule?.totalTime?.trim() || null,
         pour_steps: (recipeModule?.pourSteps || []).filter(step => step.amount.trim() || step.time.trim()),
@@ -656,9 +834,24 @@ export default function PublishProRecipeForm({
         router.push(`/${currentLang}/recipes/${proRecipe.id}`)
         router.refresh()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      setStatusMessage({ type: "error", text: dict.errorMessage })
+      const detail = err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+          ? String(err.message)
+          : ""
+      const message = detail
+        ? currentLang === "en"
+          ? `The verification could not be published: ${detail}`
+          : `検証投稿を保存できませんでした: ${detail}`
+        : dict.errorMessage
+      setStatusMessage({ type: "error", text: message })
+      showPopup(
+        message,
+        "error",
+        currentLang === "en" ? "Unable to publish" : "投稿できません"
+      )
     } finally {
       setSubmitting(false)
     }

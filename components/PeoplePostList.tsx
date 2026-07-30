@@ -309,8 +309,28 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
       {items.map((log) => (
         <article
           key={log.recipeId}
-          className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:border-neutral-300/90 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.10)]"
+          className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:border-neutral-300/90 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.10)]"
         >
+          {log.pinned && (
+            <span
+              className="absolute left-3 top-3 z-10 flex size-9 items-center justify-center rounded-[11px] border border-white/80 bg-white/90 text-neutral-900 shadow-[0_5px_18px_rgba(0,0,0,0.14)] backdrop-blur-md"
+              aria-label={isEn ? "Pinned post" : "ピン留めされた投稿"}
+              title={isEn ? "Pinned post" : "ピン留めされた投稿"}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-[19px]"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M7.2 4.75h9.6l3.15 5.05L12 19.25 4.05 9.8 7.2 4.75Z" strokeWidth="1.45" />
+                <path d="m4.35 9.8 4.15-.1L12 19.25l3.5-9.55 4.15.1M7.2 4.75 8.5 9.7h7l1.3-4.95" strokeWidth="1.05" opacity=".72" />
+              </svg>
+            </span>
+          )}
           {!editable && (
             <Link href={`/${currentLang}/posts/${log.id}`} className="relative block aspect-[4/3] overflow-hidden bg-neutral-100">
               {log.imageUrl ? (
@@ -329,14 +349,13 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
               <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
             </Link>
           )}
-          <div className={`flex flex-1 flex-col ${editable ? "p-5" : "p-4"}`}>
+          <div className={`flex flex-1 flex-col ${editable ? (log.pinned ? "px-5 pb-5 pt-14" : "p-5") : "p-4"}`}>
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-neutral-500">
                     {ownGroup ? (isEn ? "OWN POST" : "アカウントの投稿") : (isEn ? "USER POST" : "ユーザー投稿")}
                   </span>
-                  {log.pinned && <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-600">PINNED</span>}
                 </div>
                 {editable && <span className="rounded-md bg-neutral-900 px-2 py-1 text-[9px] font-semibold text-white">{statusLabel(log.status)}</span>}
               </div>

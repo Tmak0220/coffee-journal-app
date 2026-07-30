@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { WaterModuleData } from "./PublishProRecipeForm"
+import UnitNumberInput from "@/components/ui/UnitNumberInput"
 
 type Props = {
   module: WaterModuleData
@@ -36,7 +37,7 @@ export default function WaterProfileForm({
     phPlaceholder: "e.g. 7.0",
     simulator: "Enable custom water calculator",
     calculating: "Total hardness (GH) / Alkalinity (KH) linked",
-    bicarbonate: "NaHCO₃ added / mg/L",
+    bicarbonate: "NaHCO₃ added",
     calciumPlaceholder: "e.g. 15",
     magnesiumPlaceholder: "e.g. 5",
     bicarbonatePlaceholder: "e.g. 25",
@@ -60,7 +61,7 @@ export default function WaterProfileForm({
     phPlaceholder: "例：7.0",
     simulator: "カスタムウォーター計算を有効化",
     calculating: "総硬度（GH）・アルカリ度（KH）を連動",
-    bicarbonate: "NaHCO₃ 添加量 / mg/L",
+    bicarbonate: "NaHCO₃ 添加量",
     calciumPlaceholder: "例：15",
     magnesiumPlaceholder: "例：5",
     bicarbonatePlaceholder: "例：25",
@@ -108,20 +109,6 @@ export default function WaterProfileForm({
     })
   }, [calcCa, calcMg, calcNaBi, isAutoCalc])
 
-  const handleNonNegativeChange = (value: string, field: "gh" | "kh" | "waterTds") => {
-    const parsed = Number(value)
-    onChange({ [field]: value !== "" && parsed < 0 ? "0" : value })
-  }
-
-  const handlePhChange = (value: string) => {
-    if (value === "") {
-      onChange({ ph: "" })
-      return
-    }
-    const parsed = Number(value)
-    onChange({ ph: Math.min(14, Math.max(0, parsed)).toString() })
-  }
-
   const estimatedSodium = Math.round(
     (Math.max(0, parseFloat(calcNaBi) || 0) * (22.9898 / 84.0066)) * 10
   ) / 10
@@ -162,54 +149,53 @@ export default function WaterProfileForm({
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className={alignedLabelStyle}>{lang === "en" ? "Total hardness (GH) / ppm" : "総硬度（GH）/ ppm"}</label>
-            <input
-              type="number"
+            <label className={alignedLabelStyle}>{lang === "en" ? "Total hardness (GH)" : "総硬度（GH）"}</label>
+            <UnitNumberInput
               min="0"
               step="any"
               placeholder={t.ghPlaceholder}
               value={gh}
+              unit="ppm"
               disabled={isAutoCalc}
-              onChange={(event) => handleNonNegativeChange(event.target.value, "gh")}
-              className={`${inputStyle} ${isAutoCalc ? "cursor-not-allowed bg-neutral-100 text-neutral-500" : ""} ${diffClasses?.gh || ""}`}
+              onValueChange={(value) => onChange({ gh: value })}
+              className={diffClasses?.gh || ""}
             />
           </div>
           <div>
-            <label className={alignedLabelStyle}>{lang === "en" ? "Alkalinity (KH) / ppm" : "アルカリ度（KH）/ ppm"}</label>
-            <input
-              type="number"
+            <label className={alignedLabelStyle}>{lang === "en" ? "Alkalinity (KH)" : "アルカリ度（KH）"}</label>
+            <UnitNumberInput
               min="0"
               step="any"
               placeholder={t.khPlaceholder}
               value={kh}
+              unit="ppm"
               disabled={isAutoCalc}
-              onChange={(event) => handleNonNegativeChange(event.target.value, "kh")}
-              className={`${inputStyle} ${isAutoCalc ? "cursor-not-allowed bg-neutral-100 text-neutral-500" : ""} ${diffClasses?.kh || ""}`}
+              onValueChange={(value) => onChange({ kh: value })}
+              className={diffClasses?.kh || ""}
             />
           </div>
           <div>
-            <label className={alignedLabelStyle}>{lang === "en" ? "Water TDS / ppm" : "水のTDS / ppm"}</label>
-            <input
-              type="number"
+            <label className={alignedLabelStyle}>{lang === "en" ? "Water TDS" : "水のTDS"}</label>
+            <UnitNumberInput
               min="0"
               step="any"
               placeholder={t.tdsPlaceholder}
               value={waterTds}
-              onChange={(event) => handleNonNegativeChange(event.target.value, "waterTds")}
-              className={`${inputStyle} ${diffClasses?.waterTds || ""}`}
+              unit="ppm"
+              onValueChange={(value) => onChange({ waterTds: value })}
+              className={diffClasses?.waterTds || ""}
             />
           </div>
           <div>
             <label className={alignedLabelStyle}>pH</label>
-            <input
-              type="number"
+            <UnitNumberInput
               min="0"
               max="14"
               step="0.1"
               placeholder={t.phPlaceholder}
               value={ph}
-              onChange={(event) => handlePhChange(event.target.value)}
-              className={`${inputStyle} ${diffClasses?.ph || ""}`}
+              onValueChange={(value) => onChange({ ph: value })}
+              className={diffClasses?.ph || ""}
             />
           </div>
         </div>
@@ -259,39 +245,36 @@ export default function WaterProfileForm({
         {isAutoCalc && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className={`${labelStyle} mb-2`}>CALCIUM (Ca²⁺) mg/L</label>
-              <input
-                type="number"
+              <label className={`${labelStyle} mb-2`}>CALCIUM (Ca²⁺)</label>
+              <UnitNumberInput
                 min="0"
                 step="any"
                 placeholder={t.calciumPlaceholder}
                 value={calcCa}
-                onChange={(event) => setCalcCa(event.target.value === "" ? "" : Math.max(0, parseFloat(event.target.value) || 0).toString())}
-                className={inputStyle}
+                unit="mg/L"
+                onValueChange={setCalcCa}
               />
             </div>
             <div>
-              <label className={`${labelStyle} mb-2`}>MAGNESIUM (Mg²⁺) mg/L</label>
-              <input
-                type="number"
+              <label className={`${labelStyle} mb-2`}>MAGNESIUM (Mg²⁺)</label>
+              <UnitNumberInput
                 min="0"
                 step="any"
                 placeholder={t.magnesiumPlaceholder}
                 value={calcMg}
-                onChange={(event) => setCalcMg(event.target.value === "" ? "" : Math.max(0, parseFloat(event.target.value) || 0).toString())}
-                className={inputStyle}
+                unit="mg/L"
+                onValueChange={setCalcMg}
               />
             </div>
             <div>
               <label className={`${labelStyle} mb-2`}>{t.bicarbonate}</label>
-              <input
-                type="number"
+              <UnitNumberInput
                 min="0"
                 step="any"
                 placeholder={t.bicarbonatePlaceholder}
                 value={calcNaBi}
-                onChange={(event) => setCalcNaBi(event.target.value === "" ? "" : Math.max(0, parseFloat(event.target.value) || 0).toString())}
-                className={inputStyle}
+                unit="mg/L"
+                onValueChange={setCalcNaBi}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 sm:col-span-3 sm:grid-cols-3">

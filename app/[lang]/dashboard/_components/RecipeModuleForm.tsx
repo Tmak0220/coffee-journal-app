@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { RecipeModuleData } from "./PublishProRecipeForm"
 import { supabase } from "@/lib/supabase"
+import UnitNumberInput from "@/components/ui/UnitNumberInput"
 
 type Props = {
   slotId: string
@@ -44,11 +45,11 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
     gearsDescription: "Equipment used for brewing, such as drippers, servers, and filters.",
     gearPlaceholder: "Enter equipment name (e.g., Hario V60)",
     addGear: "Add Equipment",
-    temperature: "Temperature (°C)",
+    temperature: "Temperature",
     grind: "Grind Size",
     grindPlaceholder: "Medium / EK43: 11.5",
-    ratio: "Brew Ratio (1:x)",
-    tds: "Measured TDS (%)",
+    ratio: "Brew Ratio",
+    tds: "Measured TDS",
     approx: "Approximate",
     corrected: "Corrected Yield",
     bloom: "Bloom Time",
@@ -64,11 +65,11 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
     gearsDescription: "抽出に使用した器具（ドリッパー、サーバー、ペーパーなど）の構成。",
     gearPlaceholder: "器具名を入力 (例: Hario V60)",
     addGear: "器具を追加",
-    temperature: "Temperature / 湯温 (°C)",
+    temperature: "Temperature / 湯温",
     grind: "Grind Size / 挽き目",
     grindPlaceholder: "中挽き / EK43: 11.5",
-    ratio: "Brew Ratio / 抽出比率 (1:x)",
-    tds: "Measured TDS / 測定 TDS (%)",
+    ratio: "Brew Ratio / 抽出比率",
+    tds: "Measured TDS / 測定 TDS",
     approx: "Approx / 近似値",
     corrected: "Corrected / 補正値",
     bloom: "Bloom Time / 蒸らし時間",
@@ -92,6 +93,11 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
   const subLabelStyle = "mb-2 block text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-600"
   const descStyle = "mb-3 -mt-1 block text-[11px] leading-relaxed text-neutral-500"
   const baseInputStyle = "w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-4 focus:ring-neutral-100"
+  const sanitizeTime = (value: string) => value
+    .replace(/[０-９]/g, (character) => String(character.charCodeAt(0) - 0xfee0))
+    .replace(/：/g, ":")
+    .replace(/[^\d:]/g, "")
+    .replace(/(:.*):/g, "$1")
 
   return (
     <section className="relative space-y-7 rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_12px_35px_-30px_rgba(0,0,0,0.35)] sm:p-7">
@@ -190,12 +196,14 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={subLabelStyle}>{t.temperature}</label>
-          <input 
-            type="number" 
-            placeholder="92" 
-            value={module.temp} 
-            onChange={(e) => onUpdate({ temp: e.target.value })} 
-            className={`${baseInputStyle} ${diffClasses?.temp || ""}`} 
+          <UnitNumberInput
+            min="0"
+            step="0.1"
+            placeholder="92"
+            value={module.temp}
+            unit="°C"
+            onValueChange={(value) => onUpdate({ temp: value })}
+            className={diffClasses?.temp || ""}
           />
         </div>
         <div>
@@ -214,24 +222,26 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={subLabelStyle}>{t.ratio}</label>
-          <input 
-            type="number" 
-            step="0.1" 
-            placeholder="15.0" 
-            value={module.ratio} 
-            onChange={(e) => onUpdate({ ratio: e.target.value })} 
-            className={`${baseInputStyle} ${diffClasses?.ratio || ""}`} 
+          <UnitNumberInput
+            min="0"
+            step="0.1"
+            placeholder="15.0"
+            value={module.ratio}
+            prefix="1 :"
+            onValueChange={(value) => onUpdate({ ratio: value })}
+            className={diffClasses?.ratio || ""}
           />
         </div>
         <div>
           <label className={subLabelStyle}>{t.tds}</label>
-          <input 
-            type="number" 
-            step="0.01" 
-            placeholder="1.35" 
-            value={module.tds} 
-            onChange={(e) => onUpdate({ tds: e.target.value })} 
-            className={`${baseInputStyle} ${diffClasses?.tds || ""}`} 
+          <UnitNumberInput
+            min="0"
+            step="0.01"
+            placeholder="1.35"
+            value={module.tds}
+            unit="%"
+            onValueChange={(value) => onUpdate({ tds: value })}
+            className={diffClasses?.tds || ""}
           />
         </div>
       </div>
@@ -258,12 +268,14 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={subLabelStyle}>{t.bloom}</label>
-          <input 
-            type="text" 
-            placeholder="45s" 
-            value={module.bloomTime} 
-            onChange={(e) => onUpdate({ bloomTime: e.target.value })} 
-            className={`${baseInputStyle} ${diffClasses?.bloomTime || ""}`} 
+          <UnitNumberInput
+            min="0"
+            step="1"
+            placeholder="45"
+            value={module.bloomTime}
+            unit={lang === "en" ? "sec" : "秒"}
+            onValueChange={(value) => onUpdate({ bloomTime: value })}
+            className={diffClasses?.bloomTime || ""}
           />
         </div>
         <div>
@@ -272,7 +284,8 @@ export default function RecipeModuleForm({ slotId, module, diffClasses, onUpdate
             type="text" 
             placeholder="2:45" 
             value={module.totalTime} 
-            onChange={(e) => onUpdate({ totalTime: e.target.value })} 
+            inputMode="numeric"
+            onChange={(e) => onUpdate({ totalTime: sanitizeTime(e.target.value) })} 
             className={`${baseInputStyle} ${diffClasses?.totalTime || ""}`} 
           />
         </div>

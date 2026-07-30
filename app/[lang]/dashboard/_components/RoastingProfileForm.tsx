@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import UnitNumberInput from "@/components/ui/UnitNumberInput"
 
 // モジュールのデータ構造定義（追加項目を拡張）
 export type RoastModuleData = {
@@ -62,14 +63,14 @@ const roastProfileDict = {
     labelMachine: "使用焙煎機 (Roaster Machine)",
     placeholderMachine: "例: Aillio Bullet R1 V2",
     labelBatchSize: "投入量 (Batch Size)",
-    placeholderBatchSize: "例: 450g / 1.0kg",
+    placeholderBatchSize: "例: 450",
     labelChargeTemp: "投入温度（Charge Temperature）",
     labelTurningPointTime: "ボトム到達時間（Turning Point）",
     labelTurningPointTemp: "ボトム温度",
     labelYellowingTime: "黄変到達時間（Yellowing）",
     labelRor: "平均昇温率（RoR）",
     labelDrumSpeed: "ドラム回転数",
-    placeholderDrumSpeed: "例: 55 rpm",
+    placeholderDrumSpeed: "例: 55",
     labelFirstCrack: "1ハゼ開始時間",
     labelFirstCrackTemp: "1ハゼ開始温度",
     labelSecondCrackTime: "2ハゼ開始時間",
@@ -90,18 +91,18 @@ const roastProfileDict = {
     labelMachine: "Roaster Machine Used",
     placeholderMachine: "e.g. Aillio Bullet R1 V2",
     labelBatchSize: "Batch Size",
-    placeholderBatchSize: "e.g. 450g / 1.0kg",
-    labelChargeTemp: "Charge Temperature °C",
+    placeholderBatchSize: "e.g. 450",
+    labelChargeTemp: "Charge Temperature",
     labelTurningPointTime: "Turning Point Time",
     labelTurningPointTemp: "Turning Point Temperature",
     labelYellowingTime: "Yellowing Time",
     labelRor: "Avg RoR",
     labelDrumSpeed: "Drum Speed",
-    placeholderDrumSpeed: "e.g. 55 rpm",
+    placeholderDrumSpeed: "e.g. 55",
     labelFirstCrack: "1st Crack",
     labelFirstCrackTemp: "1st Crack Temperature",
     labelSecondCrackTime: "2nd Crack Time",
-    labelDropTemp: "Drop Temperature °C",
+    labelDropTemp: "Drop Temperature",
     labelTotalTime: "Total Time",
     labelDtr: "DTR (%)",
     placeholderDtr: "e.g. 15.5%",
@@ -156,6 +157,11 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
   }
 
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+  const sanitizeTime = (value: string) => value
+    .replace(/[０-９]/g, (character) => String(character.charCodeAt(0) - 0xfee0))
+    .replace(/：/g, ":")
+    .replace(/[^\d:]/g, "")
+    .replace(/(:.*):/g, "$1")
 
   const handlePhaseTimeChange = (field: "firstCrack" | "totalTime", value: string) => {
     const nextFirstCrack = field === "firstCrack" ? value : firstCrack
@@ -202,12 +208,14 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
         </div>
         <div>
           <label className={subLabelStyle}>{t.labelBatchSize}</label>
-          <input 
-            type="text" 
-            placeholder={t.placeholderBatchSize} 
-            value={batchSize} 
-            onChange={(e) => onChange?.({ batchSize: e.target.value })} 
-            className={`${inputBaseStyle} ${diffClasses?.batchSize || ""}`} 
+          <UnitNumberInput
+            min="0"
+            step="any"
+            placeholder={t.placeholderBatchSize}
+            value={batchSize}
+            unit="g"
+            onValueChange={(value) => onChange?.({ batchSize: value })}
+            className={diffClasses?.batchSize || ""}
           />
         </div>
       </div>
@@ -224,12 +232,14 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelChargeTemp}</label>
-            <input
-              type="text"
-              placeholder="200°C"
+            <UnitNumberInput
+              min="0"
+              step="0.1"
+              placeholder="200"
               value={chargeTemp}
-              onChange={(e) => onChange?.({ chargeTemp: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.chargeTemp || ""}`}
+              unit="°C"
+              onValueChange={(value) => onChange?.({ chargeTemp: value })}
+              className={diffClasses?.chargeTemp || ""}
             />
           </div>
           <div>
@@ -239,18 +249,20 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
               inputMode="numeric"
               placeholder="1:20"
               value={turningPointTime}
-              onChange={(e) => onChange?.({ turningPointTime: e.target.value })}
+              onChange={(e) => onChange?.({ turningPointTime: sanitizeTime(e.target.value) })}
               className={`${inputBaseStyle} ${diffClasses?.turningPointTime || ""}`}
             />
           </div>
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelTurningPointTemp}</label>
-            <input
-              type="text"
-              placeholder="85°C"
+            <UnitNumberInput
+              min="0"
+              step="0.1"
+              placeholder="85"
               value={turningPointTemp}
-              onChange={(e) => onChange?.({ turningPointTemp: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.turningPointTemp || ""}`}
+              unit="°C"
+              onValueChange={(value) => onChange?.({ turningPointTemp: value })}
+              className={diffClasses?.turningPointTemp || ""}
             />
           </div>
           <div>
@@ -260,7 +272,7 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
               inputMode="numeric"
               placeholder="4:30"
               value={yellowingTime}
-              onChange={(e) => onChange?.({ yellowingTime: e.target.value })}
+              onChange={(e) => onChange?.({ yellowingTime: sanitizeTime(e.target.value) })}
               className={`${inputBaseStyle} ${diffClasses?.yellowingTime || ""}`}
             />
           </div>
@@ -271,18 +283,20 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
               inputMode="numeric"
               placeholder="8:45"
               value={firstCrack}
-              onChange={(e) => handlePhaseTimeChange("firstCrack", e.target.value)}
+              onChange={(e) => handlePhaseTimeChange("firstCrack", sanitizeTime(e.target.value))}
               className={`${inputBaseStyle} ${diffClasses?.firstCrack || ""}`}
             />
           </div>
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelFirstCrackTemp}</label>
-            <input
-              type="text"
-              placeholder="196°C"
+            <UnitNumberInput
+              min="0"
+              step="0.1"
+              placeholder="196"
               value={firstCrackTemp}
-              onChange={(e) => onChange?.({ firstCrackTemp: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.firstCrackTemp || ""}`}
+              unit="°C"
+              onValueChange={(value) => onChange?.({ firstCrackTemp: value })}
+              className={diffClasses?.firstCrackTemp || ""}
             />
           </div>
           <div>
@@ -292,18 +306,20 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
               inputMode="numeric"
               placeholder="11:45"
               value={secondCrackTime}
-              onChange={(e) => onChange?.({ secondCrackTime: e.target.value })}
+              onChange={(e) => onChange?.({ secondCrackTime: sanitizeTime(e.target.value) })}
               className={`${inputBaseStyle} ${diffClasses?.secondCrackTime || ""}`}
             />
           </div>
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelDropTemp}</label>
-            <input
-              type="text"
-              placeholder="215°C"
+            <UnitNumberInput
+              min="0"
+              step="0.1"
+              placeholder="215"
               value={dropTemp}
-              onChange={(e) => onChange?.({ dropTemp: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.dropTemp || ""}`}
+              unit="°C"
+              onValueChange={(value) => onChange?.({ dropTemp: value })}
+              className={diffClasses?.dropTemp || ""}
             />
           </div>
           <div>
@@ -313,7 +329,7 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
               inputMode="numeric"
               placeholder="10:30"
               value={totalTime}
-              onChange={(e) => handlePhaseTimeChange("totalTime", e.target.value)}
+              onChange={(e) => handlePhaseTimeChange("totalTime", sanitizeTime(e.target.value))}
               className={`${inputBaseStyle} ${diffClasses?.totalTime || ""}`}
             />
           </div>
@@ -322,22 +338,25 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
         <div className="mt-5 grid grid-cols-1 gap-4 border-t border-neutral-200 pt-5 sm:grid-cols-2">
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelRor}</label>
-            <input
-              type="text"
-              placeholder="12°C/min"
+            <UnitNumberInput
+              step="0.1"
+              placeholder="12"
               value={ror}
-              onChange={(e) => onChange?.({ ror: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.ror || ""}`}
+              unit="°C/min"
+              onValueChange={(value) => onChange?.({ ror: value })}
+              className={diffClasses?.ror || ""}
             />
           </div>
           <div>
             <label className={alignedProfileLabelStyle}>{t.labelDrumSpeed}</label>
-            <input
-              type="text"
+            <UnitNumberInput
+              min="0"
+              step="any"
               placeholder={t.placeholderDrumSpeed}
               value={drumSpeed}
-              onChange={(e) => onChange?.({ drumSpeed: e.target.value })}
-              className={`${inputBaseStyle} ${diffClasses?.drumSpeed || ""}`}
+              unit="rpm"
+              onValueChange={(value) => onChange?.({ drumSpeed: value })}
+              className={diffClasses?.drumSpeed || ""}
             />
           </div>
         </div>
@@ -361,27 +380,27 @@ export default function RoastingProfileForm({ module, diffClasses, onChange, lan
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label className={subLabelStyle}>{t.labelGreenWeight} / g</label>
-            <input
-              type="number"
+            <label className={subLabelStyle}>{t.labelGreenWeight}</label>
+            <UnitNumberInput
               min="0"
               step="any"
               placeholder="450"
               value={greenWeight}
-              onChange={(e) => handleWeightChange("greenWeight", e.target.value)}
-              className={`${inputBaseStyle} ${diffClasses?.greenWeight || ""}`}
+              unit="g"
+              onValueChange={(value) => handleWeightChange("greenWeight", value)}
+              className={diffClasses?.greenWeight || ""}
             />
           </div>
           <div>
-            <label className={subLabelStyle}>{t.labelRoastedWeight} / g</label>
-            <input
-              type="number"
+            <label className={subLabelStyle}>{t.labelRoastedWeight}</label>
+            <UnitNumberInput
               min="0"
               step="any"
               placeholder="390"
               value={roastedWeight}
-              onChange={(e) => handleWeightChange("roastedWeight", e.target.value)}
-              className={`${inputBaseStyle} ${diffClasses?.roastedWeight || ""}`}
+              unit="g"
+              onValueChange={(value) => handleWeightChange("roastedWeight", value)}
+              className={diffClasses?.roastedWeight || ""}
             />
           </div>
           <MetricCard label={t.labelWeightLoss} value={weightLoss || "—"} diffClass={diffClasses?.weightLoss} />

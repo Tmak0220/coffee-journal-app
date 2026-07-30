@@ -600,14 +600,8 @@ export default function UnifiedDashboard({
     <main className="min-h-screen bg-white pb-16 text-neutral-900 sm:pb-24">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10 lg:px-12 lg:py-14">
         
-        <header className="mb-7 flex flex-col justify-between gap-5 border-b border-neutral-200 pb-6 sm:mb-10 sm:flex-row sm:items-end">
-          <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400">COFFEE JOURNAL</p>
-            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">{t.title}</h1>
-            <p className="mt-2 text-sm leading-6 text-neutral-500">
-              {isEn ? "Manage profiles, publishing, analytics, and account tools." : "プロフィール、投稿、分析、アカウント機能を管理します。"}
-            </p>
-          </div>
+        <header className="mb-7 flex flex-col justify-between gap-5 border-b border-neutral-200 pb-6 sm:mb-10 sm:flex-row sm:items-center">
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">{t.title}</h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -617,7 +611,7 @@ export default function UnifiedDashboard({
               <span>{isEn ? "Request to the Team" : "運営者へのリクエスト"}</span>
             </button>
             <span className="flex min-h-11 w-fit items-center rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-700 shadow-sm select-none">
-              Plan: {profile.membership_tier} ({profile.role})
+              Plan: {profile.membership_tier}
             </span>
           </div>
         </header>
