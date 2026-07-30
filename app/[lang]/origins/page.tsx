@@ -55,7 +55,7 @@ export default async function OriginsPage({ params }: Props) {
     .order("sort_order", { ascending: true })
 
   return (
-    <div className="journal-page-wrapper relative overflow-hidden min-h-screen flex flex-col justify-between w-full bg-white">
+    <div className="public-page-shell journal-page-wrapper relative flex w-full flex-col justify-between overflow-hidden">
       <div className="absolute top-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-gradient-to-br from-white via-white/40 to-transparent blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-gradient-to-tr from-white via-white/30 to-transparent blur-[80px] pointer-events-none" />
 

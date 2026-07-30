@@ -350,7 +350,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="public-page-shell pb-24 text-foreground">
       <div className="w-full h-48 md:h-64 bg-zinc-100 relative overflow-hidden border-b border-border/30">
         {origin.cover_url ? (
           <Image src={origin.cover_url} alt="" fill className="object-cover" priority />
@@ -364,7 +364,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       <div className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 py-6 sm:-mt-16 sm:p-12">
         <div className="grid grid-cols-1 items-end gap-8 border-b border-border/40 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
-            <div className="relative w-32 h-32 rounded-3xl overflow-hidden border-4 border-background bg-surface flex-shrink-0 shadow-sm">
+            <div className="relative h-32 w-32 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-surface shadow-sm">
               {origin.avatar_url ? (
                 <Image src={origin.avatar_url} alt="" fill className="object-cover" />
               ) : (

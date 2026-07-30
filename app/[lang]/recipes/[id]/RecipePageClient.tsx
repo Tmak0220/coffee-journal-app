@@ -369,8 +369,8 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
   const isOwnPost = currentUserId === recipe.user_id
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_3%,rgba(180,112,32,0.07),transparent_28%),radial-gradient(circle_at_90%_10%,rgba(71,127,151,0.06),transparent_27%)] px-4 py-8 animate-fadeIn sm:px-8 md:py-12">
-      <div className="mx-auto max-w-5xl space-y-8 rounded-[22px] border border-white/80 bg-white/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.32)] backdrop-blur-sm sm:space-y-10 sm:rounded-[30px] sm:p-9 md:p-12">
+    <main className="public-page-shell px-4 py-8 animate-fadeIn sm:px-8 md:py-12">
+      <div className="public-panel mx-auto max-w-5xl space-y-8 p-4 sm:space-y-10 sm:p-9 md:p-12">
       {/* ユーザーヘッダー */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-5 sm:pb-6">
         <div className="flex min-w-0 items-center gap-3.5">
@@ -417,7 +417,7 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
       </div>
 
       {/* レシピメインコンテンツ */}
-      <div className="space-y-7 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/55 via-white to-white p-4 shadow-[0_18px_55px_-42px_rgba(14,116,144,0.45)] sm:space-y-8 sm:rounded-3xl sm:p-8">
+      <div className="space-y-7 rounded-2xl border border-sky-200/60 bg-sky-50/30 p-4 shadow-sm sm:space-y-8 sm:p-8">
         <div>
           <span className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase">{t.titleRecipe}</span>
           <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-neutral-950 sm:text-4xl">

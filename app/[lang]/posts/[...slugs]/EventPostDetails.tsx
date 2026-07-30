@@ -62,7 +62,7 @@ export default function EventPostDetails({ post, lang }: EventProps) {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 select-none">
           {/* イベントタグ */}
-          <span className="inline-block rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700">
+          <span className="public-kicker public-accent-rose">
             {t.eventBadge}
           </span>
 
@@ -109,7 +109,7 @@ export default function EventPostDetails({ post, lang }: EventProps) {
 
       {/* 2. 本文 (改行保持) */}
       {post.description && (
-        <div className="min-h-[120px] whitespace-pre-wrap rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50/60 to-white p-6 text-sm font-normal leading-8 text-neutral-700 shadow-[0_16px_45px_-36px_rgba(190,24,93,0.3)] sm:text-base">
+        <div className="min-h-[120px] whitespace-pre-wrap rounded-2xl border border-rose-200/50 bg-rose-50/25 p-6 text-sm font-normal leading-8 text-neutral-700 shadow-sm sm:text-base">
           {post.description}
         </div>
       )}

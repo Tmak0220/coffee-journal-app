@@ -86,7 +86,7 @@ export default async function JournalPage({ params }: Props) {
   }
 
   return (
-    <div className="journal-page-wrapper relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_88%_6%,rgba(71,127,151,0.07),transparent_26%),radial-gradient(circle_at_8%_35%,rgba(180,112,32,0.06),transparent_28%),#fff]">
+    <div className="public-page-shell journal-page-wrapper relative w-full overflow-hidden">
 
       <div className="max-w-6xl mx-auto p-6 sm:p-10 md:p-14 lg:p-16 relative z-10 w-full flex-grow">
         

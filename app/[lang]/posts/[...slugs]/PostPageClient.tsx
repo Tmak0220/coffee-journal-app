@@ -335,14 +335,14 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
   const isOwnPost = currentUserId === post.user_id
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_4%,rgba(180,112,32,0.07),transparent_28%),radial-gradient(circle_at_92%_12%,rgba(71,127,151,0.06),transparent_25%)] px-4 py-8 sm:px-8 md:px-12 md:py-12 lg:px-16">
+    <main className="public-page-shell px-4 py-8 sm:px-8 md:px-12 md:py-12 lg:px-16">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-start gap-9 lg:grid-cols-12 lg:gap-16">
         
         {/* 左カラム：画像表示エリア */}
         <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:sticky lg:top-28 lg:col-span-6">
           {parsedImages.length > 0 ? (
             parsedImages.map((url, idx) => (
-              <div key={idx} className="w-full overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white shadow-[0_20px_60px_-35px_rgba(0,0,0,0.28)] transition-all duration-300">
+              <div key={idx} className="public-media-frame w-full transition-all duration-300">
                 <img
                   src={url}
                   alt={post.title || "Uploaded content"}
@@ -352,15 +352,14 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
               </div>
             ))
           ) : (
-            <div className="w-full aspect-[4/5] bg-neutral-50 border border-dashed border-neutral-200 rounded-2xl flex flex-col items-center justify-center text-neutral-400 gap-2">
-              <span className="text-[20px]">☕</span>
+            <div className="public-media-frame flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 border-dashed bg-neutral-50 text-neutral-400">
               <span className="text-xs tracking-wider">No Image Available</span>
             </div>
           )}
         </div>
 
         {/* 右カラム：コンテンツ詳細表示エリア */}
-        <div className="space-y-8 rounded-[22px] border border-white/80 bg-white/80 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:space-y-10 sm:rounded-[28px] sm:p-8 lg:col-span-6 lg:p-10">
+        <div className="public-panel space-y-8 p-4 sm:space-y-10 sm:p-8 lg:col-span-6 lg:p-10">
           
           {/* ユーザー情報・著者ヘッダー */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-5 sm:pb-6">

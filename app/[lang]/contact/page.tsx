@@ -22,7 +22,7 @@ export default async function ContactPage({ params }: Props) {
   const currentLang = lang === "en" ? "en" : "ja"
 
   return (
-    <main className="max-w-4xl mx-auto p-6 sm:p-10 md:p-14 lg:p-16 animate-[fadeIn_0.3s_ease-out_forwards]">
+    <main className="public-page-shell mx-auto max-w-4xl p-6 sm:p-10 md:p-14 lg:p-16 animate-[fadeIn_0.3s_ease-out_forwards]">
       <div className="border-b border-border pb-6">
         <h1 className="text-2xl tracking-[0.12em] font-medium text-foreground uppercase flex flex-col gap-1">
           CONTACT

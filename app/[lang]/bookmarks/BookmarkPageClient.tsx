@@ -162,7 +162,7 @@ export default function BookmarkPageClient() {
   if (!isAuthChecked) return <BookmarkLoading />
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-7 sm:px-10 sm:py-10 md:px-14 md:py-14 lg:px-16">
+    <main className="public-page-shell mx-auto max-w-6xl px-4 py-7 sm:px-10 sm:py-10 md:px-14 md:py-14 lg:px-16">
       <header className="flex flex-col gap-6 border-b border-neutral-200 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">LIBRARY</p>

@@ -73,7 +73,7 @@ export default function ContactForm({ lang }: Props) {
   }
 
   return (
-    <div className="bg-white border border-neutral-200 p-6 sm:p-10 rounded-xl shadow-sm w-full max-w-5xl mx-auto">
+    <div className="public-panel mx-auto w-full max-w-5xl p-6 sm:p-10">
       {status === "success" ? (
         <div className="text-sm p-5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 transition-all duration-300">
           <p className="font-semibold tracking-wide">{t.successTitle}</p>
@@ -140,7 +140,7 @@ export default function ContactForm({ lang }: Props) {
             <button
               type="submit"
               disabled={status === "loading"}
-              className="w-full sm:w-auto bg-neutral-950 hover:bg-neutral-900 text-white border border-transparent px-10 py-3.5 rounded-md text-sm font-medium tracking-wider transition-all duration-300 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
+              className="w-full rounded-xl border border-transparent bg-neutral-950 px-10 py-3.5 text-sm font-medium tracking-wider text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-900 hover:shadow-md active:scale-[0.98] disabled:opacity-50 sm:w-auto"
             >
               {status === "loading" ? t.btnSubmitting : t.btnSubmit}
             </button>

@@ -31,7 +31,7 @@ export default function BusinessInquiryForm({ targetOwnerId, targetOwnerName, cu
 
   if (isSubmitted) {
     return (
-      <div className="border border-emerald-200 bg-emerald-50/50 rounded-2xl p-6 text-center space-y-3">
+      <div className="space-y-3 rounded-2xl border border-emerald-200/60 bg-emerald-50/30 p-6 text-center shadow-sm">
         <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
         <h4 className="text-sm font-bold text-neutral-900">
           {isEn ? "Inquiry Sent Successfully" : "ビジネス問い合わせを送信しました"}
@@ -44,7 +44,7 @@ export default function BusinessInquiryForm({ targetOwnerId, targetOwnerName, cu
   }
 
   return (
-    <div className="border border-neutral-200 bg-white rounded-2xl p-6 sm:p-8 space-y-5">
+    <div className="public-panel space-y-5 p-6 sm:p-8">
       <div>
         <span className="text-[10px] bg-neutral-900 text-white font-semibold tracking-[0.1em] px-2.5 py-1 rounded-md uppercase">
           {isEn ? "Send Inquiry (Preview)" : "問い合わせを送る（プレビュー）"}

@@ -26,8 +26,8 @@ export default function Footer() {
   }[isEn ? 'en' : 'ja']
 
   return (
-    <footer className="mt-12 w-full bg-white text-[11px] tracking-wider text-neutral-400 sm:mt-20 sm:text-xs">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-y-5 px-4 py-8 sm:flex-row sm:px-10 sm:py-10 md:px-14 lg:px-16">
+    <footer className="mt-12 w-full border-t border-neutral-200 bg-white text-[11px] tracking-wider text-neutral-400 sm:mt-20 sm:text-xs">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-y-5 px-4 py-8 sm:flex-row sm:px-10 sm:py-10 md:px-14 lg:px-16">
         <nav className="grid w-full grid-cols-2 items-center gap-x-4 gap-y-3 text-center font-medium sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-x-5 sm:gap-y-2">
           <Link href={`${langPrefix}/guide`} className="hover:text-black transition-colors duration-300">
             {t.guide}

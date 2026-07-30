@@ -231,7 +231,7 @@ export default async function ExpertsPage({ params, searchParams }: Props) {
   }
 
   return (
-    <div className="journal-page-wrapper min-h-screen w-full bg-white">
+    <div className="public-page-shell journal-page-wrapper w-full">
       <div className="relative z-10 mx-auto w-full max-w-6xl">
         <PageLayout
           title="EXPERTS"

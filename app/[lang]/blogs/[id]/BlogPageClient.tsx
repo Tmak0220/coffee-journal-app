@@ -259,11 +259,11 @@ export default function BlogPageClient({
   const isOwnPost = currentUserId === article.user_id
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_4%,rgba(180,112,32,0.07),transparent_28%),radial-gradient(circle_at_92%_12%,rgba(71,127,151,0.06),transparent_25%)] px-4 py-8 text-left animate-fadeIn sm:px-8 md:px-12 md:py-12 lg:px-16">
+    <main className="public-page-shell px-4 py-8 text-left animate-fadeIn sm:px-8 md:px-12 md:py-12 lg:px-16">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-start gap-9 lg:grid-cols-12 lg:gap-16">
         <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:sticky lg:top-28 lg:col-span-6">
           {imageUrls.length > 0 ? imageUrls.map((url, index) => (
-            <div key={`${url}-${index}`} className="w-full overflow-hidden rounded-[28px] border border-neutral-200/80 bg-white shadow-[0_20px_60px_-35px_rgba(0,0,0,0.28)]">
+            <div key={`${url}-${index}`} className="public-media-frame w-full">
               <img
                 src={url}
                 alt={`${article.title} - ${index + 1}`}
@@ -272,17 +272,17 @@ export default function BlogPageClient({
               />
             </div>
           )) : (
-            <div className="flex aspect-[4/5] w-full items-center justify-center rounded-[28px] border border-dashed border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+            <div className="public-media-frame flex aspect-[4/5] w-full items-center justify-center border-dashed bg-neutral-50 text-[10px] uppercase tracking-[0.16em] text-neutral-400">
               No image
             </div>
           )}
         </div>
 
-        <article className="space-y-8 rounded-[22px] border border-white/80 bg-white/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:space-y-10 sm:rounded-[28px] sm:p-8 lg:col-span-6 lg:p-10">
+        <article className="public-panel space-y-8 p-4 sm:space-y-10 sm:p-8 lg:col-span-6 lg:p-10">
           <header className="space-y-6 border-b border-neutral-100 pb-7">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold tracking-[0.14em] text-amber-800">BLOG</span>
+                <span className="public-kicker public-accent-warm">BLOG</span>
                 {article.visibility === "draft" && <span className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[10px] font-semibold text-amber-700">{t.draftBadge}</span>}
                 {article.visibility === "private" && <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[10px] font-semibold text-neutral-600">{t.privateBadge}</span>}
                 {article.visibility === "members" && <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold text-sky-700">{t.membersOnlyBadge}</span>}
@@ -332,7 +332,7 @@ export default function BlogPageClient({
             </div>
           </header>
 
-          <div className="prose-custom min-w-0 break-words border-l-2 border-amber-300/70 py-1 pl-5 text-sm leading-8 text-neutral-700 sm:pl-7 sm:text-base">
+          <div className="public-reading-block prose-custom min-w-0 break-words text-sm leading-8 sm:pl-7 sm:text-base">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
               {article.content}
             </ReactMarkdown>

@@ -196,7 +196,7 @@ export default function MembersPage({ params }: Props) {
   ]
 
   return (
-    <main className="min-h-screen max-w-6xl mx-auto p-6 sm:p-10 md:p-14 lg:p-16">
+    <main className="public-page-shell mx-auto max-w-6xl p-6 sm:p-10 md:p-14 lg:p-16">
       <div className="max-w-3xl">
         <p className="type-label text-[11px] text-subtle tracking-[0.12em] uppercase font-medium">
           Membership

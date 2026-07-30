@@ -257,7 +257,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
 
       {/* 2. 味わいの説明文 (Taste Profile) */}
       {post.tastes && typeof post.tastes === "string" && (
-        <div className="relative rounded-3xl border border-sky-200/60 bg-gradient-to-br from-sky-50/80 to-white p-6 shadow-[0_16px_45px_-32px_rgba(14,116,144,0.45)] sm:p-7">
+        <div className="relative rounded-2xl border border-sky-200/60 bg-sky-50/30 p-6 shadow-sm sm:p-7">
           <span className="text-[10px] text-sky-800/60 font-bold tracking-[0.2em] uppercase block mb-3">
             — Taste Profile
           </span>
@@ -269,7 +269,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
 
       {/* 3. ストーリー説明文 (Description) */}
       {post.description && (
-        <div className="relative my-10 border-l-2 border-amber-400/60 py-1 pl-6">
+        <div className="public-reading-block relative my-10">
           <span className="text-[10px] text-neutral-400 font-bold tracking-[0.2em] uppercase block mb-3">
             Story & Notes
           </span>
@@ -364,7 +364,7 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
           {recipeDetails.map(({ recipe, providerName, bloomTime, totalTime, approxEY, correctedEY }, index) => (
             <div
               key={recipe.id || index}
-              className="border border-neutral-200/80 rounded-3xl p-6 sm:p-8 bg-neutral-50/40 space-y-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)]"
+              className="space-y-6 rounded-2xl border border-neutral-200 bg-neutral-50/40 p-6 shadow-sm sm:p-8"
             >
               <div className="flex items-center justify-between border-b border-neutral-200/60 pb-4">
                 <h3 className="text-[10px] font-bold tracking-[0.2em] text-neutral-400 uppercase">

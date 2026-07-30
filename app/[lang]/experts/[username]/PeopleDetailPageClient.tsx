@@ -339,7 +339,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="public-page-shell pb-24 text-foreground">
       <div className="w-full h-48 md:h-64 bg-zinc-100 relative overflow-hidden border-b border-border/30">
         {profile.cover_url ? (
           <Image src={profile.cover_url} alt="" fill className="object-cover" priority />

@@ -23,7 +23,7 @@ export default async function SearchPortalPage({ params }: Props) {
   const isEn = currentLang === "en"
 
   return (
-    <div className="journal-page-wrapper w-full bg-white">
+    <div className="public-page-shell journal-page-wrapper w-full">
       <main className="relative z-10 mx-auto min-h-screen w-full max-w-6xl px-4 py-6 sm:px-10 sm:py-10 md:px-14 md:py-12 lg:px-16">
         <header className="max-w-2xl">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 sm:text-[11px]">

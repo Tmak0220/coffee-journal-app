@@ -354,7 +354,7 @@ export default function SearchContent() {
   const noResults = users.length + origins.length + experts.length + content.length === 0
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl space-y-14 px-5 py-10 sm:px-8 md:py-14 lg:px-12">
+    <main className="public-page-shell mx-auto max-w-7xl space-y-14 px-5 py-10 sm:px-8 md:py-14 lg:px-12">
       <header className="border-b border-border pb-8">
         <p className="text-[10px] font-bold tracking-[0.2em] text-subtle">SEARCH</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{ui.title}</h1>

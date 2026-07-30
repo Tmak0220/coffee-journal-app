@@ -195,19 +195,19 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
     .filter(([key, value]) => !["id", "type"].includes(key) && value !== null && value !== "" && (!Array.isArray(value) || value.length > 0))
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_8%_3%,rgba(180,112,32,0.07),transparent_28%),radial-gradient(circle_at_92%_10%,rgba(71,127,151,0.07),transparent_27%)] px-6 py-10 sm:px-10 md:px-14 md:py-14 lg:px-16">
+    <main className="public-page-shell px-6 py-10 sm:px-10 md:px-14 md:py-14 lg:px-16">
       <div className="mx-auto grid max-w-7xl items-start gap-10 lg:grid-cols-12 lg:gap-16">
         <div className="space-y-6 lg:sticky lg:top-28 lg:col-span-5">
           {images.length > 0 ? images.map((url, index) => (
-            <div key={`${url}-${index}`} className="relative aspect-[4/5] overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-[0_20px_60px_-35px_rgba(0,0,0,0.28)]">
+            <div key={`${url}-${index}`} className="public-media-frame relative aspect-[4/5]">
               <Image src={url} alt={recipe.recipe_title} fill sizes="(max-width: 1024px) 100vw, 42vw" priority={index === 0} className="object-cover" />
             </div>
           )) : (
-            <div className="flex aspect-[4/5] items-center justify-center rounded-3xl border border-dashed border-neutral-200 bg-neutral-50 text-[10px] tracking-[0.16em] text-neutral-400">NO IMAGE</div>
+            <div className="public-media-frame flex aspect-[4/5] items-center justify-center border-dashed bg-neutral-50 text-[10px] tracking-[0.16em] text-neutral-400">NO IMAGE</div>
           )}
         </div>
 
-        <article className="space-y-12 rounded-[28px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:p-10 lg:col-span-7">
+        <article className="public-panel space-y-12 p-6 sm:p-10 lg:col-span-7">
           <header className="space-y-5 border-b border-neutral-200 pb-8">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold tracking-[0.15em] text-sky-700">{t.badge}</span>
@@ -241,7 +241,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.patterns}</h2>
               <div className="mt-5 space-y-5">
                 {recipe.verification_patterns!.map((pattern, patternIndex) => (
-                  <article key={pattern.id || patternIndex} className="rounded-3xl border border-neutral-200 bg-neutral-50/45 p-5 sm:p-7">
+                  <article key={pattern.id || patternIndex} className="rounded-2xl border border-neutral-200 bg-neutral-50/45 p-5 shadow-sm sm:p-7">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4">
                       <h3 className="text-base font-semibold text-neutral-900">{pattern.title || `${t.patterns} ${patternIndex + 1}`}</h3>
                       {pattern.isBest && <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold text-amber-700">{t.bestPattern}</span>}
@@ -285,7 +285,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
           )}
 
           {!hasVerificationPatterns && parameters.length > 0 && (
-            <section className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/70 to-white p-6 shadow-[0_18px_55px_-44px_rgba(14,116,144,0.4)] sm:p-8">
+            <section className="rounded-2xl border border-sky-200/60 bg-sky-50/30 p-6 shadow-sm sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.extraction}</h2>
               <dl className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">{parameters.map((item) => <div key={item.label}><dt className="text-[10px] text-neutral-400">{item.label}</dt><dd className="mt-1 text-sm font-semibold text-neutral-900">{item.value}</dd></div>)}</dl>
             </section>
@@ -314,7 +314,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
           )}
 
           {!hasVerificationPatterns && (recipe.water_name || recipe.gh != null || recipe.kh != null || recipe.minerals || profileEntries(recipe.water_profile).length > 0) && (
-            <section className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-cyan-50/45 to-white p-6 sm:p-8">
+            <section className="rounded-2xl border border-cyan-200/50 bg-cyan-50/25 p-6 shadow-sm sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.water}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-3">
                 {recipe.water_name && <div><dt className="text-[10px] text-neutral-400">{t.waterName}</dt><dd className="mt-1 text-sm font-semibold">{recipe.water_name}</dd></div>}
@@ -334,7 +334,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
           )}
 
           {!hasVerificationPatterns && profileEntries(recipe.roast_profile).length > 0 && (
-            <section className="rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50/45 to-white p-6 sm:p-8">
+            <section className="rounded-2xl border border-amber-200/50 bg-amber-50/25 p-6 shadow-sm sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.roast}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-2">
                 {profileEntries(recipe.roast_profile).map(([key, value]) => (
@@ -350,7 +350,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
           )}
 
           {!hasVerificationPatterns && profileEntries(recipe.cupping_profile).length > 0 && (
-            <section className="rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50/40 to-white p-6 sm:p-8">
+            <section className="rounded-2xl border border-rose-200/50 bg-rose-50/25 p-6 shadow-sm sm:p-8">
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">{t.cupping}</h2>
               <dl className="mt-6 grid gap-5 sm:grid-cols-2">
                 {profileEntries(recipe.cupping_profile).map(([key, value]) => (

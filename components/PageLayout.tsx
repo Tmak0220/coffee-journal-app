@@ -30,7 +30,7 @@ export default function PageLayout({
   const shouldRenderBreadcrumbs = breadcrumbs === undefined || breadcrumbs.length > 0
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:p-10 md:p-14 lg:p-16">
+    <main className="public-page-container">
       {shouldRenderBreadcrumbs && (
         <nav className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-neutral-400 sm:gap-2 sm:text-sm">
           {breadcrumbs ? (
@@ -67,7 +67,7 @@ export default function PageLayout({
       )}
 
       {title && (
-        <header className={shouldRenderBreadcrumbs ? "mt-6 mb-8" : "mb-8"}>
+        <header className={shouldRenderBreadcrumbs ? "mt-7 mb-10 border-b border-neutral-200 pb-7" : "mb-10 border-b border-neutral-200 pb-7"}>
           <h1 className={`${titleSize} type-brand pr-[0.08em] text-black uppercase`}>
             {title}
           </h1>

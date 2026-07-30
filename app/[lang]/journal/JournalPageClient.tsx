@@ -180,7 +180,7 @@ export default function JournalPageClient({ lang }: Props) {
             onClick={() => setActiveJournal(null)}
           />
 
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl border border-neutral-200/80 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] p-6 sm:p-8 md:p-10 z-10 max-h-[85vh] overflow-y-auto transform transition-all duration-300 animate-scaleUp flex flex-col justify-between">
+          <div className="public-panel relative z-10 flex max-h-[85vh] w-full max-w-2xl transform flex-col justify-between overflow-y-auto p-6 transition-all duration-300 animate-scaleUp sm:p-8 md:p-10">
             
             <div className="space-y-5">
               <div className="flex items-center gap-3.5">

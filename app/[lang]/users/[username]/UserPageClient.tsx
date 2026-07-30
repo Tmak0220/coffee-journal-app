@@ -471,11 +471,11 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
   const isOfficialUser = showExperts || showOrigins
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-16">
+    <main className="public-page-shell mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-16">
       
       <section className="grid w-full gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
         
-        <div className="min-w-0 rounded-[28px] border border-border bg-surface p-5 shadow-[0_18px_55px_rgba(0,0,0,0.035)] sm:p-8">
+        <div className="public-panel min-w-0 p-5 sm:p-8">
           <div className="flex items-start gap-4 sm:gap-7">
             <div className="relative h-20 w-20 flex-shrink-0 sm:h-28 sm:w-28">
               {profile.avatar_url ? (

@@ -43,7 +43,7 @@ export default async function MembersSuccessPage({ params, searchParams }: Props
   }
 
   return (
-    <main className="min-h-screen p-10 md:p-14 lg:p-16">
+    <main className="public-page-shell p-6 sm:p-10 md:p-14 lg:p-16">
       <div className="max-w-2xl">
         <p className="type-label text-[11px] text-subtle tracking-[0.12em] pr-[0.12em]">
           MEMBERSHIP

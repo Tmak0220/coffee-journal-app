@@ -201,11 +201,11 @@ export default function AdvancedSearchForm({ lang }: Props) {
   )
 
   if (loading) {
-    return <div className="mt-8 h-96 animate-pulse rounded-3xl bg-neutral-100/60 shadow-sm" />
+    return <div className="mt-8 h-96 animate-pulse rounded-2xl border border-neutral-200 bg-neutral-100/60 shadow-sm" />
   }
 
   return (
-    <div className="journal-grid-container mt-8 rounded-3xl border border-neutral-200/60 bg-white/60 p-5 shadow-sm sm:p-8 md:p-10">
+    <div className="public-panel journal-grid-container mt-8 p-5 sm:p-8 md:p-10">
       <div className="space-y-8">
         {/* 品種 ＆ 精製方法 */}
         <div className="grid gap-6 sm:grid-cols-2">

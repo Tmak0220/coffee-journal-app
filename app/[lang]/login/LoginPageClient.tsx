@@ -153,7 +153,7 @@ export default function LoginPageClient({ lang }: Props) {
   const buttonClass = "w-full rounded-2xl border border-neutral-900 bg-neutral-900 px-6 py-4 text-xs font-semibold tracking-[0.12em] text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
 
   return (
-    <main className="min-h-[calc(100vh-120px)] px-4 py-8 sm:px-10 sm:py-16 md:px-14 lg:px-16">
+    <main className="public-page-shell min-h-[calc(100vh-120px)] px-4 py-8 sm:px-10 sm:py-16 md:px-14 lg:px-16">
       <div className="mx-auto max-w-6xl">
         <header className="max-w-2xl">
           <p className="type-label text-[11px] font-medium tracking-[0.14em] text-neutral-400">{t.pageLabel}</p>
@@ -168,7 +168,7 @@ export default function LoginPageClient({ lang }: Props) {
         )}
 
         <div className="mt-10 grid gap-6 md:grid-cols-2 md:gap-8">
-          <form onSubmit={handleLogin} className="flex h-full flex-col justify-between rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
+          <form onSubmit={handleLogin} className="public-panel flex h-full flex-col justify-between p-6 sm:p-8">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">LOGIN</p>
               <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.loginSubtitle}</h2>
@@ -187,7 +187,7 @@ export default function LoginPageClient({ lang }: Props) {
             </div>
           </form>
 
-          <form onSubmit={handleSignup} className="flex h-full flex-col justify-between rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
+          <form onSubmit={handleSignup} className="public-panel flex h-full flex-col justify-between p-6 sm:p-8">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.14em] text-neutral-400">SIGN UP</p>
               <h2 className="mt-3 text-xl font-medium text-neutral-900">{t.signupSubtitle}</h2>

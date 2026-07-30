@@ -57,7 +57,7 @@ export default async function Home({ params }: Props) {
   const t = dict[currentLang]
 
   return (
-    <div className="journal-page-wrapper w-full bg-white">
+    <div className="public-page-shell journal-page-wrapper w-full">
       <section className="relative z-10 mx-auto w-full max-w-6xl px-4 pt-6 sm:p-10 sm:pb-0 md:p-14 md:pb-0 lg:p-16 lg:pb-0">
         <div className="flex min-h-[60px] items-start justify-end sm:min-h-[112px]">
           <HomeMembershipLink lang={currentLang} />
@@ -73,7 +73,7 @@ export default async function Home({ params }: Props) {
             </p>
           )}
 
-          <div className="mt-6 inline-flex items-center gap-1.5 rounded-xl border border-rose-200/60 bg-rose-50/40 px-4 py-2.5 text-xs sm:text-sm font-medium text-rose-800 w-fit">
+          <div className="mt-6 inline-flex w-fit items-center gap-1.5 rounded-xl border border-amber-200/60 bg-amber-50/30 px-4 py-2.5 text-xs font-medium text-amber-900 sm:text-sm">
             <span>* {t.guidePrefix}</span>
             <Link
               href={`/${currentLang}/guide`}
@@ -97,7 +97,7 @@ export default async function Home({ params }: Props) {
               <Link 
                 key={section.id} 
                 href={`/${currentLang}/${section.slug}`} 
-                className="friendly-card p-6 sm:p-8 group bg-white/50 hover:bg-white border border-neutral-200/50 hover:border-neutral-300 rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
+                className="friendly-card group rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-neutral-300 hover:bg-white hover:shadow-md sm:p-8"
               >
                 <div className="flex flex-col h-full justify-between">
                   <div>

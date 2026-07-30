@@ -154,7 +154,7 @@ export default function Header() {
   }[activeLang]
 
   return (
-    <header className="sticky top-0 z-50 flex w-full flex-col gap-3 overflow-hidden border-b border-neutral-100 bg-white px-4 py-3 shadow-[0_1px_0_rgba(226,226,231,0.22)] transition-all duration-300 sm:gap-4 sm:px-6 sm:py-5 md:flex-row md:items-center md:justify-between md:gap-8 md:px-10 md:py-7">
+    <header className="sticky top-0 z-50 flex w-full flex-col gap-3 overflow-hidden border-b border-neutral-200 bg-white/95 px-4 py-3 shadow-[0_8px_30px_-28px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-300 sm:gap-4 sm:px-6 sm:py-4 md:flex-row md:items-center md:justify-between md:gap-8 md:px-10 md:py-5">
       
       <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 md:w-auto md:gap-8">
         <Link href={t.homePath} className="site-header-logo type-brand block shrink-0 border-0 bg-transparent p-0 text-left text-lg font-bold tracking-wide text-neutral-900 shadow-none sm:text-xl md:text-2xl">
@@ -167,11 +167,11 @@ export default function Header() {
             placeholder={t.placeholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="min-w-0 w-full rounded-xl border border-neutral-200/60 bg-white/70 px-3.5 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400/70 transition focus:border-neutral-400 focus:bg-white focus:outline-none sm:w-52 sm:text-xs md:w-72"
+            className="min-w-0 w-full rounded-xl border border-neutral-200 bg-neutral-50/70 px-3.5 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 transition focus:border-neutral-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-neutral-100 sm:w-52 sm:text-xs md:w-72"
           />
           <button
             type="submit"
-            className="shrink-0 rounded-xl border border-neutral-200/60 bg-white/70 px-4 py-2.5 text-xs font-bold tracking-wider text-neutral-900 shadow-xs transition hover:bg-white active:scale-[0.98] sm:px-5"
+            className="shrink-0 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-bold tracking-wider text-neutral-900 shadow-sm transition hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md active:scale-[0.98] sm:px-5"
           >
             {t.searchBtn}
           </button>

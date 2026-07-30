@@ -51,7 +51,7 @@ export default function ResetPasswordPage() {
   const inputClass = "w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-900/5"
 
   return (
-    <main className="min-h-[calc(100vh-120px)] px-4 py-8 sm:px-10 sm:py-16 md:px-14 lg:px-16">
+    <main className="public-page-shell min-h-[calc(100vh-120px)] px-4 py-8 sm:px-10 sm:py-16 md:px-14 lg:px-16">
       <div className="mx-auto max-w-6xl">
         <header className="max-w-2xl">
           <p className="type-label text-[11px] font-medium tracking-[0.14em] text-neutral-400">ACCOUNT SECURITY</p>
@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
           </p>
         </header>
 
-        <section className="mt-10 max-w-xl rounded-3xl border border-neutral-200 bg-white/70 p-6 shadow-sm sm:p-8">
+        <section className="public-panel mt-10 max-w-xl p-6 sm:p-8">
           {complete ? (
             <div>
               <p className="text-[11px] font-semibold tracking-[0.14em] text-emerald-600">PASSWORD UPDATED</p>
