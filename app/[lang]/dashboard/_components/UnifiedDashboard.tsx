@@ -534,15 +534,78 @@ export default function UnifiedDashboard({
     async function fetchLatestOwnerProfile() {
       if (!hasBusinessAccess) return
       try {
-        const { data, error } = await supabase
+        // 過去バージョンで残った却下済み申請の仮紐付けを先に整理し、
+        // 承認済みなのに紐付けが欠けた場合も同じAPIで修復する。
+        await fetch("/api/repair-owner-profile-link", { method: "POST" })
+
+        const loadOwnerProfile = () => supabase
           .from("origins")
           .select("*")
           .eq("user_id", profile.id)
+          .order("is_public", { ascending: false })
+          .order("is_approved", { ascending: false })
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle()
 
+        let { data, error } = await loadOwnerProfile()
         if (error) throw error
+
+        if (!data) {
+          const { data: latestApplication, error: applicationError } = await supabase
+            .from("admin_notifications")
+            .select("status, request_payload")
+            .eq("user_id", profile.id)
+            .in("type", ["claim_origin", "new_owner_profile_activation"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (applicationError) throw applicationError
+
+          const applicationPayload = latestApplication?.request_payload && typeof latestApplication.request_payload === "object"
+            ? latestApplication.request_payload as Record<string, unknown>
+            : null
+          const applicationOriginId = Number(applicationPayload?.origin_id)
+          if (
+            (latestApplication?.status === "pending" || latestApplication?.status === "rejected") &&
+            Number.isInteger(applicationOriginId) &&
+            applicationOriginId > 0
+          ) {
+            const applicationOriginResult = await supabase
+              .from("origins")
+              .select("*")
+              .eq("id", applicationOriginId)
+              .maybeSingle()
+            error = applicationOriginResult.error
+            if (error) throw error
+
+            const applicationLang = applicationPayload?.lang === "en" ? "en" : "ja"
+            const restoredProfile: Record<string, unknown> = {
+              // 見送り後は入力値だけを復元する。以前選択したorigin IDを次の新規申請へ
+              // 引き継ぐと、既存店舗を新規申請の対象として誤更新してしまう。
+              ...(latestApplication.status === "pending" ? (applicationOriginResult.data || {}) : {}),
+              user_id: null,
+              is_profile_completed: latestApplication.status === "pending",
+              is_approved: false,
+              is_public: false,
+              links: Array.isArray(applicationPayload?.links) ? applicationPayload.links : [],
+              _application_gear_ids: Array.isArray(applicationPayload?.gear_ids) ? applicationPayload.gear_ids : [],
+            }
+            if (applicationLang === "en") {
+              restoredProfile.display_name_en = applicationPayload?.display_name ?? null
+              restoredProfile.bio_en = applicationPayload?.bio ?? null
+              restoredProfile.headquarters_en = applicationPayload?.headquarters ?? null
+              restoredProfile.branches_en = Array.isArray(applicationPayload?.branches) ? applicationPayload.branches : []
+            } else {
+              restoredProfile.display_name = applicationPayload?.display_name ?? null
+              restoredProfile.bio = applicationPayload?.bio ?? null
+              restoredProfile.headquarters = applicationPayload?.headquarters ?? null
+              restoredProfile.branches = Array.isArray(applicationPayload?.branches) ? applicationPayload.branches : []
+            }
+            data = restoredProfile
+          }
+        }
+
         setOwnerData(data ?? null)
         setOwnerPostingEnabled(Boolean(data?.is_profile_completed && data?.is_approved && data?.is_public))
       } catch (err) {
@@ -551,7 +614,22 @@ export default function UnifiedDashboard({
       }
     }
 
-    fetchLatestOwnerProfile()
+    void fetchLatestOwnerProfile()
+    if (activeTab !== "shop_manage") return
+
+    const handleFocus = () => { void fetchLatestOwnerProfile() }
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void fetchLatestOwnerProfile()
+    }
+    const intervalId = window.setInterval(() => { void fetchLatestOwnerProfile() }, 15000)
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibility)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
   }, [profile.id, hasBusinessAccess, activeTab])
 
   // アカウント停止・削除の問い合わせ処理
@@ -895,7 +973,7 @@ export default function UnifiedDashboard({
                     initialUsername={liveUserProfile.username}
                     initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? null}
                     initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null}
-                    initialBio={ownerData?.bio ?? liveUserProfile.bio}
+                    initialBio={ownerData?.bio ?? null}
                     initialBioEn={ownerData?.bio_en ?? null}
                     initialAvatarUrl={sharedAvatarUrl}
                     initialCoverUrl={sharedCoverUrl}
@@ -904,6 +982,7 @@ export default function UnifiedDashboard({
                     initialBranches={ownerData?.branches ?? []}
                     initialBranchesEn={ownerData?.branches_en ?? []}
                     initialLinks={ownerData?.links ?? []}
+                    initialGearIds={ownerData?._application_gear_ids ?? []}
                     initialIsApproved={ownerData?.is_approved ?? false}
                     initialIsProfileCompleted={ownerData?.is_profile_completed ?? false}
                     initialIsPublic={ownerData?.is_public ?? false}
@@ -912,6 +991,8 @@ export default function UnifiedDashboard({
                   />
                 </div>
 
+                {ownerPostingEnabled ? (
+                  <>
                 {ownerData?.id && (
                   <B2BInquiryPanel
                     originId={ownerData.id}
@@ -923,8 +1004,6 @@ export default function UnifiedDashboard({
                   />
                 )}
 
-                {ownerPostingEnabled ? (
-                  <>
                 <BroadcastNotificationForm 
                   userId={profile.id} 
                   authorType="owner" 

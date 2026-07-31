@@ -8,7 +8,7 @@ type AdminIncomingRequest = {
   id: string
   user_id: string
   type: string
-  target_origin_id: string | null
+  target_origin_id: number | string | null
   requested_display_name: string | null
   requested_display_name_en: string | null
   request_payload: Record<string, unknown> | null
@@ -267,6 +267,10 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
   const updateRequestStatus = async (req: AdminIncomingRequest, newStatus: "approved" | "rejected") => {
     const commentToSend = inputComments[req.id]?.trim() || null
     const requestPayload = req.request_payload || {}
+    const requestOriginId = (() => {
+      const parsed = Number(requestPayload.origin_id)
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+    })()
 
     const applyRequestedProfile = async (profileType: "expert" | "owner") => {
       if (Object.keys(requestPayload).length === 0) return
@@ -330,6 +334,44 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
     }
 
     try {
+      if (
+        req.type === "claim_origin" ||
+        req.type === "display_name_change" ||
+        req.type === "owner_display_name_change" ||
+        req.type === "new_owner_profile_activation"
+      ) {
+        const response = await fetch("/api/admin/owner-profile-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: req.id,
+            status: newStatus,
+            adminComment: commentToSend,
+          }),
+        })
+        if (!response.ok) {
+          const responseText = await response.text()
+          let responseError = ""
+          try {
+            const result = JSON.parse(responseText) as { error?: string }
+            responseError = typeof result.error === "string" ? result.error : ""
+          } catch {
+            responseError = responseText.trim()
+          }
+          throw new Error(
+            responseError ||
+            `Owner profile request could not be processed (HTTP ${response.status})`
+          )
+        }
+        setRequests((previous) => previous.map((item) => (
+          item.id === req.id
+            ? { ...item, status: newStatus, admin_comment: commentToSend }
+            : item
+        )))
+        setPendingCount((previous) => Math.max(0, previous - 1))
+        return
+      }
+
       if (newStatus === "approved") {
         if (req.type === "account_suspend_request" || req.type === "account_delete_request") {
           const endpoint = req.type === "account_delete_request"
@@ -354,7 +396,9 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
         else if (req.type === "master_request") {
           await handleMasterRequestApproval(req)
         }
-        else if (req.type === "claim_origin" && req.target_origin_id) {
+        else if (req.type === "claim_origin") {
+          const requestedOriginId = requestPayload.origin_id || null
+          if (!requestedOriginId) throw new Error("対象店舗IDが申請データにありません。")
           const originUpdatePayload: Record<string, any> = {
             user_id: req.user_id,
             is_profile_completed: true,
@@ -373,12 +417,16 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
           const { error: originErr } = await supabase
             .from("origins")
             .update(originUpdatePayload)
-            .eq("id", req.target_origin_id)
+            .eq("id", requestedOriginId)
 
           if (originErr) throw originErr
+          await applyRequestedProfile("owner")
         } 
         else if (req.type === "owner_display_name_change" || req.type === "display_name_change") {
+          const requestedOriginId = req.target_origin_id || requestPayload.origin_id || null
           const originUpdatePayload: Record<string, any> = {
+            user_id: req.user_id,
+            is_profile_completed: true,
             is_approved: true,
             is_public: true
           }
@@ -393,10 +441,13 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
           }
 
           if (Object.keys(originUpdatePayload).length > 0) {
-            const { error: originErr } = await supabase
+            let approvalQuery = supabase
               .from("origins")
               .update(originUpdatePayload)
-              .eq("user_id", req.user_id)
+            approvalQuery = requestedOriginId
+              ? approvalQuery.eq("id", requestedOriginId)
+              : approvalQuery.eq("user_id", req.user_id)
+            const { error: originErr } = await approvalQuery
 
             if (originErr) throw originErr
           }
@@ -444,18 +495,25 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
           await applyRequestedProfile("expert")
         }
         else if (req.type === "new_owner_profile_activation") {
+          if (!requestOriginId) {
+            throw new Error("申請データに対象店舗IDがありません。申請を開き直して、もう一度お試しください。")
+          }
           const { data: originToApprove, error: originCheckError } = await supabase
             .from("origins")
             .select("id, slug, name")
-            .eq(req.target_origin_id ? "id" : "user_id", req.target_origin_id || req.user_id)
-            .single()
+            .eq("id", requestOriginId)
+            .maybeSingle()
 
           if (originCheckError) throw originCheckError
+          if (!originToApprove) {
+            throw new Error(`承認対象の店舗レコード（ID: ${requestOriginId}）が見つかりません。`)
+          }
           if (!originToApprove.slug?.trim() || !originToApprove.name?.trim()) {
             throw new Error("承認前にoriginsのslugとnameを入力してください。")
           }
 
           const originPayload: Record<string, any> = {
+            user_id: req.user_id,
             is_profile_completed: true,
             is_approved: true,
             is_public: true
@@ -472,20 +530,25 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
           const { error: originErr } = await supabase
             .from("origins")
             .update(originPayload)
-            .eq(req.target_origin_id ? "id" : "user_id", req.target_origin_id || req.user_id)
+            .eq("id", requestOriginId)
 
           if (originErr) throw originErr
+          await applyRequestedProfile("owner")
         }
       } 
       else if (newStatus === "rejected") {
         if (req.type === "claim_origin" || req.type === "owner_display_name_change" || req.type === "display_name_change") {
-          const { error: originErr } = await supabase
+          const rejectedOriginId = req.target_origin_id || requestPayload.origin_id || null
+          let rejectionQuery = supabase
             .from("origins")
             .update({
               pending_display_name: null,
               pending_display_name_en: null
             })
-            .eq("user_id", req.user_id)
+          rejectionQuery = rejectedOriginId
+            ? rejectionQuery.eq("id", rejectedOriginId)
+            : rejectionQuery.eq("user_id", req.user_id)
+          const { error: originErr } = await rejectionQuery
 
           if (originErr) throw originErr
         } else if (req.type === "new_profile_activation" || req.type === "expert_display_name_change") {
@@ -499,7 +562,10 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
 
           if (expertErr) throw expertErr
         } else if (req.type === "new_owner_profile_activation") {
-          const { error: originErr } = await supabase
+          if (!requestOriginId) {
+            throw new Error("申請データに対象店舗IDがありません。申請を開き直して、もう一度お試しください。")
+          }
+          let rejectionQuery = supabase
             .from("origins")
             .update({
               is_approved: false,
@@ -507,7 +573,8 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
               pending_display_name: null,
               pending_display_name_en: null
             })
-            .eq("user_id", req.user_id)
+          rejectionQuery = rejectionQuery.eq("id", requestOriginId)
+          const { error: originErr } = await rejectionQuery
 
           if (originErr) throw originErr
         }
@@ -531,7 +598,8 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
     } catch (error: any) {
       console.error(error)
       console.error("Admin request processing failed:", error)
-      showPopup(t.errorMessage, "error", t.errorTitle)
+      const detail = error instanceof Error && error.message ? error.message : t.errorMessage
+      showPopup(detail, "error", t.errorTitle)
     }
   }
 

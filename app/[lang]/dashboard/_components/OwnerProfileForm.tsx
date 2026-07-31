@@ -29,6 +29,7 @@ type Props = {
   initialBranches?: BranchLocation[] | null
   initialBranchesEn?: BranchLocation[] | null
   initialLinks?: LinkItem[] | null
+  initialGearIds?: number[]
   lang?: string
   initialIsApproved?: boolean
   initialIsProfileCompleted?: boolean
@@ -233,6 +234,7 @@ export default function OwnerProfileForm({
   initialBranches = [],
   initialBranchesEn = [], 
   initialLinks = [],
+  initialGearIds = [],
   lang = "ja",
   initialIsApproved = false,
   initialIsProfileCompleted = false,
@@ -264,7 +266,8 @@ export default function OwnerProfileForm({
   const [branches, setBranches] = useState<BranchLocation[]>(currentLang === "en" ? (initialBranchesEn || []) : (initialBranches || []))
   
   const [links, setLinks] = useState<LinkItem[]>(initialLinks || [])
-  const [selectedGearIds, setSelectedGearIds] = useState<number[]>([])
+  const [selectedGearIds, setSelectedGearIds] = useState<number[]>(initialGearIds)
+  const initialGearIdsKey = initialGearIds.join(",")
 
   // サジェスト＆選択関連ステート
   const [suggestions, setSuggestions] = useState<OriginSuggestion[]>([])
@@ -299,11 +302,15 @@ export default function OwnerProfileForm({
   }, [])
 
   useEffect(() => {
+    if (initialGearIds.length > 0) {
+      setSelectedGearIds(initialGearIds)
+      return
+    }
     supabase.from("profile_gears").select("gear_id").eq("user_id", userId).eq("profile_type", "owner").then(({ data, error }) => {
       if (error) console.error("Failed to load owner profile gears:", error)
       else setSelectedGearIds((data || []).map((item) => item.gear_id))
     })
-  }, [userId])
+  }, [userId, initialGearIdsKey])
 
   useEffect(() => {
     const query = displayName.trim()
@@ -556,6 +563,7 @@ export default function OwnerProfileForm({
       }
 
       const existingOriginId = initialOriginId
+      let resolvedOriginId: number | null = existingOriginId
 
       const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
       if (!isProfileCompleted) updatePayload.links = filteredLinks
@@ -613,50 +621,82 @@ export default function OwnerProfileForm({
       }
 
       if (!isProfileCompleted) {
-        const initialProfilePayload = {
-          ...updatePayload,
-          user_id: userId,
+        const applicationStatePayload = {
+          updated_at: new Date().toISOString(),
           is_profile_completed: true,
           is_approved: false,
           is_public: false
         }
 
         if (selectedOrigin) {
+          resolvedOriginId = Number(selectedOrigin.id)
           const { error: originError } = await supabase
             .from("origins")
-            .update(initialProfilePayload)
+            .update(applicationStatePayload)
             .eq("id", selectedOrigin.id)
 
           if (originError) throw originError
-        } else if (existingOriginId !== null) {
-          const normalizedSlug = displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-          const { error: originError } = await supabase
-            .from("origins")
-            .update({
-              ...initialProfilePayload,
-              slug: normalizedSlug || displayName.trim(),
-              name: displayName.trim(),
-              name_ja: currentLang === "ja" ? displayName.trim() : null,
-              search_keywords: displayName.trim()
-            })
-            .eq("id", existingOriginId)
-            .eq("user_id", userId)
-
-          if (originError) throw originError
         } else {
+          // 見送り済み申請のフォーム復元時には、以前選択した既存店舗のIDが
+          // initialOriginId に残る場合がある。入力名と一致する審査用レコードだけ再利用する。
+          let reusableOriginId: number | null = null
+          if (existingOriginId !== null) {
+            const { data: existingOrigin, error: existingOriginError } = await supabase
+              .from("origins")
+              .select("id, name, name_ja, display_name, display_name_en, user_id, is_approved, is_public")
+              .eq("id", existingOriginId)
+              .maybeSingle()
+            if (existingOriginError) throw existingOriginError
+
+            const requestedName = displayName.trim().toLocaleLowerCase()
+            const existingNames = [
+              existingOrigin?.name,
+              existingOrigin?.name_ja,
+              existingOrigin?.display_name,
+              existingOrigin?.display_name_en,
+            ]
+              .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+              .map((value) => value.trim().toLocaleLowerCase())
+
+            if (
+              existingOrigin &&
+              existingNames.includes(requestedName) &&
+              !existingOrigin.user_id &&
+              !existingOrigin.is_approved &&
+              !existingOrigin.is_public
+            ) {
+              reusableOriginId = existingOrigin.id
+            }
+          }
+
+          if (reusableOriginId !== null) {
+            const { data: updatedOrigin, error: originError } = await supabase
+              .from("origins")
+              .update(applicationStatePayload)
+              .eq("id", reusableOriginId)
+              .select("id")
+              .single()
+            if (originError) throw originError
+            resolvedOriginId = updatedOrigin.id
+          } else {
           const normalizedSlug = displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-          const { error: originError } = await supabase
+          const { data: insertedOrigin, error: originError } = await supabase
             .from("origins")
             .insert({
-              ...initialProfilePayload,
+              ...applicationStatePayload,
+              user_id: userId,
               slug: normalizedSlug || displayName.trim(),
               name: displayName.trim(),
               name_ja: currentLang === "ja" ? displayName.trim() : null,
               search_keywords: displayName.trim(),
               type: originType
             })
+            .select("id")
+            .single()
 
           if (originError) throw originError
+          resolvedOriginId = insertedOrigin.id
+          }
         }
       } else {
         const { error } = await supabase
@@ -668,27 +708,21 @@ export default function OwnerProfileForm({
       }
 
       if (!isProfileCompleted) {
-        const { error: deleteGearError } = await supabase.from("profile_gears").delete().eq("user_id", userId).eq("profile_type", "owner")
-        if (deleteGearError) throw deleteGearError
-        if (selectedGearIds.length > 0) {
-          const { error: insertGearError } = await supabase.from("profile_gears").insert(selectedGearIds.map((gearId) => ({ user_id: userId, profile_type: "owner", gear_id: gearId })))
-          if (insertGearError) throw insertGearError
-        }
-      }
-
-      if (!isProfileCompleted) {
-        const { error: notifyError } = await supabase
+        const isNewOriginApplication = !selectedOrigin
+        const { data: createdApplication, error: notifyError } = await supabase
           .from("admin_notifications")
           .insert({
             user_id: userId,
-            type: "display_name_change",
+            type: isNewOriginApplication ? "new_owner_profile_activation" : "claim_origin",
             requested_display_name: requestedJa || displayName.trim(),
             requested_display_name_en: requestedEn,
             request_payload: {
               profile_type: "owner",
+              application_kind: isNewOriginApplication ? "new_origin" : "claim_origin",
+              is_new_origin: isNewOriginApplication,
               lang: currentLang,
               username: initialUsername,
-              origin_id: selectedOrigin?.id || existingOriginId,
+              origin_id: resolvedOriginId,
               origin_type: originType,
               display_name: displayName.trim(),
               bio: bio.trim() || null,
@@ -701,8 +735,19 @@ export default function OwnerProfileForm({
             },
             status: "pending"
           })
+          .select("id")
+          .single()
 
         if (notifyError) throw notifyError
+        const pendingLinkResponse = await fetch("/api/owner-profile-application/pending-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId: createdApplication.id }),
+        })
+        if (!pendingLinkResponse.ok) {
+          const result = await pendingLinkResponse.json().catch(() => null)
+          throw new Error(result?.error || "申請中の所有者情報を整理できませんでした。")
+        }
 
         onAccessStatusChange?.(false)
         setIsApproved(false)
@@ -713,14 +758,14 @@ export default function OwnerProfileForm({
           .from("admin_notifications")
           .insert({
             user_id: userId,
-            type: "display_name_change",
+            type: "owner_display_name_change",
             requested_display_name: requestedJa || displayName.trim(),
             requested_display_name_en: requestedEn,
             request_payload: {
               profile_type: "owner",
               lang: currentLang,
               username: initialUsername,
-              origin_id: selectedOrigin?.id || existingOriginId,
+              origin_id: resolvedOriginId,
               origin_type: originType,
               display_name: displayName.trim(),
               bio: bio.trim() || null,

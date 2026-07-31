@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase-server"
-import { appUrl, dashboardRedirect, integrationCredentials, isEcPlatform, serviceClient, SQUARE_API_VERSION } from "@/lib/ec-integrations"
+import { appUrl, dashboardRedirect, integrationCredentials, integrationRedirectUri, isEcPlatform, serviceClient, SQUARE_API_VERSION } from "@/lib/ec-integrations"
 
 export async function GET(request: Request, { params }: { params: Promise<{ platform: string }> }) {
   const { platform: rawPlatform } = await params
@@ -32,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ plat
   }
 
   const code = url.searchParams.get("code")!
-  const callback = `${baseUrl}/api/integrations/${rawPlatform}/callback`
+  const callback = integrationRedirectUri(request, rawPlatform)
   let tokenResponse: Response
   if (rawPlatform === "base") tokenResponse = await fetch("https://api.thebase.in/1/oauth/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", client_id: credentials.clientId, client_secret: credentials.clientSecret, code, redirect_uri: callback }) })
   else if (rawPlatform === "shopify") tokenResponse = await fetch(`https://${context.shop}/admin/oauth/access_token`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: new URLSearchParams({ client_id: credentials.clientId, client_secret: credentials.clientSecret, code, expiring: "1" }) })

@@ -21,9 +21,17 @@ export function normalizeShopifyDomain(input: string) {
 }
 
 export function integrationCredentials(platform: EcPlatform) {
-  if (platform === "base") return { clientId: process.env.BASE_CLIENT_ID, clientSecret: process.env.BASE_CLIENT_SECRET }
-  if (platform === "shopify") return { clientId: process.env.SHOPIFY_CLIENT_ID, clientSecret: process.env.SHOPIFY_CLIENT_SECRET }
-  return { clientId: process.env.SQUARE_APPLICATION_ID, clientSecret: process.env.SQUARE_APPLICATION_SECRET }
+  const trim = (value: string | undefined) => value?.trim()
+  if (platform === "base") return { clientId: trim(process.env.BASE_CLIENT_ID), clientSecret: trim(process.env.BASE_CLIENT_SECRET) }
+  if (platform === "shopify") return { clientId: trim(process.env.SHOPIFY_CLIENT_ID), clientSecret: trim(process.env.SHOPIFY_CLIENT_SECRET) }
+  return { clientId: trim(process.env.SQUARE_APPLICATION_ID), clientSecret: trim(process.env.SQUARE_APPLICATION_SECRET) }
+}
+
+export function integrationRedirectUri(request: Request, platform: EcPlatform) {
+  if (platform === "base" && process.env.BASE_REDIRECT_URI?.trim()) {
+    return process.env.BASE_REDIRECT_URI.trim()
+  }
+  return `${appUrl(request)}/api/integrations/${platform}/callback`
 }
 
 export function dashboardRedirect(baseUrl: string, lang: string, status: "success" | "error", platform: EcPlatform) {

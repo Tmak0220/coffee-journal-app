@@ -2,7 +2,7 @@ import { randomUUID } from "crypto"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase-server"
-import { appUrl, integrationCredentials, isEcPlatform, normalizeShopifyDomain } from "@/lib/ec-integrations"
+import { integrationCredentials, integrationRedirectUri, isEcPlatform, normalizeShopifyDomain } from "@/lib/ec-integrations"
 
 export async function GET(request: Request, { params }: { params: Promise<{ platform: string }> }) {
   const { platform: rawPlatform } = await params
@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ plat
   if (rawPlatform === "shopify" && !shop) return NextResponse.json({ error: "Valid myshopify.com domain required" }, { status: 400 })
 
   const state = randomUUID()
-  const callback = `${appUrl(request)}/api/integrations/${rawPlatform}/callback`
+  const callback = integrationRedirectUri(request, rawPlatform)
   const cookieStore = await cookies()
   cookieStore.set(`ec_oauth_${rawPlatform}`, Buffer.from(JSON.stringify({ state, userId: user.id, lang, shop })).toString("base64url"), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 600, path: "/" })
 
