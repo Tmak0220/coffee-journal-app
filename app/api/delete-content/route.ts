@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (type === "gear" && record.type !== "gear_review") return NextResponse.json({ error: "Content type mismatch" }, { status: 400 })
 
     if (table === "posts") {
-      for (const childTable of ["likes", "bookmarks", "post_views", "post_tastes", "post_gears", "post_processes", "post_varieties", "origin_post_links", "recipes"]) {
+      for (const childTable of ["likes", "bookmarks", "post_views", "post_tastes", "post_gears", "post_processes", "post_varieties", "origin_post_links", "expert_post_links", "recipes"]) {
         await deleteRows(childTable, "post_id", id)
       }
     } else if (table === "blogs") {

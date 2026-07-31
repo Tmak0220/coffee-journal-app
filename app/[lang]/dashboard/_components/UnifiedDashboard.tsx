@@ -471,6 +471,7 @@ export default function UnifiedDashboard({
   const [ownerPostingEnabled, setOwnerPostingEnabled] = useState(false)
   const [userProfileComplete, setUserProfileComplete] = useState(Boolean(profile.username && profile.display_name))
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
+  const [membershipCanceling, setMembershipCanceling] = useState(false)
   const [proPostRefreshKey, setProPostRefreshKey] = useState(0)
   const [userPostRefreshKey, setUserPostRefreshKey] = useState(0)
   const [sharedAvatarUrl, setSharedAvatarUrl] = useState<string | null>(profile.avatar_url)
@@ -632,29 +633,24 @@ export default function UnifiedDashboard({
     }
   }, [profile.id, hasBusinessAccess, activeTab])
 
-  // アカウント停止・削除の問い合わせ処理
-  const handleAccountAction = async (actionType: "suspend" | "delete") => {
+  // アカウント削除の問い合わせ処理
+  const handleAccountDeletionRequest = async () => {
     const accountIsEn = formLanguage === "en"
-    const isDelete = actionType === "delete"
-    const confirmMsg = isDelete
-      ? (accountIsEn ? "Are you sure you want to request account deletion?" : "アカウントの削除（退会）リクエストを送信しますか？")
-      : (accountIsEn ? "Are you sure you want to request account suspension?" : "アカウントの一時停止リクエストを送信しますか？")
-
     const confirmed = await confirmPopup({
-      title: isDelete
-        ? (accountIsEn ? "Request account deletion" : "アカウント削除の確認")
-        : (accountIsEn ? "Request account suspension" : "アカウント一時停止の確認"),
-      message: confirmMsg,
+      title: accountIsEn ? "Request account deletion" : "アカウント削除の確認",
+      message: accountIsEn
+        ? "Are you sure you want to request permanent account deletion? Your account, posts, and stored images will be removed after approval."
+        : "アカウントの完全削除を申請しますか？承認後、アカウント・投稿・保存画像が削除されます。",
       confirmLabel: accountIsEn ? "Send request" : "リクエストを送信",
       cancelLabel: accountIsEn ? "Cancel" : "キャンセル",
-      danger: isDelete,
+      danger: true,
     })
     if (!confirmed) return
 
     const { error } = await supabase.from("admin_notifications").insert({
       user_id: profile.id,
-      type: isDelete ? "account_delete_request" : "account_suspend_request",
-      admin_comment: isDelete ? "ユーザーよりアカウント削除要求あり" : "ユーザーよりアカウント一時停止要求あり",
+      type: "account_delete_request",
+      admin_comment: "ユーザーよりアカウント削除要求あり",
       status: "pending"
     })
 
@@ -671,6 +667,48 @@ export default function UnifiedDashboard({
         "error",
         accountIsEn ? "Request not sent" : "送信に失敗しました"
       )
+    }
+  }
+
+  const handleMembershipCancellation = async () => {
+    const accountIsEn = formLanguage === "en"
+    const confirmed = await confirmPopup({
+      title: accountIsEn ? "Cancel membership" : "メンバーシップの解約",
+      message: accountIsEn
+        ? "Your Stripe subscription will be canceled immediately. Your account and posts will remain, and you can continue to sign in as a free user."
+        : "Stripeの定期契約を直ちに解約します。アカウントと投稿は残り、無料ユーザーとして引き続きログインできます。",
+      confirmLabel: accountIsEn ? "Cancel membership" : "解約する",
+      cancelLabel: accountIsEn ? "Keep membership" : "解約しない",
+      danger: true,
+    })
+    if (!confirmed) return
+
+    setMembershipCanceling(true)
+    try {
+      const response = await fetch("/api/cancel-membership", { method: "POST" })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(result?.error || "Membership cancellation failed")
+      }
+      showPopup(
+        accountIsEn
+          ? "Your membership has been canceled. You can continue to use this account as a free user."
+          : "メンバーシップを解約しました。無料ユーザーとして引き続きこのアカウントにログインできます。",
+        "success",
+        accountIsEn ? "Membership canceled" : "解約しました"
+      )
+      window.setTimeout(() => window.location.reload(), 1200)
+    } catch (error) {
+      console.error("Membership cancellation failed:", error)
+      showPopup(
+        accountIsEn
+          ? "We couldn't cancel your membership. Please wait a moment and try again."
+          : "メンバーシップを解約できませんでした。時間をおいて、もう一度お試しください。",
+        "error",
+        accountIsEn ? "Cancellation failed" : "解約に失敗しました"
+      )
+    } finally {
+      setMembershipCanceling(false)
     }
   }
 
@@ -860,22 +898,27 @@ export default function UnifiedDashboard({
                         </h4>
                         <p className="text-xs text-neutral-500 leading-relaxed">
                           {formLanguage === "en"
-                            ? "Manage your account status or send requests for data deletion." 
-                            : "アカウントの利用休止や、データの完全削除（退会）のリクエストをお送りいただけます。"}
+                            ? "Cancel your paid membership while keeping the account, or request permanent account deletion."
+                            : "アカウントを残したまま有料メンバーシップを解約するか、アカウントの完全削除を申請できます。"}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0 pt-1 sm:pt-0">
+                      <div className="flex flex-wrap items-center justify-end gap-2.5 shrink-0 pt-1 sm:pt-0">
+                        {profile.membership_tier !== "free" && (
+                          <button
+                            type="button"
+                            onClick={handleMembershipCancellation}
+                            disabled={membershipCanceling}
+                            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 shadow-sm transition-all hover:border-neutral-900 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95 select-none"
+                          >
+                            {membershipCanceling
+                              ? (formLanguage === "en" ? "Canceling..." : "解約処理中...")
+                              : (formLanguage === "en" ? "Cancel Membership" : "メンバーシップを解約")}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleAccountAction("suspend")}
-                          className="text-xs font-semibold px-4 py-2 rounded-xl bg-white border border-neutral-200 hover:border-neutral-300 text-neutral-700 hover:text-neutral-900 transition-all shadow-sm active:scale-95 select-none"
-                        >
-                          {formLanguage === "en" ? "Suspend Account" : "アカウント一時停止"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAccountAction("delete")}
+                          onClick={handleAccountDeletionRequest}
                           className="text-xs font-semibold px-4 py-2 rounded-xl bg-rose-50/80 border border-rose-200/60 hover:bg-rose-100/80 text-rose-700 transition-all shadow-sm active:scale-95 select-none"
                         >
                           {formLanguage === "en" ? "Delete Account" : "アカウント削除 (退会)"}

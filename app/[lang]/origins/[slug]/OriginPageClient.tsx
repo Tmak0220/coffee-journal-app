@@ -191,9 +191,12 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         if (!isMounted) return
         setCurrentUserId(loginUid)
 
-        const followQuery = origin.owner_id
-          ? supabase.from("follows").select("id").eq("follower_id", loginUid).eq("following_id", origin.owner_id).maybeSingle()
-          : supabase.from("origin_follows").select("id").eq("user_id", loginUid).eq("origin_slug", slug).maybeSingle()
+        const followQuery = supabase
+          .from("origin_follows")
+          .select("id")
+          .eq("user_id", loginUid)
+          .eq("origin_slug", slug)
+          .maybeSingle()
         const [userData, followStatus] = await Promise.all([
           supabase.from("users").select("membership_tier").eq("id", loginUid).maybeSingle(),
           followQuery,
@@ -217,9 +220,12 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       if (!isMounted) return
       if (session?.user) {
         setCurrentUserId(session.user.id)
-        const followQuery = origin.owner_id
-          ? supabase.from("follows").select("id").eq("follower_id", session.user.id).eq("following_id", origin.owner_id).maybeSingle()
-          : supabase.from("origin_follows").select("id").eq("user_id", session.user.id).eq("origin_slug", slug).maybeSingle()
+        const followQuery = supabase
+          .from("origin_follows")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .eq("origin_slug", slug)
+          .maybeSingle()
         const [{ data: userData }, { data: followData }] = await Promise.all([
           supabase.from("users").select("membership_tier").eq("id", session.user.id).maybeSingle(),
           followQuery,
@@ -240,9 +246,10 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
 
   const fetchTimelineData = async () => {
     if (!slug) return
-    const followCountQuery = origin.owner_id
-      ? supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", origin.owner_id)
-      : supabase.from("origin_follows").select("*", { count: "exact", head: true }).eq("origin_slug", slug)
+    const followCountQuery = supabase
+      .from("origin_follows")
+      .select("*", { count: "exact", head: true })
+      .eq("origin_slug", slug)
     const [noticeRes, followCountRes] = await Promise.all([
       supabase
         .from("notifications")
@@ -307,19 +314,11 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     setFollowLoading(true)
 
     if (following) {
-      if (origin.owner_id) {
-        await supabase.from("follows").delete().eq("follower_id", currentUserId).eq("following_id", origin.owner_id)
-      } else {
-        await supabase.from("origin_follows").delete().eq("user_id", currentUserId).eq("origin_slug", slug)
-      }
+      await supabase.from("origin_follows").delete().eq("user_id", currentUserId).eq("origin_slug", slug)
       setFollowing(false)
       setFollowersCount((prev) => Math.max(0, prev - 1))
     } else {
-      if (origin.owner_id) {
-        await supabase.from("follows").insert({ follower_id: currentUserId, following_id: origin.owner_id })
-      } else {
-        await supabase.from("origin_follows").insert({ user_id: currentUserId, origin_slug: slug })
-      }
+      await supabase.from("origin_follows").insert({ user_id: currentUserId, origin_slug: slug })
       setFollowing(true)
       setFollowersCount((prev) => prev + 1)
     }

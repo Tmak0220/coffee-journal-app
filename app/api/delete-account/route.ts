@@ -223,6 +223,15 @@ export async function POST(request: Request) {
       .eq("id", userId)
     if (databaseError) throw databaseError
 
+    // Compatibility fallback for databases created before
+    // pro_recipes.user_id received its ON DELETE CASCADE foreign key.
+    // With the current constraint this is a harmless no-op.
+    const { error: legacyProRecipesError } = await service
+      .from("pro_recipes")
+      .delete()
+      .eq("user_id", userId)
+    if (legacyProRecipesError) throw legacyProRecipesError
+
     return NextResponse.json({
       success: true,
       deletedR2Objects: r2Keys.size,

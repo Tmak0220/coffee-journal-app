@@ -1,7 +1,7 @@
 import Stripe from "stripe"
 
 export type MembershipTier = "free" | "standard" | "pro" | "business"
-export type AccountRole = "user" | "barista" | "owner"
+export type AccountRole = "user" | "barista" | "owner" | "admin"
 export type MembershipPlanKey =
   | "user_monthly"
   | "user_yearly"
@@ -19,6 +19,18 @@ const priceEnvironmentKeys: Record<MembershipPlanKey, string> = {
   owner_yearly: "STRIPE_OWNER_YEARLY_PRICE_ID",
 }
 
+const expectedPrices: Record<
+  MembershipPlanKey,
+  { interval: "month" | "year"; currency: "jpy"; unitAmount: number }
+> = {
+  user_monthly: { interval: "month", currency: "jpy", unitAmount: 580 },
+  user_yearly: { interval: "year", currency: "jpy", unitAmount: 5_800 },
+  pro_monthly: { interval: "month", currency: "jpy", unitAmount: 1_580 },
+  pro_yearly: { interval: "year", currency: "jpy", unitAmount: 15_800 },
+  owner_monthly: { interval: "month", currency: "jpy", unitAmount: 2_580 },
+  owner_yearly: { interval: "year", currency: "jpy", unitAmount: 25_800 },
+}
+
 export function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured")
@@ -26,7 +38,7 @@ export function getStripeClient() {
 }
 
 export function isMembershipPlanKey(value: string): value is MembershipPlanKey {
-  return value in priceEnvironmentKeys
+  return Object.prototype.hasOwnProperty.call(priceEnvironmentKeys, value)
 }
 
 export function membershipPriceId(planKey: MembershipPlanKey) {
@@ -51,9 +63,15 @@ export async function validateMembershipPrice(
   if (!price.recurring) {
     throw new Error(`Stripe Price for ${planKey} is not recurring`)
   }
-  const expectedInterval = planKey.endsWith("_yearly") ? "year" : "month"
-  if (price.recurring.interval !== expectedInterval) {
+  const expected = expectedPrices[planKey]
+  if (price.recurring.interval !== expected.interval) {
     throw new Error(`Stripe billing interval mismatch for ${planKey}`)
+  }
+  if (
+    price.currency.toLowerCase() !== expected.currency ||
+    price.unit_amount !== expected.unitAmount
+  ) {
+    throw new Error(`Stripe currency or amount mismatch for ${planKey}`)
   }
 
   const secretIsLive = process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") === true
@@ -65,10 +83,13 @@ export async function validateMembershipPrice(
 }
 
 export function planAccess(planKey?: string | null): {
-  role: AccountRole
+  role: Exclude<AccountRole, "admin">
   membershipTier: Exclude<MembershipTier, "free">
 } {
-  const plan = planKey?.split("_")[0]
+  if (!planKey || !isMembershipPlanKey(planKey)) {
+    throw new Error(`Invalid membership plan key: ${planKey || "missing"}`)
+  }
+  const plan = planKey.split("_")[0]
   if (plan === "pro") return { role: "barista", membershipTier: "pro" }
   if (plan === "owner") return { role: "owner", membershipTier: "business" }
   return { role: "user", membershipTier: "standard" }

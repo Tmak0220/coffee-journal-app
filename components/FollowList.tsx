@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase"
 type Props = {
   userId: string
   type: "followers" | "following"
+  lang: "ja" | "en"
 }
 
 // 💡 新しいrole構成に対応
@@ -24,8 +25,17 @@ type UserData = {
 // タブの選択肢に admin も内包、あるいは適宜割り振り
 type RoleTabType = "all" | "barista" | "owner" | "admin" | "user"
 
-export default function FollowList({ userId, type }: Props) {
+type OriginData = {
+  id: number
+  slug: string
+  name: string
+  name_ja: string | null
+  type: string | null
+}
+
+export default function FollowList({ userId, type, lang }: Props) {
   const [list, setList] = useState<UserData[]>([])
+  const [origins, setOrigins] = useState<OriginData[]>([])
   const [loading, setLoading] = useState(true)
   const [activeRoleTab, setActiveRoleTab] = useState<RoleTabType>("all")
 
@@ -39,7 +49,8 @@ export default function FollowList({ userId, type }: Props) {
 
       // 💡 先ほど追加した view_type は、タイムライン等でOrigins/Expertsの特設ページ単位に絞り込む際に使います
       // ここでは、ユーザーのプロフィール画面における「つながり（フォロワー・フォロー中）の一覧」を全件取得します
-      const { data, error } = await supabase
+      const [{ data, error }, originFollowsResult] = await Promise.all([
+        supabase
         .from("follows")
         .select(`
           user_data:${targetColumn} (
@@ -50,10 +61,17 @@ export default function FollowList({ userId, type }: Props) {
             role
           )
         `)
-        .eq(filterColumn, userId)
+        .eq(filterColumn, userId),
+        !isFollowers
+          ? supabase
+              .from("origin_follows")
+              .select("origin_slug")
+              .eq("user_id", userId)
+          : Promise.resolve({ data: [], error: null }),
+      ])
 
-      if (error) {
-        console.error(error)
+      if (error || originFollowsResult.error) {
+        console.error(error || originFollowsResult.error)
         setLoading(false)
         return
       }
@@ -63,6 +81,17 @@ export default function FollowList({ userId, type }: Props) {
         .filter((user): user is UserData => !!user)
 
       setList(formattedData)
+      const originSlugs = (originFollowsResult.data || []).map((item: any) => item.origin_slug).filter(Boolean)
+      if (originSlugs.length > 0) {
+        const { data: originRows, error: originError } = await supabase
+          .from("origins")
+          .select("id, slug, name, name_ja, type")
+          .in("slug", originSlugs)
+        if (originError) console.error(originError)
+        setOrigins((originRows || []) as OriginData[])
+      } else {
+        setOrigins([])
+      }
       setLoading(false)
     }
 
@@ -103,7 +132,7 @@ export default function FollowList({ userId, type }: Props) {
     )
   }
 
-  if (list.length === 0) {
+  if (list.length === 0 && origins.length === 0) {
     return (
       <div className="p-12 text-center text-xs font-mono text-subtle border border-dashed border-border rounded-2xl max-w-2xl mx-auto mt-6">
         {type === "followers" ? "NO FOLLOWERS YET" : "NO FOLLOWING USERS YET"}
@@ -140,10 +169,33 @@ export default function FollowList({ userId, type }: Props) {
 
       {/* ユーザーリスト一覧 */}
       <div className="space-y-3">
+        {origins.map((origin) => (
+          <Link
+            key={`origin-${origin.id}`}
+            href={`/${lang}/origins/${origin.slug}`}
+            className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition hover:bg-neutral-50 active:scale-[0.995]"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-neutral-50 text-sm font-semibold">
+              {(lang === "ja" ? (origin.name_ja || origin.name) : origin.name).slice(0, 1)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-foreground">
+                {lang === "ja" ? (origin.name_ja || origin.name) : origin.name}
+              </p>
+              <p className="mt-0.5 text-xs text-subtle">
+                {lang === "en" ? "Origin / Brand / Event" : "産地・店舗・イベント"}
+              </p>
+            </div>
+            <span className="rounded border border-border px-2 py-1 text-[9px] font-medium uppercase tracking-wider text-subtle">
+              {origin.type || "origin"}
+            </span>
+          </Link>
+        ))}
+
         {filteredList.map((user, index) => (
           <Link
             key={`${user.id}-${index}`}
-            href={user.username ? `/user/@${user.username}` : "#"}
+            href={user.username ? `/${lang}/users/${user.username}` : "#"}
             className="flex items-center gap-4 border border-border rounded-2xl p-4 bg-surface hover:bg-neutral-50 transition active:scale-[0.995] group"
           >
             <div className="w-12 h-12 rounded-full relative overflow-hidden border border-border flex-shrink-0">

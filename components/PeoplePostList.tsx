@@ -19,7 +19,7 @@ type DisplayStatus = "pending" | "approved" | "hidden"
 
 type ServedLogItem = {
   recipeId: string
-  linkKind: "recipe" | "origin"
+  linkKind: "expert" | "origin"
   id: string
   title: string
   coffeeName: string | null
@@ -142,9 +142,9 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
           .select("id, post_id, display_status, is_pinned")
           .eq("origin_id", originId!)
       : supabase
-          .from("recipes")
-          .select("id, post_id, bean_name, expert_display_status, expert_is_pinned")
-          .eq("barista_user_id", userId)
+          .from("expert_post_links")
+          .select("id, post_id, display_status, is_pinned")
+          .eq("expert_user_id", userId)
 
     // posts の外部キーを正とし、古い投稿で origin_post_links が欠けていても
     // Source / Market / Event のいずれか一つだけの紐付けから表示できるようにする。
@@ -225,22 +225,22 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
     const formatted: ServedLogItem[] = []
     for (const item of linkedRows as any[]) {
       const rawPost = postMap.get(item.post_id) as any
-      const status = ((targetType === "origin" ? item.display_status : item.expert_display_status) || "approved") as DisplayStatus
+      const status = (item.display_status || "approved") as DisplayStatus
       if (!editable && status !== "approved") continue
       if (!rawPost || seenIds.has(rawPost.id)) continue
       seenIds.add(rawPost.id)
       const author = authorMap.get(rawPost.user_id) as any
       formatted.push({
         recipeId: item.id,
-        linkKind: targetType === "origin" ? "origin" : "recipe",
+        linkKind: targetType === "origin" ? "origin" : "expert",
         id: rawPost.id,
         title: rawPost.title || (isEn ? "Untitled" : "無題"),
-        coffeeName: item.bean_name,
+        coffeeName: item.bean_name ?? null,
         imageUrl: Array.isArray(rawPost.image_urls) ? rawPost.image_urls[0] || null : null,
         authorId: rawPost.user_id,
         createdAt: rawPost.created_at,
         status,
-        pinned: Boolean(targetType === "origin" ? item.is_pinned : item.expert_is_pinned),
+        pinned: Boolean(item.is_pinned),
         user: author ? {
           display_name: author.display_name,
           username: author.username,
@@ -287,7 +287,7 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
         : { display_status: action === "approve" || action === "show" ? "approved" : "hidden", updated_at: new Date().toISOString() }
     const { error } = item.linkKind === "origin"
       ? await supabase.from("origin_post_links").update(nextValues).eq("id", recipeId).eq("origin_id", originId!)
-      : await supabase.rpc("moderate_expert_linked_recipe", { p_recipe_id: recipeId, p_action: action })
+      : await supabase.from("expert_post_links").update(nextValues).eq("id", recipeId).eq("expert_user_id", userId)
     if (error) console.error("Failed to moderate linked post:", error)
     else await fetchServedLogs()
     setUpdatingId(null)

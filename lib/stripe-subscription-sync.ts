@@ -1,6 +1,7 @@
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 import {
+  isMembershipPlanKey,
   planAccess,
   planKeyFromPriceId,
   subscriptionGrantsAccess,
@@ -55,17 +56,61 @@ export async function syncStripeSubscription(
     ? subscription.customer
     : subscription.customer.id
   const priceId = subscription.items.data[0]?.price.id || null
-  const planKey = subscription.metadata.plan_key || planKeyFromPriceId(priceId)
+  const pricePlanKey = planKeyFromPriceId(priceId)
+  const metadataPlanKey = subscription.metadata.plan_key
+  if (metadataPlanKey && !isMembershipPlanKey(metadataPlanKey)) {
+    throw new Error(`Invalid plan_key in Stripe metadata: ${metadataPlanKey}`)
+  }
+  if (metadataPlanKey && pricePlanKey && metadataPlanKey !== pricePlanKey) {
+    throw new Error(
+      `Stripe plan metadata (${metadataPlanKey}) does not match price (${pricePlanKey})`
+    )
+  }
+  const planKey = metadataPlanKey || pricePlanKey
   if (!planKey) throw new Error(`No plan_key found for Stripe price ${priceId || "unknown"}`)
 
   const grantsAccess = subscriptionGrantsAccess(subscription.status)
   const access = planAccess(planKey)
   const periodEnd = subscriptionPeriodEnd(subscription)
 
+  const { data: currentUser, error: currentUserError } = await supabase
+    .from("users")
+    .select("id, role, stripe_subscription_id, stripe_subscription_status")
+    .eq("id", userId)
+    .maybeSingle()
+  if (currentUserError) throw currentUserError
+  if (!currentUser) throw new Error(`Application user ${userId} was not found`)
+
+  // A delayed cancellation for an older subscription must not revoke access
+  // granted by a newer active subscription.
+  if (
+    !grantsAccess &&
+    currentUser.stripe_subscription_id &&
+    currentUser.stripe_subscription_id !== subscription.id &&
+    ["active", "trialing", "past_due"].includes(
+      currentUser.stripe_subscription_status || ""
+    )
+  ) {
+    return {
+      userId,
+      membershipTier: null,
+      status: subscription.status,
+      ignoredAsStale: true,
+    }
+  }
+
+  // Billing changes must never remove the administrator role. Admin accounts
+  // may still hold a paid membership tier for feature access.
+  const nextRole = currentUser.role === "admin"
+    ? "admin"
+    : grantsAccess
+      ? access.role
+      : "user"
+
   const { data: updatedUser, error } = await supabase
     .from("users")
     .update({
-      role: grantsAccess ? access.role : "user",
+      role: nextRole,
       membership_tier: grantsAccess ? access.membershipTier : "free",
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,

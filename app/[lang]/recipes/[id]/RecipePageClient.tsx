@@ -124,9 +124,7 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
   const [isTierMember, setIsTierMember] = useState(false)
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
-  const [following, setFollowing] = useState(false)
   const [likeLoading, setLikeLoading] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
@@ -268,11 +266,6 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
           const { data: likedData } = await supabase.from("likes").select("id").eq("post_id", targetPostId).eq("user_id", user.id).maybeSingle()
           setLiked(!!likedData)
 
-          if (currentRecipe.users?.id) {
-            const { data: followData } = await supabase.from("follows").select("id").eq("follower_id", user.id).eq("following_id", currentRecipe.users.id).maybeSingle()
-            setFollowing(!!followData)
-          }
-
           const { data: bookmarkData } = await supabase.from("bookmarks").select("id").eq("post_id", targetPostId).eq("user_id", user.id).maybeSingle()
           setBookmarked(!!bookmarkData)
         }
@@ -312,26 +305,6 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
       console.error("Like error:", err)
     } finally {
       setLikeLoading(false)
-    }
-  }
-
-  const handleFollow = async () => {
-    setStatusMessage(null)
-    if (!requirePlus() || !currentUserId || !recipe?.users?.id || followLoading) return
-    
-    setFollowLoading(true)
-    try {
-      if (following) {
-        await supabase.from("follows").delete().eq("follower_id", currentUserId).eq("following_id", recipe.users.id)
-        setFollowing(false)
-      } else {
-        await supabase.from("follows").insert({ follower_id: currentUserId, following_id: recipe.users.id })
-        setFollowing(true)
-      }
-    } catch (err) {
-      console.error("Follow error:", err)
-    } finally {
-      setFollowLoading(false)
     }
   }
 
@@ -401,19 +374,6 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
           </div>
         </div>
 
-        {!isOwnPost && (
-          <button 
-            onClick={handleFollow} 
-            disabled={followLoading}
-            className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-semibold tracking-wide transition-all duration-200 sm:px-5 ${
-              following 
-                ? "bg-neutral-100 text-neutral-500 border-neutral-200/80" 
-                : "bg-white text-neutral-900 border-neutral-900 hover:bg-neutral-50"
-            }`}
-          >
-            {following ? t.btnFollowing : t.btnFollow}
-          </button>
-        )}
       </div>
 
       {/* レシピメインコンテンツ */}

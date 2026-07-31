@@ -94,11 +94,9 @@ export default function BlogPageClient({
   const [isTierMember, setIsTierMember] = useState(false)
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
-  const [following, setFollowing] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
   
   const [likeLoading, setLikeLoading] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
   const [author, setAuthor] = useState<BlogAuthor | null>(null)
@@ -149,14 +147,6 @@ export default function BlogPageClient({
             .maybeSingle()
           setLiked(!!likedData)
 
-          const { data: followData } = await supabase
-            .from("follows")
-            .select("id")
-            .eq("follower_id", currentUserId)
-            .eq("following_id", blog.user_id)
-            .maybeSingle()
-          setFollowing(!!followData)
-
           const { data: bookmarkData } = await supabase
             .from("blog_bookmarks")
             .select("id")
@@ -205,25 +195,6 @@ export default function BlogPageClient({
       console.error(err)
     } finally {
       setLikeLoading(false)
-    }
-  }
-
-  const handleFollow = async () => {
-    setStatusMessage(null)
-    if (!requirePlus() || !currentUserId || !article?.user_id || followLoading) return
-    setFollowLoading(true)
-    try {
-      if (following) {
-        await supabase.from("follows").delete().eq("follower_id", currentUserId).eq("following_id", article.user_id)
-        setFollowing(false)
-      } else {
-        await supabase.from("follows").insert({ follower_id: currentUserId, following_id: article.user_id })
-        setFollowing(true)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setFollowLoading(false)
     }
   }
 
@@ -287,15 +258,6 @@ export default function BlogPageClient({
                 {article.visibility === "private" && <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[10px] font-semibold text-neutral-600">{t.privateBadge}</span>}
                 {article.visibility === "members" && <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold text-sky-700">{t.membersOnlyBadge}</span>}
               </div>
-              {!isOwnPost && (
-                <button
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                  className={`shrink-0 rounded-xl border px-4 py-2.5 text-xs font-semibold tracking-wide transition-all sm:px-5 ${following ? "border-neutral-200 bg-neutral-100 text-neutral-500" : "border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-50"}`}
-                >
-                  {following ? t.btnFollowing : t.btnFollow}
-                </button>
-              )}
             </div>
 
             {author && (

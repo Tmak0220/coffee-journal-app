@@ -197,11 +197,17 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
         .eq("following_id", targetUserId)
       setFollowersCount(followers || 0)
 
-      const { count: followingTotal } = await supabase
-        .from("follows")
-        .select("*", { count: "exact", head: true })
-        .eq("follower_id", targetUserId)
-      setFollowingCount(followingTotal || 0)
+      const [{ count: followingUsers }, { count: followingOrigins }] = await Promise.all([
+        supabase
+          .from("follows")
+          .select("*", { count: "exact", head: true })
+          .eq("follower_id", targetUserId),
+        supabase
+          .from("origin_follows")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", targetUserId),
+      ])
+      setFollowingCount((followingUsers || 0) + (followingOrigins || 0))
 
       if (loggedInUserId) {
         const { data: followData } = await supabase
@@ -737,7 +743,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
 
         {(activeTab === "followers" || activeTab === "following") && (
           <div className="w-full text-left">
-            <FollowList userId={profile.id} type={activeTab} />
+            <FollowList userId={profile.id} type={activeTab} lang={lang} />
           </div>
         )}
       </section>

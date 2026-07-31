@@ -107,9 +107,9 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
       .single(),
     supabaseAdmin
       .from("recipes")
-      .select("shop_origin_id")
+      .select("shop_origin_id, barista_user_id")
       .eq("post_id", postId)
-      .not("shop_origin_id", "is", null),
+      .or("shop_origin_id.not.is.null,barista_user_id.not.is.null"),
   ])
   if (postError) throw postError
   if (recipeError) throw recipeError
@@ -176,6 +176,51 @@ async function syncOriginPostLinks(supabaseAdmin: any, postId: string) {
       .eq("post_id", postId)
       .in("origin_id", staleIds)
     if (deleteError) throw deleteError
+  }
+
+  const expertUserIds = Array.from(new Set<string>(
+    (recipeRows || [])
+      .map((recipe: any) => recipe.barista_user_id)
+      .filter((id: unknown): id is string => typeof id === "string" && uuidPattern.test(id))
+  ))
+  const { data: existingExpertLinks, error: existingExpertError } = await supabaseAdmin
+    .from("expert_post_links")
+    .select("expert_user_id")
+    .eq("post_id", postId)
+  if (existingExpertError) throw existingExpertError
+
+  const existingExpertIds = new Set<string>(
+    (existingExpertLinks || []).map((link: any) => link.expert_user_id)
+  )
+  const missingExpertIds = expertUserIds.filter((id) => !existingExpertIds.has(id))
+  if (missingExpertIds.length > 0) {
+    const { data: experts, error: expertError } = await supabaseAdmin
+      .from("experts")
+      .select("user_id, linked_posts_mode")
+      .in("user_id", missingExpertIds)
+    if (expertError) throw expertError
+
+    const { error: insertExpertError } = await supabaseAdmin
+      .from("expert_post_links")
+      .insert((experts || []).map((expert: any) => ({
+        expert_user_id: expert.user_id,
+        post_id: postId,
+        display_status:
+          expert.user_id !== post.user_id && expert.linked_posts_mode === "review"
+            ? "pending"
+            : "approved",
+      })))
+    if (insertExpertError) throw insertExpertError
+  }
+
+  const staleExpertIds = Array.from(existingExpertIds).filter((id) => !expertUserIds.includes(id))
+  if (staleExpertIds.length > 0) {
+    const { error: deleteExpertError } = await supabaseAdmin
+      .from("expert_post_links")
+      .delete()
+      .eq("post_id", postId)
+      .in("expert_user_id", staleExpertIds)
+    if (deleteExpertError) throw deleteExpertError
   }
 }
 

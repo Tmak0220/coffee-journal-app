@@ -56,6 +56,19 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
       ? new URL(configuredOrigin).origin
       : new URL(origin).origin
 
+    let reusableCustomerId: string | null = null
+    if (profile.stripe_customer_id) {
+      try {
+        const customer = await stripe.customers.retrieve(profile.stripe_customer_id)
+        if (!customer.deleted) reusableCustomerId = customer.id
+      } catch (error) {
+        // A stale Customer ID (for example after changing Stripe mode/account)
+        // must not prevent a new checkout. Other Checkout validation still
+        // happens against the currently configured secret key and Price.
+        console.warn("Stored Stripe customer could not be reused:", error)
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [
@@ -67,8 +80,8 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
       success_url: `${returnOrigin}/${lang}/members/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${returnOrigin}/${lang}/members`,
       client_reference_id: user.id,
-      ...(profile.stripe_customer_id
-        ? { customer: profile.stripe_customer_id }
+      ...(reusableCustomerId
+        ? { customer: reusableCustomerId }
         : { customer_email: user.email || profile.email || undefined }),
       metadata: {
         user_id: user.id,

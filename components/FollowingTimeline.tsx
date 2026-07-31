@@ -30,6 +30,7 @@ type TimelineItem = {
   createdAt: string
   href: string
   author: Author | null
+  sourceLabel?: string | null
 }
 
 const paidTiers = new Set(["standard", "pro", "business"])
@@ -64,13 +65,14 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
     const fetchTimeline = async () => {
       setLoading(true)
 
-      const [{ data: followData, error: followError }, { data: viewer }] = await Promise.all([
+      const [{ data: followData, error: followError }, { data: originFollowData, error: originFollowError }, { data: viewer }] = await Promise.all([
         supabase.from("follows").select("following_id").eq("follower_id", currentUserId),
+        supabase.from("origin_follows").select("origin_slug").eq("user_id", currentUserId),
         supabase.from("users").select("membership_tier").eq("id", currentUserId).maybeSingle(),
       ])
 
-      if (followError) {
-        console.error("Failed to load follows:", followError)
+      if (followError || originFollowError) {
+        console.error("Failed to load follows:", followError || originFollowError)
         if (!cancelled) {
           setItems([])
           setLoading(false)
@@ -79,7 +81,8 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
       }
 
       const followingIds = Array.from(new Set((followData || []).map((row) => row.following_id).filter(Boolean))) as string[]
-      if (followingIds.length === 0) {
+      const followedOriginSlugs = Array.from(new Set((originFollowData || []).map((row) => row.origin_slug).filter(Boolean))) as string[]
+      if (followingIds.length === 0 && followedOriginSlugs.length === 0) {
         if (!cancelled) {
           setItems([])
           setLoading(false)
@@ -88,29 +91,75 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
       }
 
       const canViewMembers = paidTiers.has(viewer?.membership_tier || "")
-      const [authorsResult, postsResult, blogsResult, recipesResult] = await Promise.all([
-        supabase.from("users").select("id, username, display_name, avatar_url").in("id", followingIds),
-        supabase
+      const { data: followedOrigins, error: followedOriginsError } = followedOriginSlugs.length > 0
+        ? await supabase.from("origins").select("id, slug, name, name_ja, user_id").in("slug", followedOriginSlugs)
+        : { data: [], error: null }
+      const followedOriginIds = (followedOrigins || []).map((origin) => origin.id)
+      const followedOriginOwnerIds = (followedOrigins || []).map((origin) => origin.user_id).filter(Boolean) as string[]
+      const originLabelById = new Map(
+        (followedOrigins || []).map((origin) => [origin.id, isEn ? origin.name : (origin.name_ja || origin.name)]),
+      )
+
+      const { data: originLinks, error: originLinksError } = followedOriginIds.length > 0
+        ? await supabase
+            .from("origin_post_links")
+            .select("origin_id, post_id, display_status")
+            .in("origin_id", followedOriginIds)
+            .eq("display_status", "approved")
+        : { data: [], error: null }
+      const originIdByPostId = new Map<string, number>()
+      for (const link of originLinks || []) {
+        if (!originIdByPostId.has(link.post_id)) originIdByPostId.set(link.post_id, link.origin_id)
+      }
+      const linkedPostIds = Array.from(originIdByPostId.keys())
+      const allAuthorIds = Array.from(new Set([...followingIds, ...followedOriginOwnerIds]))
+
+      const authorsQuery = allAuthorIds.length > 0
+        ? supabase.from("users").select("id, username, display_name, avatar_url").in("id", allAuthorIds)
+        : Promise.resolve({ data: [], error: null })
+      const followedPostsQuery = followingIds.length > 0
+        ? supabase
           .from("posts")
           .select("id, user_id, title, description, tastes, image_urls, created_at, visibility, type, event_origin_id, lang")
           .in("user_id", followingIds)
           .eq("lang", lang)
-          .order("created_at", { ascending: false }),
-        supabase
+          .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null })
+      const originPostsQuery = linkedPostIds.length > 0
+        ? supabase
+            .from("posts")
+            .select("id, user_id, title, description, tastes, image_urls, created_at, visibility, type, event_origin_id, lang")
+            .in("id", linkedPostIds)
+            .eq("lang", lang)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null })
+      const blogAuthorIds = Array.from(new Set([...followingIds, ...followedOriginOwnerIds]))
+      const blogsQuery = blogAuthorIds.length > 0
+        ? supabase
           .from("blogs")
-          .select("id, user_id, title, content, image_urls, created_at, visibility, lang")
-          .in("user_id", followingIds)
+          .select("id, user_id, title, content, image_urls, created_at, visibility, lang, publish_target")
+          .in("user_id", blogAuthorIds)
           .eq("lang", lang)
-          .order("created_at", { ascending: false }),
-        supabase
+          .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null })
+      const recipesQuery = blogAuthorIds.length > 0
+        ? supabase
           .from("pro_recipes")
-          .select("id, user_id, recipe_title, bean_name, image_urls, created_at, visibility, lang")
-          .in("user_id", followingIds)
+          .select("id, user_id, recipe_title, bean_name, image_urls, created_at, visibility, lang, target_category")
+          .in("user_id", blogAuthorIds)
           .eq("lang", lang)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null })
+
+      const [authorsResult, postsResult, originPostsResult, blogsResult, recipesResult] = await Promise.all([
+        authorsQuery,
+        followedPostsQuery,
+        originPostsQuery,
+        blogsQuery,
+        recipesQuery,
       ])
 
-      const queryError = postsResult.error || blogsResult.error || recipesResult.error || authorsResult.error
+      const queryError = followedOriginsError || originLinksError || postsResult.error || originPostsResult.error || blogsResult.error || recipesResult.error || authorsResult.error
       if (queryError) {
         console.error("Failed to load following timeline:", queryError)
       }
@@ -121,7 +170,9 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
       const isVisible = (visibility: string | null | undefined) =>
         visibility === "public" || (visibility === "members" && canViewMembers)
 
-      const postItems: TimelineItem[] = (postsResult.data || [])
+      const mergedPosts = new Map<string, any>()
+      for (const post of [...(postsResult.data || []), ...(originPostsResult.data || [])]) mergedPosts.set(post.id, post)
+      const postItems: TimelineItem[] = Array.from(mergedPosts.values())
         .filter((post) => isVisible(post.visibility))
         .map((post) => {
           const type = postType(post)
@@ -135,11 +186,17 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
             createdAt: post.created_at || "",
             href: `/${lang}/posts/${post.id}`,
             author: authors.get(post.user_id) || null,
+            sourceLabel: originIdByPostId.has(post.id)
+              ? originLabelById.get(originIdByPostId.get(post.id)!) || null
+              : null,
           }
         })
 
       const blogItems: TimelineItem[] = (blogsResult.data || [])
-        .filter((blog) => isVisible(blog.visibility))
+        .filter((blog) => isVisible(blog.visibility) && (
+          followingIds.includes(blog.user_id)
+          || (followedOriginOwnerIds.includes(blog.user_id) && ["origins", "both"].includes(blog.publish_target || ""))
+        ))
         .map((blog) => ({
           key: `blog-${blog.id}`,
           id: blog.id,
@@ -153,7 +210,10 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
         }))
 
       const recipeItems: TimelineItem[] = (recipesResult.data || [])
-        .filter((recipe) => isVisible(recipe.visibility))
+        .filter((recipe) => isVisible(recipe.visibility) && (
+          followingIds.includes(recipe.user_id)
+          || (followedOriginOwnerIds.includes(recipe.user_id) && ["origins", "both"].includes(recipe.target_category || ""))
+        ))
         .map((recipe) => ({
           key: `verification-${recipe.id}`,
           id: recipe.id,
@@ -258,6 +318,11 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
                   {item.author && (
                     <p className="mt-1 truncate text-[11px] text-subtle">
                       {item.author.display_name || (item.author.username ? `@${item.author.username}` : (isEn ? "Private account" : "非公開アカウント"))}
+                    </p>
+                  )}
+                  {item.sourceLabel && (
+                    <p className="mt-1 truncate text-[10px] text-subtle">
+                      {isEn ? `From ${item.sourceLabel}` : `${item.sourceLabel}に関連する投稿`}
                     </p>
                   )}
                   <time className="mt-1 block text-[10px] text-subtle">
