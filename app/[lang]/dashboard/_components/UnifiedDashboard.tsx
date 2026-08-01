@@ -43,7 +43,6 @@ type UserProfile = {
   categories?: string[] | null
 }
 
-type DashboardTab = "personal" | "pro_profile" | "shop_manage" | "curator" | "r2_viewer"
 type DashboardView =
   | "home"
   | "create"
@@ -62,7 +61,6 @@ type Props = {
   logs: any[]
   enabledTools: ToolType[]                
   onToggleTool: (tool: ToolType) => void 
-  initialTab: DashboardTab
   t: any
   lang: "ja" | "en"
 }
@@ -482,12 +480,11 @@ export default function UnifiedDashboard({
   logs,
   enabledTools, 
   onToggleTool, 
-  initialTab,
   t,
   lang
 }: Props) {
   const { showPopup, confirmPopup } = useAppPopup()
-  const [activeView, setActiveView] = useState<DashboardView>(() => initialTab === "curator" ? "admin" : "home")
+  const [activeView, setActiveView] = useState<DashboardView>("home")
   const [formLanguage, setFormLanguage] = useState<"ja" | "en">(lang)
   const [expertData, setExpertData] = useState<any>(null)
   const [ownerData, setOwnerData] = useState<any>(null)

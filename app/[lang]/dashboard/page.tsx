@@ -20,8 +20,6 @@ type UserProfile = {
   enabled_tools: ToolType[]
 }
 
-type DashboardTab = "personal" | "pro_profile" | "shop_manage" | "curator" | "r2_viewer"
-
 type Props = {
   params: Promise<{ lang: "ja" | "en" }>
 }
@@ -52,7 +50,6 @@ export default function DashboardPage({ params }: Props) {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [initialTab, setInitialTab] = useState<DashboardTab>("personal")
   const [loading, setLoading] = useState(true)
   const [enabledTools, setEnabledTools] = useState<ToolType[]>([])
   const [logs, setLogs] = useState<any[]>([])
@@ -85,23 +82,6 @@ export default function DashboardPage({ params }: Props) {
       if (profData) {
         setProfile(profData)
         setEnabledTools(profData.enabled_tools || ["recipe", "profile", "cupping"])
-        
-        switch (profData.role) {
-          case "admin":
-            setInitialTab("curator")
-            break
-          case "owner":
-            setInitialTab("shop_manage")
-            break
-          case "barista":
-            setInitialTab("pro_profile")
-            break
-          case "user":
-          default:
-            setInitialTab("personal")
-            break
-        }
-
       } else {
         router.replace(`${currentPrefix}/login`)
         return
@@ -183,7 +163,6 @@ export default function DashboardPage({ params }: Props) {
       logs={logs}
       enabledTools={enabledTools}
       onToggleTool={handleToggleTool}
-      initialTab={initialTab} 
       t={t}
       lang={lang}
     />
