@@ -102,7 +102,7 @@ export default function EditContentPageClient({
         type: "success",
       })
       window.setTimeout(() => {
-        router.push(`/${currentLang}/dashboard`)
+        router.replace(`/${currentLang}/dashboard`)
       }, 1000)
     } catch (error) {
       setStatusMessage({

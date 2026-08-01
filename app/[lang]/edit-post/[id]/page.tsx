@@ -674,7 +674,7 @@ export default function EditPostPage({ params }: Props) {
       setStatusMessage({ text: "投稿と画像を削除しました", type: "success" })
       
       setTimeout(() => {
-        router.push(`/${currentLang}/dashboard`)
+        router.replace(`/${currentLang}/dashboard`)
       }, 1000)
     } catch (err: any) {
       console.error(err)
