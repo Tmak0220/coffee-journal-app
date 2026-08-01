@@ -12,6 +12,7 @@ import ProfileGearReviews from "@/components/ProfileGearReviews"
 import { ProfileSkeleton } from "@/components/ui/PageSkeletons"
 import ProfileTimeline from "@/components/ProfileTimeline"
 import ProfileBlogList from "@/components/ProfileBlogList"
+import { canUseUserFeatures } from "@/lib/permissions"
 
 type BaristaProfile = {
   id: string
@@ -106,7 +107,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           .eq("id", loginUid)
           .maybeSingle()
         setCurrentUserTier(viewerData?.membership_tier || "free")
-        viewerIsPremium = !!viewerData?.membership_tier && viewerData.membership_tier !== "free"
+        viewerIsPremium = true
       } else {
         setCurrentUserTier(null)
       }
@@ -241,12 +242,8 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   }, [username, isEn])
 
   const handleFollow = async () => {
-    if (!currentUserId) {
+    if (!canUseUserFeatures(currentUserId)) {
       openAuthModal()
-      return
-    }
-    if (!currentUserTier || currentUserTier === "free") {
-      router.push(`/${isEn ? "en" : "ja"}/members`)
       return
     }
     if (!profile || currentUserId === profile.id || followLoading) return

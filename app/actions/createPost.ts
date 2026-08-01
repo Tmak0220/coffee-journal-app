@@ -13,24 +13,19 @@ const r2 = new S3Client({
   },
 })
 
-// 一時ストレージ(/tmp/)から永久ストレージ(/uploads/)へ画像を移動する関数
 export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<string> {
   if (!tmpUrl || !tmpUrl.includes("/tmp/")) return tmpUrl
 
   try {
     const urlObj = new URL(tmpUrl)
-    // 先頭の '/' を除去した S3/R2 キー（例: tmp/user_id/filename.jpg）
     const srcKey = decodeURIComponent(urlObj.pathname.slice(1)) 
-    
+
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, "0") 
 
-    // tmp/ を uploads/userId/YYYY/MM/ に置換
-    // 例: tmp/user_id/file.jpg -> uploads/user_id/2026/07/file.jpg
     const destKey = srcKey.replace(/^tmp\/([^/]+)\/(.+)$/, `uploads/$1/${year}/${month}/$2`)
 
-    // R2 内でのコピー実行
     await r2.send(
       new CopyObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -39,7 +34,6 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
       })
     )
 
-    // コピー完了後に一時ファイルを削除
     await r2.send(
       new DeleteObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -47,7 +41,6 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
       })
     )
 
-    // 設定済みの R2 公開ドメインを取得
     const baseUrl = (
       process.env.R2_PUBLIC_URL ||
       process.env.NEXT_PUBLIC_R2_PUBLIC_URL
@@ -64,7 +57,6 @@ export async function serverMoveToPermanentStorage(tmpUrl: string): Promise<stri
   }
 }
 
-// UUIDチェック用の正規表現
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function normalizeOriginId(value: unknown): number | null {
@@ -247,9 +239,6 @@ export async function syncPostOriginLinksForOwner(postId: string) {
   return { success: true }
 }
 
-// ==========================================
-// 1. 新規投稿作成処理 (INSERT)
-// ==========================================
 export async function createPost(input: any, userId: string) {
   try {
     if (!input.title?.trim()) throw new Error("タイトルは必須です")
@@ -433,9 +422,6 @@ export async function createPost(input: any, userId: string) {
   }
 }
 
-// ==========================================
-// 2. 編集更新処理 (UPDATE)
-// ==========================================
 export async function updatePost(postId: string, input: any, userId: string) {
   try {
     console.log("=== UPDATE_POST START ===");
@@ -561,9 +547,6 @@ export async function updatePost(postId: string, input: any, userId: string) {
   }
 }
 
-// ==========================================
-// 3. アバター画像アップロード処理
-// ==========================================
 export async function serverUploadAvatar(formData: FormData, userId: string): Promise<string> {
   const file = formData.get("file") as File
   if (!file) throw new Error("No file provided")

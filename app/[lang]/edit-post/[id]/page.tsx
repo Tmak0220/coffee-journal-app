@@ -187,18 +187,6 @@ export default function EditPostPage({ params }: Props) {
       const userIsAdmin = user.email === adminEmail
       setIsAdmin(userIsAdmin)
 
-      const { data: memberData } = await supabase
-        .from("users")
-        .select("membership_tier")
-        .eq("id", user.id)
-        .single()
-
-      if (!memberData || memberData.membership_tier === "free") {
-        setIsAuthorized(false)
-        setIsAuthChecked(true)
-        return
-      }
-
       const { data: postData, error: postError } = await supabase
         .from("posts")
         .select(`
@@ -714,18 +702,18 @@ export default function EditPostPage({ params }: Props) {
     return (
       <main className="mx-auto flex min-h-[65vh] max-w-6xl items-center justify-center px-6 py-12 sm:px-10 md:px-14 lg:px-16">
         <section className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white/70 p-7 text-left shadow-sm backdrop-blur-sm sm:p-10">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">MEMBERSHIP</p>
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-400">SIGN IN REQUIRED</p>
           <h1 className="mt-4 text-2xl font-light tracking-[0.04em] text-neutral-900 sm:text-3xl">
-            {currentLang === "en" ? "Editing is available to members" : "投稿の編集は会員限定です"}
+            {currentLang === "en" ? "This post cannot be edited" : "この投稿は編集できません"}
           </h1>
           <p className="mt-5 text-sm leading-7 text-neutral-500">
             {currentLang === "en" 
-              ? "To edit, manage, or delete posts, you must be logged in as the MEMBER who owns this post."
-              : "投稿を編集・管理・削除するには、その投稿を所有する会員アカウントでログインしてください。"}
+              ? "To edit, manage, or delete this post, sign in with the account that owns it."
+              : "投稿を編集・管理・削除するには、その投稿を所有するアカウントでログインしてください。"}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href={`/${currentLang}/members`} className="flex-1 rounded-xl border border-neutral-900 bg-neutral-900 px-5 py-3 text-center text-xs font-semibold tracking-wide text-white transition hover:bg-neutral-700">
-              {currentLang === "en" ? "VIEW MEMBERSHIP" : "プランを見る"}
+            <Link href={`/${currentLang}/login`} className="flex-1 rounded-xl border border-neutral-900 bg-neutral-900 px-5 py-3 text-center text-xs font-semibold tracking-wide text-white transition hover:bg-neutral-700">
+              {currentLang === "en" ? "SIGN IN" : "サインイン"}
             </Link>
             <Link href={`/${currentLang}`} className="flex-1 rounded-xl border border-neutral-200 bg-white px-5 py-3 text-center text-xs font-semibold tracking-wide text-neutral-700 transition hover:bg-neutral-50">
               {currentLang === "en" ? "BACK TO HOME" : "トップページへ戻る"}

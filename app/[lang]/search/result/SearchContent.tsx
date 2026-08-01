@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { getVisibleContentStatuses } from "@/lib/permissions"
 import { GridSkeleton } from "@/components/ui/PageSkeletons"
 
 type ProfileResult = {
@@ -27,8 +28,6 @@ type ContentResult = {
   href: string
   createdAt: string
 }
-
-const paidTiers = new Set(["standard", "pro", "business"])
 
 function firstImage(value: unknown): string | null {
   if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null
@@ -107,12 +106,7 @@ export default function SearchContent() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const viewerId = session?.user?.id
-        const { data: viewer } = viewerId
-          ? await supabase.from("users").select("membership_tier").eq("id", viewerId).maybeSingle()
-          : { data: null }
-        const visibleStatuses = paidTiers.has(viewer?.membership_tier || "")
-          ? ["public", "members"]
-          : ["public"]
+        const visibleStatuses = getVisibleContentStatuses({ viewerId })
 
         const relationParams = new URLSearchParams()
         if (varietyIds.length) relationParams.set("variety_id", varietyIds.join(","))

@@ -94,10 +94,10 @@ const dict = {
     conclusion: "3. 考察と結論",
     draft: "下書き",
     private: "非公開",
-    members: "会員限定",
+    members: "ログインユーザー限定",
     save: "保存する",
     saved: "保存済み",
-    membershipRequired: "保存機能の利用には会員登録が必要です。",
+    membershipRequired: "保存するにはサインインしてください。",
     patterns: "検証パターン",
     bestPattern: "ベストパターン",
   },
@@ -127,10 +127,10 @@ const dict = {
     conclusion: "3. Findings & Conclusion",
     draft: "Draft",
     private: "Private",
-    members: "Members Only",
+    members: "Signed-in Users Only",
     save: "SAVE",
     saved: "SAVED",
-    membershipRequired: "Membership is required to save this article.",
+    membershipRequired: "Sign in to save this article.",
     patterns: "Verification Patterns",
     bestPattern: "Best Pattern",
   },
@@ -375,7 +375,7 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
             <button type="button" onClick={handleBookmark} disabled={bookmarkLoading} className={`w-full rounded-2xl border px-6 py-4 text-xs font-semibold tracking-[0.12em] transition disabled:opacity-50 ${bookmarked ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400"}`}>
               {bookmarked ? t.saved : t.save}
             </button>
-            {statusMessage && <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"><span>{statusMessage}</span><Link href={`/${lang}/members`} className="shrink-0 font-semibold underline underline-offset-2">MEMBERSHIP</Link></div>}
+            {statusMessage && <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"><span>{statusMessage}</span><Link href={`/${lang}/login`} className="shrink-0 font-semibold underline underline-offset-2">SIGN IN</Link></div>}
           </section>
 
           <p className="border-t border-neutral-100 pt-6 text-[10px] tracking-wide text-neutral-400">{new Date(recipe.created_at).toLocaleDateString(lang === "ja" ? "ja-JP" : "en-US", { year: "numeric", month: "long", day: "numeric" })}</p>

@@ -51,6 +51,46 @@ const r2KeyFromUrl = (value: string): string | null => {
   }
 }
 
+const imageUrlsFromValue = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+  }
+  if (typeof value !== "string" || !value.trim()) return []
+
+  const trimmed = value.trim()
+  try {
+    const parsed: unknown = JSON.parse(trimmed)
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    }
+    if (typeof parsed === "string" && parsed.trim()) return [parsed.trim()]
+  } catch {
+    // Older rows may contain one URL as plain text rather than JSON.
+  }
+  return /^https?:\/\//i.test(trimmed) ? [trimmed] : []
+}
+
+async function deleteR2Images(imageUrls: string[]) {
+  const bucket = process.env.R2_BUCKET_NAME
+  if (!bucket) throw new Error("R2_BUCKET_NAME is not configured")
+
+  const keys = Array.from(new Set(
+    imageUrls
+      .map(r2KeyFromUrl)
+      .filter((key): key is string => Boolean(key)),
+  ))
+
+  if (imageUrls.length > 0 && keys.length !== new Set(imageUrls).size) {
+    throw new Error("One or more image URLs do not match the configured R2 public URL")
+  }
+
+  await Promise.all(keys.map((key) =>
+    r2.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })),
+  ))
+
+  return keys.length
+}
+
 async function deleteRows(table: string, column: string, id: string) {
   const { error } = await admin.from(table).delete().eq(column, id)
   if (error) throw error
@@ -83,6 +123,11 @@ export async function POST(request: NextRequest) {
     if (type === "event" && record.type !== "event") return NextResponse.json({ error: "Content type mismatch" }, { status: 400 })
     if (type === "gear" && record.type !== "gear_review") return NextResponse.json({ error: "Content type mismatch" }, { status: 400 })
 
+    // Delete R2 objects first. If storage deletion fails, keep the database
+    // record so the operation can safely be retried instead of orphaning files.
+    const imageUrls = imageUrlsFromValue(record.image_urls)
+    const deletedImageCount = await deleteR2Images(imageUrls)
+
     if (table === "posts") {
       for (const childTable of ["likes", "bookmarks", "post_views", "post_tastes", "post_gears", "post_processes", "post_varieties", "origin_post_links", "expert_post_links", "recipes"]) {
         await deleteRows(childTable, "post_id", id)
@@ -96,21 +141,7 @@ export async function POST(request: NextRequest) {
 
     await deleteRows(table, "id", id)
 
-    const imageUrls = Array.isArray(record.image_urls)
-      ? record.image_urls.filter((url: unknown): url is string => typeof url === "string")
-      : []
-    const failedImageUrls: string[] = []
-    for (const imageUrl of imageUrls) {
-      const key = r2KeyFromUrl(imageUrl)
-      if (!key) continue
-      try {
-        await r2.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }))
-      } catch {
-        failedImageUrls.push(imageUrl)
-      }
-    }
-
-    return NextResponse.json({ success: true, failedImageUrls })
+    return NextResponse.json({ success: true, deletedImageCount })
   } catch (error) {
     console.error("Delete content error:", error)
     return NextResponse.json(

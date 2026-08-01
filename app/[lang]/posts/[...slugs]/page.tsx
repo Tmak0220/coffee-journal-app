@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import { canViewContent } from "@/lib/permissions"
 import { createClient } from "@/lib/supabase-server"
 import PostPageClient from "./PostPageClient"
 
@@ -82,22 +83,7 @@ async function getPostDetail(actualId: string) {
   const isOwner = Boolean(user && post.user_id === user.id)
   const visibility = post.visibility || "public"
 
-  if ((visibility === "draft" || visibility === "private") && !isOwner) {
-    return null
-  }
-
-  if (visibility === "members" && !isOwner) {
-    if (!user) return null
-
-    const { data: viewer } = await supabase
-      .from("users")
-      .select("membership_tier, role")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    const canViewMembersPost = viewer?.role === "admin" || Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
-    if (!canViewMembersPost) return null
-  }
+  if (!canViewContent({ visibility, viewerId: user?.id, ownerId: post.user_id })) return null
 
   const providerIds = Array.from(new Set(
     (post.recipes || [])

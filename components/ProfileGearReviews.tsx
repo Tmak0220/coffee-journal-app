@@ -35,7 +35,7 @@ export default function ProfileGearReviews({ userId, profileType, lang }: { user
       if (viewerId === userId) visible = ["draft", "private", "members", "public"]
       else if (viewerId) {
         const { data: viewer } = await supabase.from("users").select("membership_tier").eq("id", viewerId).maybeSingle()
-        if (viewer?.membership_tier && viewer.membership_tier !== "free") visible = ["members", "public"]
+        if (viewerId) visible = ["members", "public"]
       }
       const { data: posts, error: postsError } = await supabase.from("posts").select("id, title, description, image_urls, created_at").eq("user_id", userId).eq("type", "gear_review").eq("lang", lang).in("visibility", visible).in("id", postIds).order("created_at", { ascending: false })
       if (postsError) { console.error("Failed to load profile gear reviews:", postsError); setLoading(false); return }

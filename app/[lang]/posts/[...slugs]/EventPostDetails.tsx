@@ -15,14 +15,14 @@ const dict = {
     eventDate: "開催日",
     visibilityDraft: "下書き",
     visibilityPrivate: "非公開",
-    visibilityMembers: "限定公開",
+    visibilityMembers: "ログインユーザー限定",
   },
   en: {
     eventBadge: "EVENT REPORT",
     eventDate: "Event Date",
     visibilityDraft: "Draft",
     visibilityPrivate: "Private",
-    visibilityMembers: "Members Only",
+    visibilityMembers: "Signed-in Users Only",
   },
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
+import { canUseUserFeatures, getVisibleContentStatuses } from "@/lib/permissions"
 import { useAuthModal } from "@/context/AuthModalContext"
 import { useRouter } from "next/navigation"
 import FollowList from "@/components/FollowList"
@@ -136,13 +137,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
       if (user) {
         loggedInUserId = user.id
         setCurrentUserId(user.id)
-        const { data: memberData } = await supabase
-          .from("users")
-          .select("membership_tier")
-          .eq("id", user.id)
-          .single()
-        
-        userIsTier = !!memberData?.membership_tier && memberData.membership_tier !== "free"
+        userIsTier = true
         setIsTierMember(userIsTier)
       }
 
@@ -291,9 +286,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
     const fetchPostsData = async () => {
       setPostsLoading(true)
       
-      const visibleStatuses = currentUserId === profile.id
-        ? (isTierMember ? ["private", "members", "public"] : ["private", "public"])
-        : (isTierMember ? ["members", "public"] : ["public"])
+      const visibleStatuses = getVisibleContentStatuses({ viewerId: currentUserId, ownerId: profile.id })
 
       const [postResult, blogResult, recipeResult] = await Promise.all([
         supabase
@@ -383,12 +376,8 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
   }, [profile, currentUserId, isTierMember, lang, dict.untitled])
 
   const handleFollow = async () => {
-    if (!currentUserId) {
+    if (!canUseUserFeatures(currentUserId)) {
       openAuthModal()
-      return
-    }
-    if (!isTierMember) {
-      router.push(`/${lang}/members`)
       return
     }
     if (!profile || currentUserId === profile.id) return

@@ -110,10 +110,9 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
 
     const { data: sessionData } = await supabase.auth.getSession()
     const viewerId = sessionData.session?.user?.id || null
-    let viewerIsPaid = editable
+    let viewerIsPaid = editable || Boolean(viewerId)
     if (!editable && viewerId) {
-      const { data: viewer } = await supabase.from("users").select("membership_tier").eq("id", viewerId).maybeSingle()
-      viewerIsPaid = Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
+      viewerIsPaid = true
     }
 
     if (targetType === "origin" && !originId) {

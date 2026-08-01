@@ -69,15 +69,6 @@ export default function BookmarkPageClient() {
       return
     }
 
-    const isMetadataAdmin = user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin"
-    const { data: member } = await supabase.from("users").select("membership_tier, role").eq("id", user.id).maybeSingle()
-    const hasAccess = isMetadataAdmin || member?.role === "admin" || Boolean(member?.membership_tier && member.membership_tier !== "free")
-    if (!hasAccess) {
-      setIsAuthChecked(true)
-      router.replace(`/${lang}/members`)
-      return
-    }
-
     const [postRowsResult, blogRowsResult, verificationRowsResult] = await Promise.all([
       supabase.from("bookmarks").select("id, post_id, created_at").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("blog_bookmarks").select("id, blog_id, created_at").eq("user_id", user.id).order("created_at", { ascending: false }),

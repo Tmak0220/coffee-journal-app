@@ -47,7 +47,7 @@ export default function ProfileBlogList({
           .select("membership_tier, role")
           .eq("id", viewerId)
           .maybeSingle()
-        if (viewer?.role === "admin" || (viewer?.membership_tier && viewer.membership_tier !== "free")) {
+        if (viewerId) {
           visible = ["members", "public"]
         }
       }

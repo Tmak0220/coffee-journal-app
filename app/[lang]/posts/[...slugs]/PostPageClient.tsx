@@ -10,6 +10,7 @@ import EventPostDetails from "./EventPostDetails"
 import GearReviewDetails from "./GearReviewDetails"
 import CoffeeBeanLikeIcon from "@/components/CoffeeBeanLikeIcon"
 import RelatedContent from "@/components/RelatedContent"
+import { canUseUserFeatures } from "@/lib/permissions"
 
 type RelatedPost = {
   id: string
@@ -111,8 +112,8 @@ const pageDict = {
     notFound: "投稿が見つかりませんでした",
     labelAuthor: "投稿者",
     anonymous: "名称非公開",
-    requireMemberError: "本機能の利用にはMEMBER登録が必要です。",
-    btnGoRegister: "登録画面へ",
+    requireMemberError: "この機能を利用するにはサインインしてください。",
+    btnGoRegister: "サインイン",
     relatedTitle: "Related Posts",
     btnSaved: "保存済み",
     btnSave: "保存する",
@@ -123,8 +124,8 @@ const pageDict = {
     notFound: "Post not found.",
     labelAuthor: "Author",
     anonymous: "Anonymous",
-    requireMemberError: "Membership is required to use this feature.",
-    btnGoRegister: "Sign Up",
+    requireMemberError: "Sign in to use this feature.",
+    btnGoRegister: "Sign In",
     relatedTitle: "Related Posts",
     btnSaved: "Saved",
     btnSave: "Save",
@@ -142,7 +143,6 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
   
   const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [isTierMember, setIsTierMember] = useState(false)
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [likeLoading, setLikeLoading] = useState(false)
@@ -156,16 +156,8 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
       const userId = user?.id || null
       setCurrentUserId(userId)
 
-      let tierMemberStatus = false
+      let tierMemberStatus = Boolean(user)
       if (user) {
-        const isAdmin = user?.user_metadata?.role === "admin" || user?.role === "admin" || user?.app_metadata?.role === "admin"
-        const { data: memberData } = await supabase
-          .from("users")
-          .select("membership_tier")
-          .eq("id", user.id)
-          .maybeSingle()
-        tierMemberStatus = isAdmin || (!!memberData?.membership_tier && memberData.membership_tier !== "free")
-        setIsTierMember(tierMemberStatus)
       }
 
       let currentPost: Post | null = initialPost || null
@@ -264,7 +256,7 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
   }, [id, currentLang, initialPost])
   
   const requirePlus = () => {
-    if (!currentUserId || !isTierMember) {
+    if (!canUseUserFeatures(currentUserId)) {
       setStatusMessage({ text: t.requireMemberError, type: "error" })
       return false
     }
@@ -411,7 +403,7 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
             {statusMessage && (
               <div className="flex flex-col items-start gap-3 rounded-xl border border-red-200/80 bg-red-50/60 p-4 text-xs text-red-600 animate-fade-in sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <span className="font-medium leading-relaxed">{statusMessage.text}</span>
-                <Link href={`/${currentLang}/members`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
+                <Link href={`/${currentLang}/login`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
                   {t.btnGoRegister}
                 </Link>
               </div>

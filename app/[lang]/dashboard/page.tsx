@@ -78,17 +78,11 @@ export default function DashboardPage({ params }: Props) {
 
       if (profError) {
         console.error("Profile fetch error detail:", profError)
-        router.replace(`${currentPrefix}/members`)
+        router.replace(`${currentPrefix}/login`)
         return
       }
       
       if (profData) {
-        const isAdmin = profData.role === "admin"
-        if (!isAdmin && (!profData.membership_tier || profData.membership_tier === "free")) {
-          router.replace(`${currentPrefix}/members`)
-          return
-        }
-
         setProfile(profData)
         setEnabledTools(profData.enabled_tools || ["recipe", "profile", "cupping"])
         
@@ -109,7 +103,7 @@ export default function DashboardPage({ params }: Props) {
         }
 
       } else {
-        router.replace(`${currentPrefix}/members`)
+        router.replace(`${currentPrefix}/login`)
         return
       }
 

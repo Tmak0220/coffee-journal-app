@@ -33,8 +33,6 @@ type TimelineItem = {
   sourceLabel?: string | null
 }
 
-const paidTiers = new Set(["standard", "pro", "business"])
-
 function firstImage(value: unknown): string | null {
   if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null
   if (typeof value !== "string" || !value.trim()) return null
@@ -90,7 +88,7 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
         return
       }
 
-      const canViewMembers = paidTiers.has(viewer?.membership_tier || "")
+      const canViewMembers = true
       const { data: followedOrigins, error: followedOriginsError } = followedOriginSlugs.length > 0
         ? await supabase.from("origins").select("id, slug, name, name_ja, user_id").in("slug", followedOriginSlugs)
         : { data: [], error: null }

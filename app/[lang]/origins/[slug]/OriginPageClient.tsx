@@ -14,6 +14,7 @@ import PeoplePostList from "@/components/PeoplePostList"
 import ProfileTimeline from "@/components/ProfileTimeline"
 import PublicShopProducts from "@/components/PublicShopProducts"
 import ProfileBlogList from "@/components/ProfileBlogList"
+import { canUseUserFeatures } from "@/lib/permissions"
 
 type BranchItem = {
   name: string
@@ -278,7 +279,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
 
       const visibleStatuses = currentUserId === origin.owner_id
         ? ["draft", "private", "members", "public"]
-        : isPremiumUser ? ["members", "public"] : ["public"]
+        : currentUserId ? ["members", "public"] : ["public"]
 
       const { data } = await supabase
         .from("pro_recipes")
@@ -302,12 +303,8 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
   }, [origin.owner_id, currentUserId, isPremiumUser, lang])
 
   const handleFollow = async () => {
-    if (!currentUserId) {
+    if (!canUseUserFeatures(currentUserId)) {
       openAuthModal()
-      return
-    }
-    if (!currentUserTier || currentUserTier === "free") {
-      router.push(`/${lang}/members`)
       return
     }
     if (followLoading) return

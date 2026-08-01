@@ -34,7 +34,7 @@ const logFormDict = {
     labelVisibility: "公開設定",
     statusDraft: "下書き",
     statusPrivate: "非公開 (自分のみ)",
-    statusMembers: "限定公開 (会員のみ)", // ✨ 変更
+    statusMembers: "限定公開（ログインユーザーのみ）",
     statusPublic: "公開 (全員に公開)",
     loginRequired: "ログインしてください",
     successMessage: "投稿しました。",
@@ -53,7 +53,7 @@ const logFormDict = {
     labelVisibility: "Visibility",
     statusDraft: "Draft",
     statusPrivate: "Private (Just me)",
-    statusMembers: "Members Only", // ✨ 変更
+    statusMembers: "Signed-in Users Only",
     statusPublic: "Public (Everyone)",
     loginRequired: "Please log in",
     successMessage: "Successfully posted.",

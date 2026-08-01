@@ -51,7 +51,7 @@ export default function EditContentPageClient({
       const { data: profile } = await supabase.from("users").select("membership_tier").eq("id", user.id).maybeSingle()
       if (!active) return
       const membershipTier = (profile?.membership_tier || "free") as MembershipTier
-      if (record && membershipTier !== "free") {
+      if (record) {
         setUserId(user.id)
         setTier(membershipTier)
         if ("author_type" in record && record.author_type === "owner") setAuthorType("owner")
@@ -68,14 +68,14 @@ export default function EditContentPageClient({
     return (
       <main className="mx-auto flex min-h-[65vh] max-w-3xl items-center justify-center px-5 py-16">
         <section className="w-full rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-sm sm:p-12">
-          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-400">MEMBERS ONLY</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-400">SIGN IN REQUIRED</p>
           <h1 className="mt-4 text-xl font-semibold text-neutral-900">
             {currentLang === "en" ? "This post cannot be edited" : "この投稿は編集できません"}
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-neutral-500">
             {currentLang === "en"
-              ? "Sign in with the paid member account that owns this post."
-              : "投稿を所有する有料会員アカウントでログインしてください。"}
+              ? "Sign in with the account that owns this post."
+              : "投稿を所有するアカウントでログインしてください。"}
           </p>
           <Link href={`/${currentLang}/dashboard`} className="mt-8 inline-flex rounded-full bg-neutral-900 px-7 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700">
             {currentLang === "en" ? "Back to Dashboard" : "ダッシュボードへ戻る"}

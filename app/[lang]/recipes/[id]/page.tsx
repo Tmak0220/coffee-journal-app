@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase-server"
+import { canViewContent } from "@/lib/permissions"
 import RecipePageClient from "./RecipePageClient"
 import ProVerificationDetail from "./ProVerificationDetail"
 import { notFound } from "next/navigation"
@@ -26,23 +27,7 @@ async function getProVerification(id: string, lang: string) {
 
   const isOwner = Boolean(user && recipe.user_id === user.id)
   const visibility = recipe.visibility || "public"
-  let viewerIsTierMember = false
-
-  if (user) {
-    const { data: viewer } = await supabase
-      .from("users")
-      .select("membership_tier, role")
-      .eq("id", user.id)
-      .maybeSingle()
-    viewerIsTierMember = viewer?.role === "admin" || Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
-  }
-
-  if ((visibility === "draft" || visibility === "private") && !isOwner) return { denied: true as const }
-
-  if (visibility === "members" && !isOwner) {
-    if (!user) return { denied: true as const }
-    if (!viewerIsTierMember) return { denied: true as const }
-  }
+  if (!canViewContent({ visibility, viewerId: user?.id, ownerId: recipe.user_id })) return { denied: true as const }
 
   const [{ data: author }, { data: gearLinks }] = await Promise.all([
     supabase
@@ -67,7 +52,7 @@ async function getProVerification(id: string, lang: string) {
     return gear ? [gear] : []
   })
 
-  return { recipe, author, gears, isOwner, currentUserId: user?.id || null, viewerIsTierMember }
+  return { recipe, author, gears, isOwner, currentUserId: user?.id || null, viewerIsTierMember: Boolean(user) }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

@@ -6,6 +6,7 @@ import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import PostLoading from "./loading"
 import CoffeeBeanLikeIcon from "@/components/CoffeeBeanLikeIcon"
+import { canUseUserFeatures } from "@/lib/permissions"
 
 // ----------------------------------------------------
 // DBテーブル型定義
@@ -78,8 +79,8 @@ const pageDict = {
     notFound: "レシピが見つかりませんでした",
     labelBarista: "バリスタ / 投稿者",
     anonymous: "名称非公開",
-    requireMemberError: "本機能の利用にはMEMBER登録が必要です。",
-    btnGoRegister: "登録画面へ",
+    requireMemberError: "この機能を利用するにはサインインしてください。",
+    btnGoRegister: "サインイン",
     btnSaved: "保存済み",
     btnSave: "保存する",
     btnFollowing: "フォロー中",
@@ -97,8 +98,8 @@ const pageDict = {
     notFound: "Recipe not found.",
     labelBarista: "Barista / Author",
     anonymous: "Anonymous",
-    requireMemberError: "Membership is required to use this feature.",
-    btnGoRegister: "Sign Up",
+    requireMemberError: "Sign in to use this feature.",
+    btnGoRegister: "Sign In",
     btnSaved: "Saved",
     btnSave: "Save",
     btnFollowing: "Following",
@@ -121,7 +122,6 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
   const [loading, setLoading] = useState<boolean>(true)
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [isTierMember, setIsTierMember] = useState(false)
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [likeLoading, setLikeLoading] = useState(false)
@@ -137,17 +137,6 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       const userId = user?.id || null
       setCurrentUserId(userId)
-
-      if (user) {
-        const isAdmin = user?.user_metadata?.role === "admin" || user?.role === "admin" || user?.app_metadata?.role === "admin"
-        const { data: memberData } = await supabase
-          .from("users")
-          .select("membership_tier")
-          .eq("id", user.id)
-          .maybeSingle()
-
-        setIsTierMember(isAdmin || (!!memberData?.membership_tier && memberData.membership_tier !== "free"))
-      }
 
       if (recipeId) {
         // 1. レシピ本体の取得 (JOIN: users, posts)
@@ -278,7 +267,7 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
   }, [recipeId, currentLang])
 
   const requirePlus = () => {
-    if (!currentUserId || !isTierMember) {
+    if (!canUseUserFeatures(currentUserId)) {
       setStatusMessage({ text: t.requireMemberError, type: "error" })
       return false
     }
@@ -489,7 +478,7 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
         {statusMessage && (
           <div className="text-xs p-4 rounded-xl border flex items-center justify-between gap-4 text-red-600 bg-red-50/60 border-red-200/80 animate-fadeIn">
             <span className="font-medium leading-relaxed">{statusMessage.text}</span>
-            <Link href={`/${currentLang}/members`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
+            <Link href={`/${currentLang}/login`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
               {t.btnGoRegister}
             </Link>
           </div>

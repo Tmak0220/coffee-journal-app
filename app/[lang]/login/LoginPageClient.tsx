@@ -31,7 +31,7 @@ export default function LoginPageClient({ lang }: Props) {
     ja: {
       pageLabel: "ACCOUNT",
       pageTitle: "ログイン・新規登録",
-      pageDescription: "メールアドレスとパスワードだけで登録できます。プロフィールは登録後にダッシュボードから設定できます。",
+      pageDescription: "メールアドレスとパスワードだけで利用できます。プロフィールは登録後にダッシュボードから設定できます。",
       loginSubtitle: "既にアカウントをお持ちの方",
       loginBtn: "ログイン",
       loginLoading: "ログイン中...",
@@ -47,7 +47,7 @@ export default function LoginPageClient({ lang }: Props) {
     en: {
       pageLabel: "ACCOUNT",
       pageTitle: "Log in or sign up",
-      pageDescription: "You can register with only your email address and password. You can complete your profile later from the dashboard.",
+      pageDescription: "You can get started with only your email address and password. You can complete your profile later from the dashboard.",
       loginSubtitle: "Already have an account",
       loginBtn: "LOG IN",
       loginLoading: "Logging in...",

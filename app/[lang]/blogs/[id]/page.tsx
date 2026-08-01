@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { createClient } from "@/lib/supabase-server"
+import { canViewContent } from "@/lib/permissions"
 import { notFound } from "next/navigation"
 import BlogPageClient from "./BlogPageClient"
 
@@ -29,22 +30,7 @@ async function getBlogDetail(id: string) {
   const isOwner = Boolean(user && blog.user_id === user.id)
   const visibility = blog.visibility || "public"
 
-  if ((visibility === "draft" || visibility === "private") && !isOwner) {
-    return null
-  }
-
-  if (visibility === "members" && !isOwner) {
-    if (!user) return null
-
-    const { data: viewer } = await supabase
-      .from("users")
-      .select("membership_tier, role")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    const canViewMembersBlog = viewer?.role === "admin" || Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
-    if (!canViewMembersBlog) return null
-  }
+  if (!canViewContent({ visibility, viewerId: user?.id, ownerId: blog.user_id })) return null
 
   return blog
 }

@@ -65,7 +65,7 @@ const profileDict = {
     clearForm: "クリア",
     visDraft: "下書き",
     visPrivate: "非公開 (自分のみ)",
-    visMembers: "限定公開 (会員のみ)",
+    visMembers: "限定公開（ログインユーザーのみ）",
     visPublic: "公開 (全員に公開)",
     submitCalendarForm: "投稿する"
   },
@@ -99,7 +99,7 @@ const profileDict = {
     clearForm: "Clear",
     visDraft: "Draft",
     visPrivate: "Private (Just me)",
-    visMembers: "Members Only",
+    visMembers: "Signed-in Users Only",
     visPublic: "Public (Everyone)",
     submitCalendarForm: "Submit"
   }

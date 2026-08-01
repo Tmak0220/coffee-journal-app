@@ -10,6 +10,7 @@ import Image from "next/image"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
+import { canUseUserFeatures } from "@/lib/permissions"
 
 type BlogArticle = {
   id: string
@@ -52,9 +53,9 @@ const VIEW_DICT = {
     accessDenied: "この記事にアクセスする権限がありません。",
     draftBadge: "下書き",
     privateBadge: "非公開",
-    membersOnlyBadge: "会員限定",
-    requireMemberError: "本機能の利用にはMEMBER登録が必要です。",
-    btnGoRegister: "登録画面へ",
+    membersOnlyBadge: "ログインユーザー限定",
+    requireMemberError: "この機能を利用するにはサインインしてください。",
+    btnGoRegister: "サインイン",
     btnSaved: "保存済み",
     btnSave: "保存する",
     btnFollowing: "フォロー中",
@@ -66,9 +67,9 @@ const VIEW_DICT = {
     accessDenied: "You do not have permission to view this article.",
     draftBadge: "Draft",
     privateBadge: "Private",
-    membersOnlyBadge: "Members Only",
-    requireMemberError: "Membership is required to use this feature.",
-    btnGoRegister: "Sign Up",
+    membersOnlyBadge: "Signed-in Users Only",
+    requireMemberError: "Sign in to use this feature.",
+    btnGoRegister: "Sign In",
     btnSaved: "Saved",
     btnSave: "Save",
     btnFollowing: "Following",
@@ -91,7 +92,6 @@ export default function BlogPageClient({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [isTierMember, setIsTierMember] = useState(false)
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
   const [bookmarked, setBookmarked] = useState(false)
@@ -106,8 +106,6 @@ export default function BlogPageClient({
       try {
         setLoading(true)
         setError(null)
-
-        setIsTierMember(Boolean(currentUserId && currentUserTier && currentUserTier !== "free"))
 
         const blog = initialArticle
         setArticle(initialArticle)
@@ -170,7 +168,7 @@ export default function BlogPageClient({
   }, [articleId, currentUserId, currentUserTier, currentLang, initialArticle, t.notFound])
 
   const requirePlus = () => {
-    if (!currentUserId || !isTierMember) {
+    if (!canUseUserFeatures(currentUserId)) {
       setStatusMessage({ text: t.requireMemberError, type: "error" })
       return false
     }
@@ -337,7 +335,7 @@ export default function BlogPageClient({
           {statusMessage && (
             <div className="flex flex-col items-start gap-3 rounded-xl border border-red-200/80 bg-red-50/60 p-4 text-xs text-red-600 animate-fade-in sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <span className="font-medium leading-relaxed">{statusMessage.text}</span>
-              <Link href={`/${currentLang}/members`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
+              <Link href={`/${currentLang}/login`} className="underline font-bold text-[11px] uppercase tracking-wider shrink-0 text-red-700 hover:text-red-900">
                 {t.btnGoRegister}
               </Link>
             </div>

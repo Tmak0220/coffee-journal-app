@@ -479,7 +479,7 @@ export default function UnifiedDashboard({
   const [liveUserProfile, setLiveUserProfile] = useState<UserProfile>(profile)
 
   const isAdmin = profile.role === "admin"
-  const isPremium = profile.membership_tier !== "free" || isAdmin
+  const canUsePersonalFeatures = true
   const hasProAccess = profile.membership_tier === "pro" || profile.membership_tier === "business" || isAdmin
   const hasBusinessAccess = (profile.role === "owner" || isAdmin) && profile.membership_tier === "business"
 
@@ -850,7 +850,7 @@ export default function UnifiedDashboard({
                 {/* ☕️ コーヒーレシピ・ドリップログ作成 */}
                 <section className="w-full space-y-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8">
                   <DashboardSectionHeading eyebrow="ANALYTICS & RECIPE" title={t.analyticsTitle} />
-                  {isPremium && (
+                  {canUsePersonalFeatures && (
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-6">
                       <CoffeeAnalyticsCharts userId={profile.id} lang={formLanguage} />
                     </div>

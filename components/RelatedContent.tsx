@@ -53,7 +53,7 @@ export default function RelatedContent({ source, currentId, authorId, lang, post
           supabase.from("users").select("membership_tier, role").eq("id", user.id).maybeSingle(),
           supabase.from("follows").select("following_id").eq("follower_id", user.id),
         ])
-        canViewMembers = viewer?.role === "admin" || Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
+        canViewMembers = true
         followingIds = (follows || []).map((follow) => follow.following_id)
       }
 

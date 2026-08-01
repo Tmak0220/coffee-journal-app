@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import MinimalCalendar, { VisibilityType } from "@/app/[lang]/dashboard/_components/MinimalCalendar"
+import { getVisibleContentStatuses } from "@/lib/permissions"
 
 type CalendarItem = {
   id: string
@@ -37,16 +38,7 @@ export default function PublicProfileCalendar({ targetUserId, lang, className = 
       const { data: { user } } = await supabase.auth.getUser()
       const viewerId = user?.id || null
       const isOwn = viewerId === targetUserId
-      let viewerIsTierMember = false
-
-      if (viewerId) {
-        const { data: viewer } = await supabase
-          .from("users")
-          .select("membership_tier")
-          .eq("id", viewerId)
-          .maybeSingle()
-        viewerIsTierMember = Boolean(viewer?.membership_tier && viewer.membership_tier !== "free")
-      }
+      const viewerIsTierMember = Boolean(viewerId)
 
       let memoQuery = supabase
         .from("calendar_memos")
@@ -60,19 +52,9 @@ export default function PublicProfileCalendar({ targetUserId, lang, className = 
         .eq("user_id", targetUserId)
         .eq("lang", lang)
 
-      if (isOwn) {
-        const visible = viewerIsTierMember
-          ? ["private", "members", "public"]
-          : ["private", "public"]
-        memoQuery = memoQuery.in("visibility", visible)
-        postQuery = postQuery.in("visibility", visible)
-      } else if (viewerIsTierMember) {
-        memoQuery = memoQuery.in("visibility", ["members", "public"])
-        postQuery = postQuery.in("visibility", ["members", "public"])
-      } else {
-        memoQuery = memoQuery.eq("visibility", "public")
-        postQuery = postQuery.eq("visibility", "public")
-      }
+      const visible = getVisibleContentStatuses({ viewerId, ownerId: targetUserId })
+      memoQuery = memoQuery.in("visibility", visible)
+      postQuery = postQuery.in("visibility", visible)
 
       const [memosResult, postsResult] = await Promise.all([memoQuery, postQuery])
       if (!active) return
