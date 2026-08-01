@@ -99,6 +99,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
       const loginUid = sessionData?.session?.user?.id || null
       setCurrentUserId(loginUid)
       let viewerIsPremium = false
+      const viewerCanViewMembers = Boolean(loginUid)
       
       if (loginUid) {
         const { data: viewerData } = await supabase
@@ -106,8 +107,12 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           .select("membership_tier")
           .eq("id", loginUid)
           .maybeSingle()
-        setCurrentUserTier(viewerData?.membership_tier || "free")
-        viewerIsPremium = true
+        const viewerTier = viewerData?.membership_tier || "free"
+        setCurrentUserTier(viewerTier)
+        // Broadcasts may still be intentionally restricted to paid plans.
+        // This is separate from content visibility `members`, which now means
+        // every signed-in account including Free.
+        viewerIsPremium = ["standard", "pro", "business"].includes(viewerTier)
       } else {
         setCurrentUserTier(null)
       }
@@ -221,7 +226,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         .eq("user_id", userData.id)
         .eq("lang", isEn ? "en" : "ja")
         .in("target_category", ["experts", "both"])
-        .in("visibility", viewerIsPremium ? ["members", "public"] : ["public"])
+        .in("visibility", viewerCanViewMembers ? ["members", "public"] : ["public"])
         .order("created_at", { ascending: false })
       
       setLabLogs((recipeData || []).map(recipe => ({

@@ -156,9 +156,7 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
       const userId = user?.id || null
       setCurrentUserId(userId)
 
-      let tierMemberStatus = Boolean(user)
-      if (user) {
-      }
+      const canViewMembersPosts = Boolean(user)
 
       let currentPost: Post | null = initialPost || null
 
@@ -231,7 +229,7 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
         .from("posts")
         .select("id, title, image_urls")
         .neq("id", id)
-        .in("visibility", tierMemberStatus ? ["public", "members"] : ["public"])
+        .in("visibility", canViewMembersPosts ? ["public", "members"] : ["public"])
         .limit(4)
       
       if (oPosts) {

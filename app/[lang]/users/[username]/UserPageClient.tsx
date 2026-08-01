@@ -131,14 +131,14 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
 
     const fetchInitialData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      let userIsTier = false
+      let userIsSignedIn = false
       let loggedInUserId: string | null = null
 
       if (user) {
         loggedInUserId = user.id
         setCurrentUserId(user.id)
-        userIsTier = true
-        setIsTierMember(userIsTier)
+        userIsSignedIn = true
+        setIsTierMember(userIsSignedIn)
       }
 
       const { data: profileData } = await supabase
@@ -231,15 +231,15 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
 
       if (isOwn) {
         // 公開ページでは本人にも draft を表示しない。private は本人のみ、members は会員のみ。
-        const ownVisibleStatuses = userIsTier
+        const ownVisibleStatuses = userIsSignedIn
           ? ["private", "members", "public"]
           : ["private", "public"]
         memoQuery = memoQuery.in("visibility", ownVisibleStatuses)
         postQuery = postQuery.in("visibility", ownVisibleStatuses)
       } else {
         // 他人が見ている場合
-        if (userIsTier) {
-          // 有料メンバーシップ(free以外)なら members と public
+        if (userIsSignedIn) {
+          // `members` は料金プランではなく、ログインユーザー限定の公開範囲。
           memoQuery = memoQuery.in("visibility", ["members", "public"])
           postQuery = postQuery.in("visibility", ["members", "public"])
         } else {
