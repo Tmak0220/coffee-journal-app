@@ -47,6 +47,13 @@ export async function createCheckoutSession(origin: string, planKey: string, lan
       return { error: "Invalid Plan" }
     }
 
+    // The USER plan is free. Keep legacy Stripe plan keys readable for
+    // subscription reconciliation, but never create a new paid USER checkout.
+    if (planKey === "user_monthly" || planKey === "user_yearly") {
+      console.warn(`Rejected removed paid USER plan checkout: ${planKey}`)
+      return { error: "Invalid Plan" }
+    }
+
     // Checkoutを作る前に、公開環境の秘密鍵からPriceが参照できること、
     // 有効な定期課金でありlive/testモードが一致することを検証する。
     const price = await validateMembershipPrice(stripe, planKey)

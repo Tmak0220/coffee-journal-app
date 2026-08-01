@@ -488,7 +488,7 @@ export default function ProfileForm({
                             : "bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50/50"
                         }`}
                       >
-                        <span className="whitespace-nowrap">{labelMap[type]}</span>
+                        <span className="whitespace-normal leading-5">{labelMap[type]}</span>
                       </button>
                     )
                   })}

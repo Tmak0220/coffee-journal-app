@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { canUseUserFeatures } from "@/lib/permissions"
 import { LayoutDashboard, Bookmark, Globe } from "lucide-react"
 
 export default function Header() {
@@ -11,7 +12,7 @@ export default function Header() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState<string | null>(null)
-  const [hasMemberAccess, setHasMemberAccess] = useState(false)
+  const [hasUserAccess, setHasUserAccess] = useState(false)
   const [search, setSearch] = useState("")
   const [lang, setLang] = useState<"ja" | "en">("ja")
   
@@ -36,18 +37,12 @@ export default function Header() {
 
       if (!id) {
         setEmail(null)
-        setHasMemberAccess(false)
+        setHasUserAccess(false)
         return
       }
 
       setEmail(resolvedEmail ?? null)
-      const { data: profile } = await supabase
-        .from("users")
-        .select("membership_tier, role")
-        .eq("id", id)
-        .maybeSingle()
-
-      setHasMemberAccess(profile?.role === "admin" || Boolean(profile?.membership_tier && profile.membership_tier !== "free"))
+      setHasUserAccess(canUseUserFeatures(id))
     }
 
     const getUser = async () => {
@@ -183,7 +178,7 @@ export default function Header() {
         <div className="flex min-w-0 items-center gap-3 sm:gap-5 md:gap-8">
           {email ? (
             <>
-              {hasMemberAccess && (
+              {hasUserAccess && (
                 <>
                   <Link href={t.dashboardPath} className="flex flex-col items-center gap-1.5 hover:text-neutral-500 transition">
                     <LayoutDashboard size={19} strokeWidth={1.8} />

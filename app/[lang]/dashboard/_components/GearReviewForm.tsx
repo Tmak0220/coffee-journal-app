@@ -30,6 +30,8 @@ type Props = {
   deleteStatusMessage?: { text: string; type: "success" | "error" } | null
 }
 
+type VisibilityType = "draft" | "private" | "members" | "public"
+
 const dict = {
   ja: {
     sectionTitle: "GEAR REVIEW",
@@ -49,6 +51,11 @@ const dict = {
     labelReview: "REVIEW",
     labelReviewSub: "レビュー（特徴、使い勝手など）（必須）",
     placeholderReview: "特徴、使い勝手などを自由にお書きください。",
+    labelVisibility: "公開設定",
+    statusDraft: "下書き",
+    statusPrivate: "非公開（自分のみ）",
+    statusMembers: "限定公開（ログインユーザーのみ）",
+    statusPublic: "公開（全員に公開）",
     btnSubmit: "投稿する",
     btnSubmitting: "処理中...",
     selectGearError: "レビューする器具を選択してください。",
@@ -75,6 +82,11 @@ const dict = {
     labelReview: "REVIEW",
     labelReviewSub: "Review details (Required)",
     placeholderReview: "Describe its features and usability...",
+    labelVisibility: "Visibility",
+    statusDraft: "Draft",
+    statusPrivate: "Private",
+    statusMembers: "Signed-in Users Only",
+    statusPublic: "Public",
     btnSubmit: "Post Review",
     btnSubmitting: "Processing...",
     selectGearError: "Please select a gear.",
@@ -126,6 +138,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
   const [grindSetting, setGrindSetting] = useState("")
   const [comment, setComment] = useState("")
   const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [visibility, setVisibility] = useState<VisibilityType>("draft")
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -147,7 +160,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
         return
       }
       const [postResult, linkResult] = await Promise.all([
-        supabase.from("posts").select("user_id, type, title, description, image_urls, market_origin_id, source_origin_id").eq("id", editId).eq("user_id", user.id).single(),
+        supabase.from("posts").select("user_id, type, title, description, image_urls, market_origin_id, source_origin_id, visibility").eq("id", editId).eq("user_id", user.id).single(),
         supabase.from("post_gears").select("gear_id, rating, grind_setting, comment").eq("post_id", editId).maybeSingle(),
       ])
       if (!active) return
@@ -182,6 +195,10 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
       setFlavorProfile(linkResult.data.rating == null ? null : Number(linkResult.data.rating))
       setGrindSetting(linkResult.data.grind_setting || "")
       setComment(linkResult.data.comment || postResult.data.description || "")
+      const savedVisibility = postResult.data.visibility === "followers" ? "members" : postResult.data.visibility
+      if (["draft", "private", "members", "public"].includes(savedVisibility || "")) {
+        setVisibility(savedVisibility as VisibilityType)
+      }
       const urls = Array.isArray(postResult.data.image_urls) ? postResult.data.image_urls.filter((url): url is string => typeof url === "string") : []
       setImageUrls(urls)
       initialImagesRef.current = urls
@@ -281,7 +298,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
         title: title.trim(),
         description: comment.trim(),
         image_urls: permanentImageUrls.length > 0 ? permanentImageUrls : null,
-        visibility: "public",
+        visibility,
         lang: currentLang,
         type: "gear_review",
         market_origin_id: selectedBrandOrigin?.id || null,
@@ -337,6 +354,7 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
       setGrindSetting("")
       setComment("")
       setImageUrls([])
+      setVisibility("draft")
       setRemovedImageUrls([])
       initialImagesRef.current = []
 
@@ -545,6 +563,38 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
           <p className="text-right text-[11px] tabular-nums text-neutral-400">
             {comment.length} / 5000
           </p>
+        </div>
+
+        <div className="space-y-3 border-t border-neutral-100 pt-8">
+          <label className="block text-[14px] font-bold tracking-wide text-neutral-900">
+            {t.labelVisibility}
+          </label>
+          <div className="w-full overflow-x-auto no-scrollbar scroll-smooth -mx-2 px-2 py-1">
+            <div className="flex min-w-max flex-nowrap gap-3 md:grid md:min-w-0 md:grid-cols-4">
+              {(["draft", "private", "members", "public"] as VisibilityType[]).map((type) => {
+                const labelMap = {
+                  draft: t.statusDraft,
+                  private: t.statusPrivate,
+                  members: t.statusMembers,
+                  public: t.statusPublic,
+                }
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setVisibility(type)}
+                    className={`flex min-h-[52px] min-w-[145px] flex-1 items-center justify-center whitespace-normal rounded-xl border px-3 py-3 text-center text-[12px] font-semibold leading-5 transition-all duration-200 md:min-w-0 sm:text-[13px] ${
+                      visibility === type
+                        ? "border-neutral-900 bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-900"
+                        : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50/50 hover:text-neutral-800"
+                    }`}
+                  >
+                    {labelMap[type]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4 border-t border-neutral-100 pt-4">

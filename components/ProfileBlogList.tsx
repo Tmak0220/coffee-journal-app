@@ -42,14 +42,7 @@ export default function ProfileBlogList({
       if (viewerId === userId) {
         visible = ["private", "members", "public"]
       } else if (viewerId) {
-        const { data: viewer } = await supabase
-          .from("users")
-          .select("membership_tier, role")
-          .eq("id", viewerId)
-          .maybeSingle()
-        if (viewerId) {
-          visible = ["members", "public"]
-        }
+        visible = ["members", "public"]
       }
 
       const { data, error } = await supabase

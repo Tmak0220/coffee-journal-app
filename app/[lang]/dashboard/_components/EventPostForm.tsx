@@ -346,7 +346,7 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
         <label className="text-[13px] font-bold text-neutral-900 tracking-wide">{t.visibility}</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {(["draft", "private", "members", "public"] as const).map(value => (
-            <button key={value} type="button" onClick={() => setVisibility(value)} className={`min-h-[46px] px-3 py-3 text-[12px] font-semibold rounded-xl border transition-colors ${visibility === value ? "bg-white border-neutral-900 text-neutral-900 ring-1 ring-neutral-900" : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400"}`}>{t[value]}</button>
+            <button key={value} type="button" onClick={() => setVisibility(value)} className={`flex min-h-[52px] items-center justify-center whitespace-normal px-3 py-3 text-center text-[12px] font-semibold leading-5 rounded-xl border transition-colors ${visibility === value ? "bg-white border-neutral-900 text-neutral-900 ring-1 ring-neutral-900" : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400"}`}>{t[value]}</button>
           ))}
         </div>
       </div>

@@ -110,10 +110,7 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
 
     const { data: sessionData } = await supabase.auth.getSession()
     const viewerId = sessionData.session?.user?.id || null
-    let viewerIsPaid = editable || Boolean(viewerId)
-    if (!editable && viewerId) {
-      viewerIsPaid = true
-    }
+    const canViewMembers = editable || Boolean(viewerId)
 
     if (targetType === "origin" && !originId) {
       setLogs([])
@@ -203,7 +200,7 @@ export default function PeoplePostList({ userId = "", lang = "ja", editable = fa
       .select("id, title, image_urls, created_at, visibility, lang, user_id")
       .in("id", postIds)
       .eq("lang", currentLang)
-      .in("visibility", viewerIsPaid ? ["members", "public"] : ["public"])
+      .in("visibility", canViewMembers ? ["members", "public"] : ["public"])
 
     if (postError) {
       console.error("Error fetching posts linked to profile:", postError)

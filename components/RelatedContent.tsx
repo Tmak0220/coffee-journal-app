@@ -49,10 +49,10 @@ export default function RelatedContent({ source, currentId, authorId, lang, post
       let followingIds: string[] = []
 
       if (user) {
-        const [{ data: viewer }, { data: follows }] = await Promise.all([
-          supabase.from("users").select("membership_tier, role").eq("id", user.id).maybeSingle(),
-          supabase.from("follows").select("following_id").eq("follower_id", user.id),
-        ])
+        const { data: follows } = await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
         canViewMembers = true
         followingIds = (follows || []).map((follow) => follow.following_id)
       }

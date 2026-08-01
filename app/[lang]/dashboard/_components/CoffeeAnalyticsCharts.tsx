@@ -4,9 +4,18 @@ import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
 type Log = {
+  countries: string[]
   varieties: string[]
   processes: string[]
   flavorTags: string[]
+}
+
+type OriginNode = {
+  id: number
+  parent_id: number | null
+  type: string | null
+  name: string
+  name_ja: string | null
 }
 
 type Props = {
@@ -21,6 +30,7 @@ const analyticsDict = {
     posts: "対象投稿",
     unit: "回",
     other: "その他",
+    titleCountry: "Origin Countries (生産国)",
     titleVariety: "Varieties (品種)",
     titleProcess: "Process (精製方法)",
     titleFlavor: "Favorite Tastes (テイスト)"
@@ -31,6 +41,7 @@ const analyticsDict = {
     posts: "Posts analyzed",
     unit: "times",
     other: "Other",
+    titleCountry: "Origin Countries",
     titleVariety: "Varieties",
     titleProcess: "Process",
     titleFlavor: "Favorite Tastes"
@@ -56,7 +67,7 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
       setLoading(true)
       const { data: posts, error: postsError } = await supabase
         .from("posts")
-        .select("id")
+        .select("id, source_origin_id")
         .eq("user_id", userId)
         .eq("type", "blog")
         .neq("visibility", "draft")
@@ -78,7 +89,40 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
         return
       }
 
-      const [varietyResult, processResult, tasteResult] = await Promise.all([
+      const sourceOriginIds = Array.from(new Set(
+        (posts || [])
+          .map((post) => post.source_origin_id)
+          .filter((id): id is number => typeof id === "number"),
+      ))
+
+      const loadOriginHierarchy = async () => {
+        const nodes = new Map<number, OriginNode>()
+        let pending = sourceOriginIds
+
+        // Origins are normally shallow, but the limit also protects against
+        // malformed parent cycles in master data.
+        for (let depth = 0; pending.length > 0 && depth < 20; depth += 1) {
+          const { data, error } = await supabase
+            .from("origins")
+            .select("id, parent_id, type, name, name_ja")
+            .in("id", pending)
+
+          if (error) {
+            console.error("Coffee analytics origin hierarchy fetch error:", error)
+            break
+          }
+
+          for (const node of (data || []) as OriginNode[]) nodes.set(node.id, node)
+          pending = Array.from(new Set(
+            ((data || []) as OriginNode[])
+              .map((node) => node.parent_id)
+              .filter((id): id is number => typeof id === "number" && !nodes.has(id)),
+          ))
+        }
+        return nodes
+      }
+
+      const [varietyResult, processResult, tasteResult, originNodes] = await Promise.all([
         supabase
           .from("post_varieties")
           .select("post_id, varieties(name, name_ja)")
@@ -91,10 +135,11 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
           .from("post_tastes")
           .select("post_id, tastes!fk_post_tastes_taste_id(name, name_ja)")
           .in("post_id", postIds),
+        loadOriginHierarchy(),
       ])
 
       if (!active) return
-      const rows = new Map<string, Log>(postIds.map((id) => [id, { varieties: [], processes: [], flavorTags: [] }]))
+      const rows = new Map<string, Log>(postIds.map((id) => [id, { countries: [], varieties: [], processes: [], flavorTags: [] }]))
       const localizedName = (record: Record<string, unknown> | null) => {
         if (!record) return null
         const primary = currentLang === "ja" ? record.name_ja : record.name
@@ -102,6 +147,22 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
         return typeof primary === "string" && primary.trim()
           ? primary.trim()
           : typeof fallback === "string" && fallback.trim() ? fallback.trim() : null
+      }
+
+      for (const post of posts || []) {
+        let originId = typeof post.source_origin_id === "number" ? post.source_origin_id : null
+        const visited = new Set<number>()
+        while (originId !== null && !visited.has(originId)) {
+          visited.add(originId)
+          const node = originNodes.get(originId)
+          if (!node) break
+          if (node.type === "country") {
+            const name = localizedName(node as unknown as Record<string, unknown>)
+            if (name) rows.get(post.id)?.countries.push(name)
+            break
+          }
+          originId = node.parent_id
+        }
       }
 
       for (const row of varietyResult.data || []) {
@@ -135,6 +196,7 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
       return Array.from(map, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
     }
     return {
+      countries: count(logs.map((log) => log.countries)),
       varieties: count(logs.map((log) => log.varieties)),
       processes: count(logs.map((log) => log.processes)),
       flavors: count(logs.map((log) => log.flavorTags)),
@@ -178,7 +240,11 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
   return (
     <div>
       <p className="mb-4 font-mono text-[10px] uppercase tracking-wider text-neutral-400">{t.posts}: {postCount}</p>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{t.titleCountry}</h4>
+          <DistributionBars data={analyticsData.countries} accent="bg-emerald-600/70" />
+        </section>
         <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{t.titleVariety}</h4>
           <DistributionBars data={analyticsData.varieties} accent="bg-amber-500/75" />

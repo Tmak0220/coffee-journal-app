@@ -1,5 +1,32 @@
 begin;
 
+-- Normalize the former follower-only value before enforcing the current
+-- signed-in-account meaning of `members`. This is idempotent and preserves
+-- all existing content rows.
+do $$
+declare
+  content_table text;
+begin
+  foreach content_table in array array['posts', 'blogs', 'pro_recipes', 'calendar_memos'] loop
+    if to_regclass('public.' || content_table) is not null
+      and exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = content_table
+          and column_name = 'visibility'
+      ) then
+      execute format(
+        'update public.%I set visibility = %L where visibility = %L',
+        content_table,
+        'members',
+        'followers'
+      );
+    end if;
+  end loop;
+end;
+$$;
+
 -- `members` is an authenticated-account visibility, not a paid-plan visibility.
 create or replace function private.can_read_content(
   owner_id uuid,

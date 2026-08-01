@@ -897,9 +897,13 @@ export default function UnifiedDashboard({
                           {formLanguage === "en" ? "ACCOUNT SETTINGS & SUPPORT" : "アカウント設定・サポート"}
                         </h4>
                         <p className="text-xs text-neutral-500 leading-relaxed">
-                          {formLanguage === "en"
-                            ? "Cancel your paid membership while keeping the account, or request permanent account deletion."
-                            : "アカウントを残したまま有料メンバーシップを解約するか、アカウントの完全削除を申請できます。"}
+                          {profile.membership_tier === "free"
+                            ? (formLanguage === "en"
+                                ? "Signing out keeps your profile and posts. Request account deletion only if you want to permanently remove your account and its data."
+                                : "ログアウトしてもプロフィールや投稿データは保持されます。アカウントとデータを完全に削除して退会する場合のみ、アカウント削除を申請してください。")
+                            : (formLanguage === "en"
+                                ? "Cancel your paid membership while keeping the account, or request permanent account deletion."
+                                : "アカウントを残したまま有料メンバーシップを解約するか、アカウントの完全削除を申請できます。")}
                         </p>
                       </div>
 

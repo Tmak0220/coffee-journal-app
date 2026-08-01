@@ -523,7 +523,7 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
                         e.stopPropagation()
                         setVisibility(type)
                       }}
-                      className={`whitespace-nowrap px-2 py-3.5 text-[12px] sm:text-[13px] font-semibold rounded-xl border text-center transition-all duration-200 select-none flex-1 min-w-[145px] md:min-w-0 ${
+                      className={`flex min-h-[52px] flex-1 items-center justify-center whitespace-normal px-3 py-3.5 text-center text-[12px] font-semibold leading-5 sm:text-[13px] rounded-xl border transition-all duration-200 select-none min-w-[145px] md:min-w-0 ${
                         isSelected
                           ? "bg-white border-neutral-900 text-neutral-900 shadow-sm ring-1 ring-neutral-900"
                           : "bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50/50"

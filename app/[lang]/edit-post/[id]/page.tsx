@@ -25,7 +25,7 @@ type StatusMessage = {
   type: "error" | "success"
 }
 
-type VisibilityType = "draft" | "private" | "followers" | "public"
+type VisibilityType = "draft" | "private" | "members" | "public"
 
 type Props = {
   params: Promise<{
@@ -45,7 +45,7 @@ const logFormDict = {
     labelVisibility: "公開設定",
     statusDraft: "下書き",
     statusPrivate: "非公開 (自分のみ)",
-    statusFollowers: "限定公開 (フォロワーのみ)",
+    statusMembers: "限定公開（ログインユーザーのみ）",
     statusPublic: "公開 (全員に公開)",
     confirmDeleteTitle: "投稿の削除",
     confirmDeleteDesc: "この投稿を削除しますか？\n（アップロードされた画像も同時に完全に削除されます。この操作は取り消せません）",
@@ -62,7 +62,7 @@ const logFormDict = {
     labelVisibility: "Visibility",
     statusDraft: "Draft",
     statusPrivate: "Private (Just me)",
-    statusFollowers: "Followers Only",
+    statusMembers: "Signed-in Users Only",
     statusPublic: "Public (Everyone)",
     confirmDeleteTitle: "Delete Log",
     confirmDeleteDesc: "Are you sure you want to delete this log? (The associated images will also be permanently deleted. This action cannot be undone.)",
@@ -214,7 +214,9 @@ export default function EditPostPage({ params }: Props) {
       setTitle(postData.title || "")
       setTastes(postData.tastes || "")
       setDescription(postData.description || "")
-      setVisibility(postData.visibility || "draft")
+      // Older records may still contain the former `followers` value.
+      // The current `members` scope means every signed-in account.
+      setVisibility(postData.visibility === "followers" ? "members" : (postData.visibility || "draft"))
       
       // 💡 複数選択(中間テーブル)から選択済みの品種ID群を取得し、カンマ区切りで復元
       const { data: vPivot } = await supabase.from("post_varieties").select("variety_id").eq("post_id", postId)
@@ -793,11 +795,11 @@ export default function EditPostPage({ params }: Props) {
               </label>
               <div className="w-full overflow-x-auto no-scrollbar scroll-smooth -mx-2 px-2 py-1">
                 <div className="flex flex-nowrap md:grid md:grid-cols-4 gap-3 min-w-max md:min-w-0">
-                  {(["draft", "private", "followers", "public"] as VisibilityType[]).map((type) => {
+                  {(["draft", "private", "members", "public"] as VisibilityType[]).map((type) => {
                     const labelMap = {
                       draft: t.statusDraft,
                       private: t.statusPrivate,
-                      followers: t.statusFollowers,
+                      members: t.statusMembers,
                       public: t.statusPublic,
                     }
                     const isSelected = visibility === type
@@ -809,7 +811,7 @@ export default function EditPostPage({ params }: Props) {
                           e.stopPropagation()
                           setVisibility(type)
                         }}
-                        className={`whitespace-nowrap px-2 py-3.5 text-[12px] sm:text-[13px] font-semibold rounded-xl border text-center transition-all duration-200 select-none flex-1 min-w-[145px] md:min-w-0 ${
+                        className={`flex min-h-[52px] flex-1 items-center justify-center whitespace-normal px-3 py-3.5 text-center text-[12px] font-semibold leading-5 sm:text-[13px] rounded-xl border transition-all duration-200 select-none min-w-[145px] md:min-w-0 ${
                           isSelected
                             ? "bg-white border-neutral-900 text-neutral-900 shadow-sm ring-1 ring-neutral-900"
                             : "bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50/50"
