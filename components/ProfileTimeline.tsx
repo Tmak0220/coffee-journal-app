@@ -55,7 +55,7 @@ export default function ProfileTimeline({
                   </time>
                   {item.target_group === "premium" && (
                     <span className="rounded-full border border-amber-200/70 bg-amber-50 px-2 py-0.5 text-[8px] font-bold tracking-wide text-amber-700">
-                      {isEn ? "MEMBERS" : "有料会員限定"}
+                      {isEn ? "SIGNED-IN USERS" : "ログインユーザー限定"}
                     </span>
                   )}
                 </div>
@@ -63,8 +63,8 @@ export default function ProfileTimeline({
                 {isRestricted ? (
                   <p className="mt-3 rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-3 text-[11px] leading-5 text-subtle">
                     {isEn
-                      ? "This update is available to paid members."
-                      : "このお知らせは有料会員のみ閲覧できます。"}
+                      ? "Sign in to view this update."
+                      : "このお知らせを閲覧するにはログインしてください。"}
                   </p>
                 ) : (
                   <>

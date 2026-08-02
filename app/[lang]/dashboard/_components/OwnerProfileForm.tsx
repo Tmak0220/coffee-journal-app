@@ -901,7 +901,7 @@ export default function OwnerProfileForm({
         {!isProfileCompleted ? (
           <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 text-neutral-600 text-[13px] leading-relaxed">
             {currentLang === "ja"
-              ? "オーナー会員プロフィールは未申請です。プロフィールを入力し、運営へ利用申請を送信してください。"
+              ? "オーナープロフィールは未申請です。プロフィールを入力し、運営へ利用申請を送信してください。"
               : "Your owner profile has not been submitted. Please complete your profile and submit an application to the team."}
           </div>
         ) : !isApproved || !isPublic ? (
@@ -913,7 +913,7 @@ export default function OwnerProfileForm({
         ) : (
           <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 text-neutral-600 text-[13px] leading-relaxed">
             {currentLang === "ja"
-              ? "オーナー会員アカウントが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィール内容を今後変更する際は、都度運営への再申請と承認が必要になります。"
+              ? "オーナープロフィールが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィール内容を今後変更する際は、都度運営への再申請と承認が必要になります。"
               : "Your owner account has been approved. All post forms and features are fully accessible. *Any future profile changes will require re-application and approval by the team."}
           </div>
         )}

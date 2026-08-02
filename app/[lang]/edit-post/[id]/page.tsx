@@ -496,7 +496,8 @@ export default function EditPostPage({ params }: Props) {
         const activeRecipes = recipeItems.filter(recipe => recipe.mode !== "none")
         const retainedRecipeIds: string[] = []
 
-        for (const [index, recipe] of activeRecipes.entries()) {
+        for (let index = 0; index < activeRecipes.length; index += 1) {
+          const recipe = activeRecipes[index]
           const linkedExpertId = recipe.mode === "barista"
             ? (recipe.baristaUserId || null)
             : null
@@ -525,7 +526,7 @@ export default function EditPostPage({ params }: Props) {
             bloom_time_seconds: recipe.mode === "self" ? parseDurationSeconds(recipe.bloomTime) : null,
             total_time_seconds: recipe.mode === "self" ? parseDurationSeconds(recipe.totalTime) : null,
             pour_steps: recipe.mode === "self"
-              ? recipe.pourSteps.filter(step => step.amount.trim() || step.time.trim())
+              ? recipe.pourSteps.filter((step: { amount: string; time: string }) => step.amount.trim() || step.time.trim())
               : [],
             barista_user_id: linkedExpertId,
             shop_name: recipe.mode === "barista" ? (recipe.shopName.trim() || null) : null,

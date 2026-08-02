@@ -477,7 +477,7 @@ export default function ProProfileForm({
         {!isProfileCompleted ? (
           <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 text-neutral-600 text-[13px] leading-relaxed">
             {currentLang === "ja" 
-              ? "プロ会員プロフィールは未申請です。必須項目（アバター・カバー・表示名・カテゴリー・自己紹介）を入力し、最下部のボタンから運営へ利用申請を送信してください。"
+              ? "プロプロフィールは未申請です。必須項目（アバター・カバー・表示名・カテゴリー・自己紹介）を入力し、最下部のボタンから運営へ利用申請を送信してください。"
               : "Your professional profile has not been submitted. Please fill out the required fields (Avatar, Cover, Display Name, Categories, Bio) and submit your application."}
           </div>
         ) : !isApproved || !initialIsPublic ? (
@@ -489,7 +489,7 @@ export default function ProProfileForm({
         ) : (
           <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 text-neutral-600 text-[13px] leading-relaxed">
             {currentLang === "ja" 
-              ? "プロ会員アカウントが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィールを今後変更する際は、都度運営への再申請と承認が必要になります。"
+              ? "プロプロフィールが承認されています。すべての投稿フォームと機能をご利用いただけます。※プロフィールを今後変更する際は、都度運営への再申請と承認が必要になります。"
               : "Your professional account has been approved. All post forms and features are fully accessible. *Any future profile changes will require administrator re-approval."}
           </div>
         )}

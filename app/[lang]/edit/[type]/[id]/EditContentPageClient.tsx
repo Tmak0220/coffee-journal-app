@@ -27,6 +27,7 @@ export default function EditContentPageClient({
   const [userId, setUserId] = useState("")
   const [tier, setTier] = useState<MembershipTier>("free")
   const [authorType, setAuthorType] = useState<"pro" | "owner">("pro")
+  const [publishTarget, setPublishTarget] = useState<"experts" | "origins" | "both">("experts")
   const [authorized, setAuthorized] = useState(false)
   const [checked, setChecked] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -48,13 +49,15 @@ export default function EditContentPageClient({
       const table = type === "blog" ? "blogs" : type === "verification" ? "pro_recipes" : "posts"
       const fields = type === "blog" ? "user_id, author_type" : "user_id"
       const { data: record } = await supabase.from(table).select(fields).eq("id", id).eq("user_id", user.id).maybeSingle()
-      const { data: profile } = await supabase.from("users").select("membership_tier").eq("id", user.id).maybeSingle()
+      const { data: profile } = await supabase.from("users").select("membership_tier, role").eq("id", user.id).maybeSingle()
       if (!active) return
       const membershipTier = (profile?.membership_tier || "free") as MembershipTier
       if (record) {
         setUserId(user.id)
         setTier(membershipTier)
-        if ("author_type" in record && record.author_type === "owner") setAuthorType("owner")
+        const role = profile?.role
+        setAuthorType(role === "owner" ? "owner" : "pro")
+        setPublishTarget(role === "admin" ? "both" : role === "owner" ? "origins" : "experts")
         setAuthorized(true)
       }
       setChecked(true)
@@ -136,8 +139,8 @@ export default function EditContentPageClient({
       </header>
       {type === "event" && <EventPostForm userId={userId} lang={currentLang} editId={id} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
       {type === "gear" && <GearReviewForm lang={currentLang} editId={id} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
-      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} onBlogCreated={() => undefined} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
-      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} membership_tier={tier} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
+      {type === "blog" && <CreateBlogForm lang={currentLang} editId={id} authorType={authorType} publishTarget={publishTarget} membership_tier={tier} onBlogCreated={() => undefined} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
+      {type === "verification" && <PublishProRecipeForm userId={userId} lang={currentLang} editId={id} authorType={authorType} publishTarget={publishTarget} secondaryAction={deleteAction} deleteStatusMessage={statusMessage} />}
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true">

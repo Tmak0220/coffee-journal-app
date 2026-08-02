@@ -19,7 +19,7 @@ type UserProfile = {
   bio: string | null
   bio_en: string | null
   avatar_url: string | null
-  role: "user" | "barista" | "owner" | "admin"
+  role: "user" | "pro" | "owner" | "admin"
   membership_tier: "free" | "standard" | "pro" | "business" | null
 }
 
@@ -155,26 +155,26 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
       setProfile(profileData as UserProfile)
       const targetUserId = profileData.id
 
-      // 料金プランや role ではなく、各専用プロフィールの承認・公開状態で
-      // 公式アカウント表示とリンクを決定する。
-      const [originProfile, expertProfile] = await Promise.all([
-        supabase
+      const originProfile = profileData.role === "owner" || profileData.role === "admin"
+        ? await supabase
           .from("origins")
           .select("slug, is_approved, is_public")
           .eq("user_id", targetUserId)
           .eq("is_approved", true)
           .eq("is_public", true)
           .limit(1)
-          .maybeSingle(),
-        supabase
+          .maybeSingle()
+        : { data: null }
+      const expertProfile = profileData.role === "pro" || profileData.role === "admin"
+        ? await supabase
           .from("experts" as any)
           .select("is_approved, is_public")
           .eq("user_id", targetUserId)
           .eq("is_approved", true)
           .eq("is_public", true)
           .limit(1)
-          .maybeSingle(),
-      ])
+          .maybeSingle()
+        : { data: null }
 
       const activeTypes: OwnerPageType[] = []
       if (originProfile.data?.slug) {

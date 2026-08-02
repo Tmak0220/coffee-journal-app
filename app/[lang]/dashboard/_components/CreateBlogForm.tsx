@@ -11,6 +11,7 @@ type Props = {
   onBlogCreated: () => void 
   lang?: string
   authorType: "pro" | "owner"
+  publishTarget?: TargetCategoryType
   membership_tier: "free" | "standard" | "pro" | "business"
   editId?: string
   secondaryAction?: ReactNode
@@ -47,11 +48,7 @@ const BLOG_FORM_DICT = {
     statusDraft: "下書き",
     statusPrivate: "非公開 (自分のみ)",
     statusMembers: "限定公開（ログインユーザーのみ）",
-    statusPublic: "公開 (全員に公開)",
-    labelPublishTarget: "投稿先の選択",
-    targetExperts: "人カテゴリー (experts)",
-    targetOrigins: "場所カテゴリー (origins)",
-    targetBoth: "両方のカテゴリー"
+    statusPublic: "公開 (全員に公開)"
   },
   en: {
     mainTitle: "PUBLISH ARTICLE",
@@ -72,15 +69,11 @@ const BLOG_FORM_DICT = {
     statusDraft: "Draft",
     statusPrivate: "Private (Just me)",
     statusMembers: "Signed-in Users Only",
-    statusPublic: "Public (Everyone)",
-    labelPublishTarget: "Publish Target Category",
-    targetExperts: "People (experts)",
-    targetOrigins: "Places (origins)",
-    targetBoth: "Publish to Both"
+    statusPublic: "Public (Everyone)"
   }
 } as const
 
-export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, membership_tier, editId, secondaryAction, deleteStatusMessage }: Props) {
+export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, publishTarget, membership_tier, editId, secondaryAction, deleteStatusMessage }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = BLOG_FORM_DICT[currentLang]
@@ -91,7 +84,6 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
   const [content, setContent] = useState("")
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [visibility, setVisibility] = useState<VisibilityType>("draft")
-  const [targetCategory, setTargetCategory] = useState<TargetCategoryType>("experts")
 
   const [submitting, setSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null)
@@ -130,7 +122,6 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         setImageUrls(urls)
         initialImagesRef.current = urls
         setVisibility(data.visibility || "draft")
-        setTargetCategory(data.publish_target || "experts")
       }
       setLoadingInitial(false)
     })()
@@ -163,7 +154,7 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         return
       }
 
-      const finalCategory = normalizedTier === "business" ? targetCategory : "experts"
+      const finalCategory: TargetCategoryType = publishTarget ?? (authorType === "owner" ? "origins" : "experts")
       const permanentImageUrls = await Promise.all(
         imageUrls.map(url => serverMoveToPermanentStorage(url))
       )
@@ -206,7 +197,6 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       setContent("")
       setImageUrls([])
       setVisibility("draft")
-      setTargetCategory("experts")
       onBlogCreated()
     } catch (err: any) {
       console.error("Form submit error:", err)
@@ -290,11 +280,8 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         {/* ✅ 修正箇所: submitting にはローディング状態のみを渡し、入力不足の判定は disabled に分離 */}
         <FormPublishSettings 
           dict={t}
-          normalizedTier={normalizedTier}
           visibility={visibility}
           setVisibility={setVisibility}
-          targetCategory={targetCategory}
-          setTargetCategory={setTargetCategory}
           submitting={submitting}
           disabled={isFormInvalid}
           statusMessage={deleteStatusMessage || statusMessage}

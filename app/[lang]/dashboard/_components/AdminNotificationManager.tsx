@@ -37,7 +37,7 @@ const getRequestCategory = (type: string): Exclude<RequestCategory, "all"> => {
 const ADMIN_DICT = {
   ja: {
     loading: "リクエストを読み込み中...",
-    description: "プロ会員申請・登録リクエスト一覧（完了した申請は1週間後に自動で整理されます）",
+    description: "プロフィール申請・登録リクエスト一覧（完了した申請は1週間後に自動で整理されます）",
     pendingCount: "未処理",
     empty: "届いているリクエストはありません。",
     senderId: "送信者ID",
@@ -57,7 +57,7 @@ const ADMIN_DICT = {
     status: { pending: "確認中", approved: "承認済み", rejected: "見送り" },
     types: {
       master_request: "データ追加申請",
-      new_profile_activation: "プロ会員初回利用申請",
+      new_profile_activation: "プロプロフィール初回利用申請",
       new_owner_profile_activation: "オーナープロフィール利用申請",
       expert_display_name_change: "プロプロフィール変更申請",
       owner_display_name_change: "オーナープロフィール変更申請",

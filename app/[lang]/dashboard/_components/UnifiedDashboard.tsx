@@ -23,6 +23,7 @@ import PeoplePostList from "components/PeoplePostList"
 import B2BInquiryPanel from "@/components/B2BInquiryPanel"
 import ProPostList from "./ProPostList"
 import { useAppPopup } from "@/context/AppPopupContext"
+import ServiceMarketplacePanel from "@/components/ServiceMarketplacePanel"
 
 type ToolType = "recipe" | "profile" | "cupping"
 
@@ -35,7 +36,7 @@ type UserProfile = {
   bio_en?: string | null
   avatar_url: string | null
   cover_url: string | null
-  role: "user" | "barista" | "owner" | "admin"
+  role: "user" | "pro" | "owner" | "admin"
   membership_tier: "free" | "standard" | "pro" | "business"
   current_store?: string | null
   past_stores?: string[] | null
@@ -82,8 +83,8 @@ type R2Image = {
 
 function ProfileReviewGuard({ lang, accountType }: { lang: "ja" | "en"; accountType: "pro" | "owner" }) {
   const label = accountType === "pro"
-    ? (lang === "en" ? "professional" : "プロ会員")
-    : (lang === "en" ? "owner" : "オーナー会員")
+    ? (lang === "en" ? "professional" : "プロ")
+    : (lang === "en" ? "owner" : "オーナー")
 
   return (
     <div className="rounded-3xl border border-neutral-200 bg-neutral-50/70 px-6 py-10 text-center shadow-sm">
@@ -128,6 +129,26 @@ function DashboardSectionHeading({
       <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-900">{eyebrow}</p>
       {title && <h3 className="mt-2 text-xl font-bold tracking-tight text-neutral-900">{title}</h3>}
       {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">{description}</p>}
+    </div>
+  )
+}
+
+type DashboardScope = "user" | "expert" | "origin" | "expert-origin"
+
+function DashboardScopeDivider({ scope, lang }: { scope: DashboardScope; lang: "ja" | "en" }) {
+  const labels: Record<DashboardScope, { ja: string; en: string }> = {
+    user: { ja: "USER · 共通アカウント", en: "USER · ACCOUNT" },
+    expert: { ja: "EXPERT · 専門家ページ", en: "EXPERT · PUBLIC PAGE" },
+    origin: { ja: "ORIGIN · 店舗・ブランドページ", en: "ORIGIN · PUBLIC PAGE" },
+    "expert-origin": { ja: "EXPERT / ORIGIN · 専門ページ", en: "EXPERT / ORIGIN · PUBLIC PAGES" },
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-1" role="separator" aria-label={labels[scope][lang]}>
+      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+        {labels[scope][lang]}
+      </span>
+      <span className="h-px flex-1 bg-neutral-200" aria-hidden="true" />
     </div>
   )
 }
@@ -492,16 +513,25 @@ export default function UnifiedDashboard({
   const [ownerPostingEnabled, setOwnerPostingEnabled] = useState(false)
   const [userProfileComplete, setUserProfileComplete] = useState(Boolean(profile.username && profile.display_name))
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
-  const [membershipCanceling, setMembershipCanceling] = useState(false)
   const [proPostRefreshKey, setProPostRefreshKey] = useState(0)
   const [userPostRefreshKey, setUserPostRefreshKey] = useState(0)
   const [sharedAvatarUrl, setSharedAvatarUrl] = useState<string | null>(profile.avatar_url)
   const [sharedCoverUrl, setSharedCoverUrl] = useState<string | null>(profile.cover_url)
   const [liveUserProfile, setLiveUserProfile] = useState<UserProfile>(profile)
+  const [roleChanging, setRoleChanging] = useState(false)
 
   const isAdmin = profile.role === "admin"
-  const hasProAccess = profile.membership_tier === "pro" || profile.membership_tier === "business" || isAdmin
-  const hasBusinessAccess = (profile.role === "owner" || isAdmin) && profile.membership_tier === "business"
+  const hasProAccess = profile.role === "pro" || isAdmin
+  const hasBusinessAccess = profile.role === "owner" || isAdmin
+  const professionalPostingEnabled = isAdmin || (profile.role === "pro" ? proPostingEnabled : ownerPostingEnabled)
+  const accountPostingEnabled = isAdmin
+    || (profile.role === "user" && userProfileComplete)
+    || (profile.role === "pro" && proPostingEnabled)
+    || (profile.role === "owner" && ownerPostingEnabled)
+  const professionalAuthorType: "pro" | "owner" = profile.role === "owner" ? "owner" : "pro"
+  const professionalPublishTarget: "experts" | "origins" | "both" = isAdmin
+    ? "both"
+    : profile.role === "owner" ? "origins" : "experts"
 
   const isEn = lang === "en"
   const navItems = useMemo(() => {
@@ -510,9 +540,9 @@ export default function UnifiedDashboard({
       { id: "create", label: isEn ? "Posts & Records" : "投稿・記録", hint: isEn ? "Create and publish" : "記録と記事を作成", group: "main" },
       { id: "library", label: isEn ? "Library" : "ライブラリ", hint: isEn ? "Posts and linked content" : "投稿と関連コンテンツ", group: "main" },
       { id: "analytics", label: isEn ? "Analytics" : "分析", hint: isEn ? "Review your coffee data" : "コーヒーデータを確認", group: "main" },
-      { id: "profiles", label: isEn ? "Public Profiles" : "公開プロフィール", hint: isEn ? "User, Experts and Origins" : "公開ページを管理", group: "main" },
+      { id: "profiles", label: isEn ? "Public Profile" : "公開プロフィール", hint: isEn ? "Manage your public page" : "公開ページを管理", group: "main" },
       { id: "notifications", label: isEn ? "Notifications" : "通知・配信", hint: isEn ? "Inbox and broadcasts" : "通知とお知らせ", group: "manage" },
-      { id: "settings", label: isEn ? "Settings" : "設定", hint: isEn ? "Account and membership" : "アカウントと契約", group: "manage" },
+      { id: "settings", label: isEn ? "Settings" : "設定", hint: isEn ? "Account settings" : "アカウント設定", group: "manage" },
     ]
     if (hasProAccess || hasBusinessAccess) items.splice(5, 0, { id: "business", label: isEn ? "Business" : "ビジネス", hint: isEn ? "Inquiries and commerce" : "問い合わせとEC連携", group: "main" })
     if (isAdmin) {
@@ -547,7 +577,11 @@ export default function UnifiedDashboard({
 
   useEffect(() => {
     async function fetchLatestExpertProfile() {
-      if (!hasProAccess) return
+      if (!hasProAccess) {
+        setExpertData(null)
+        setProPostingEnabled(false)
+        return
+      }
       try {
         const { data, error } = await supabase
           .from("experts")
@@ -556,12 +590,11 @@ export default function UnifiedDashboard({
           .maybeSingle()
 
         if (error) throw error
-        if (data) {
-          setExpertData(data)
-          setProPostingEnabled(Boolean(data.is_profile_completed && data.is_approved && data.is_public))
-        }
+        setExpertData(data ?? null)
+        setProPostingEnabled(Boolean(data?.is_profile_completed && data?.is_approved && data?.is_public))
       } catch (err) {
         console.error("Failed to fetch latest expert data in dashboard:", err)
+        setProPostingEnabled(false)
       }
     }
 
@@ -572,10 +605,6 @@ export default function UnifiedDashboard({
     async function fetchLatestOwnerProfile() {
       if (!hasBusinessAccess) return
       try {
-        // 過去バージョンで残った却下済み申請の仮紐付けを先に整理し、
-        // 承認済みなのに紐付けが欠けた場合も同じAPIで修復する。
-        await fetch("/api/repair-owner-profile-link", { method: "POST" })
-
         const loadOwnerProfile = () => supabase
           .from("origins")
           .select("*")
@@ -707,61 +736,63 @@ export default function UnifiedDashboard({
     }
   }
 
-  const handleMembershipCancellation = async () => {
-    const accountIsEn = formLanguage === "en"
+  const handleRoleChange = async (nextRole: "user" | "pro" | "owner") => {
+    if (nextRole === profile.role || roleChanging) return
+    const roleLabel = nextRole === "pro" ? "PRO" : nextRole === "owner" ? "OWNER" : "USER"
     const confirmed = await confirmPopup({
-      title: accountIsEn ? "Cancel membership" : "メンバーシップの解約",
-      message: accountIsEn
-        ? "Your Stripe subscription will be canceled immediately. Your account and posts will remain, and you can continue to sign in as a free user."
-        : "Stripeの定期契約を直ちに解約します。アカウントと投稿は残り、無料ユーザーとして引き続きログインできます。",
-      confirmLabel: accountIsEn ? "Cancel membership" : "解約する",
-      cancelLabel: accountIsEn ? "Keep membership" : "解約しない",
-      danger: true,
+      title: formLanguage === "en" ? `Switch to ${roleLabel}` : `${roleLabel}へ変更`,
+      message: formLanguage === "en"
+        ? "Dashboard tools will change immediately. Professional and owner publishing features remain locked until the corresponding public profile is reviewed and approved."
+        : "ダッシュボードで利用できる機能が切り替わります。プロ・オーナー向けの投稿機能は、対応する公開プロフィールの審査と承認が完了するまでロックされます。",
+      confirmLabel: formLanguage === "en" ? "Change account type" : "アカウント種別を変更",
+      cancelLabel: formLanguage === "en" ? "Cancel" : "キャンセル",
     })
     if (!confirmed) return
 
-    setMembershipCanceling(true)
-    try {
-      const response = await fetch("/api/cancel-membership", { method: "POST" })
-      const result = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(result?.error || "Membership cancellation failed")
-      }
+    setRoleChanging(true)
+    const { error } = await supabase.from("users").update({ role: nextRole }).eq("id", profile.id)
+    if (error) {
+      console.error("Account role change failed:", error)
       showPopup(
-        accountIsEn
-          ? "Your membership has been canceled. You can continue to use this account as a free user."
-          : "メンバーシップを解約しました。無料ユーザーとして引き続きこのアカウントにログインできます。",
-        "success",
-        accountIsEn ? "Membership canceled" : "解約しました"
-      )
-      window.setTimeout(() => window.location.reload(), 1200)
-    } catch (error) {
-      console.error("Membership cancellation failed:", error)
-      showPopup(
-        accountIsEn
-          ? "We couldn't cancel your membership. Please wait a moment and try again."
-          : "メンバーシップを解約できませんでした。時間をおいて、もう一度お試しください。",
+        formLanguage === "en" ? "We couldn't change the account type." : "アカウント種別を変更できませんでした。",
         "error",
-        accountIsEn ? "Cancellation failed" : "解約に失敗しました"
+        formLanguage === "en" ? "Change failed" : "変更に失敗しました"
       )
-    } finally {
-      setMembershipCanceling(false)
+      setRoleChanging(false)
+      return
     }
+    showPopup(
+      formLanguage === "en" ? `Your account is now ${roleLabel}.` : `アカウント種別を${roleLabel}へ変更しました。`,
+      "success",
+      formLanguage === "en" ? "Account type changed" : "変更しました"
+    )
+    window.setTimeout(() => window.location.reload(), 700)
   }
 
   const accountSettings = (
-    <section className="w-full rounded-3xl border border-neutral-200 bg-neutral-50/60 p-5 shadow-sm sm:p-7">
-      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+    <section className="w-full space-y-7 rounded-3xl border border-neutral-200 bg-neutral-50/60 p-5 shadow-sm sm:p-7">
+      {!isAdmin && <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">{formLanguage === "en" ? "ACCOUNT TYPE" : "アカウント種別"}</p>
+        <p className="mt-2 text-xs leading-6 text-neutral-500">{formLanguage === "en" ? "Choose the workspace that matches how you use Coffee Journal." : "Coffee Journalの利用方法に合う種別を選択してください。"}</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {(["user", "pro", "owner"] as const).map((role) => {
+            const selected = profile.role === role
+            const title = role === "pro" ? "PRO" : role === "owner" ? "OWNER" : "USER"
+            const description = formLanguage === "en"
+              ? role === "pro" ? "Expert profile and professional publishing" : role === "owner" ? "One Origin profile and shop tools" : "Coffee records and community tools"
+              : role === "pro" ? "EXPERTプロフィールと専門投稿" : role === "owner" ? "1つのORIGINプロフィールと店舗機能" : "コーヒー記録とコミュニティ機能"
+            return <button key={role} type="button" disabled={roleChanging} onClick={() => void handleRoleChange(role)} className={`rounded-2xl border p-4 text-left transition disabled:opacity-50 ${selected ? "border-neutral-950 bg-neutral-950 text-white shadow-md" : "border-neutral-200 bg-white hover:border-neutral-400"}`}><span className="block text-sm font-bold">{title}</span><span className={`mt-2 block text-[10px] leading-5 ${selected ? "text-neutral-300" : "text-neutral-500"}`}>{description}</span></button>
+          })}
+        </div>
+      </div>}
+      <div className="flex flex-col justify-between gap-5 border-t border-neutral-200 pt-6 sm:flex-row sm:items-center">
         <div className="max-w-2xl space-y-2">
-          <h3 className="text-sm font-bold text-neutral-900">{formLanguage === "en" ? "Account & membership" : "アカウント・契約"}</h3>
+          <h3 className="text-sm font-bold text-neutral-900">{formLanguage === "en" ? "Account settings" : "アカウント設定"}</h3>
           <p className="text-xs leading-6 text-neutral-500">
-            {profile.membership_tier === "free"
-              ? (formLanguage === "en" ? "Signing out keeps your profile and posts. Delete the account only when you want to permanently remove all data." : "ログアウトしてもプロフィールや投稿は保持されます。すべてのデータを完全に削除する場合のみ、アカウント削除を申請してください。")
-              : (formLanguage === "en" ? "Cancel your paid membership while keeping the account, or request permanent account deletion." : "アカウントを残して有料メンバーシップを解約するか、アカウントの完全削除を申請できます。")}
+            {formLanguage === "en" ? "Signing out keeps your profile and posts. Delete the account only when you want to permanently remove all data." : "ログアウトしてもプロフィールや投稿は保持されます。すべてのデータを完全に削除する場合のみ、アカウント削除を申請してください。"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5 sm:justify-end">
-          {profile.membership_tier !== "free" && <button type="button" onClick={handleMembershipCancellation} disabled={membershipCanceling} className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-xs font-semibold shadow-sm transition hover:border-neutral-900 disabled:opacity-50">{membershipCanceling ? (formLanguage === "en" ? "Canceling..." : "解約処理中...") : (formLanguage === "en" ? "Cancel membership" : "メンバーシップを解約")}</button>}
           <button type="button" onClick={handleAccountDeletionRequest} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100">{formLanguage === "en" ? "Delete account" : "アカウント削除（退会）"}</button>
         </div>
       </div>
@@ -778,7 +809,7 @@ export default function UnifiedDashboard({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setIsRequestModalOpen(true)} className="min-h-11 rounded-xl bg-neutral-950 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-neutral-800">{isEn ? "Request to the Team" : "運営者へのリクエスト"}</button>
-            <span className="flex min-h-11 items-center rounded-xl border border-neutral-200 bg-neutral-50 px-4 text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-600">{profile.membership_tier}</span>
+            <span className="flex min-h-11 items-center rounded-xl border border-neutral-200 bg-neutral-50 px-4 text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-600">{profile.role === "pro" ? "PRO" : profile.role === "owner" ? "OWNER" : profile.role === "admin" ? "ADMIN" : "USER"}</span>
           </div>
         </header>
 
@@ -816,22 +847,32 @@ export default function UnifiedDashboard({
 
             {activeView === "create" && (
               <div className="animate-fadeIn space-y-8">
-                {userProfileComplete ? <>
+                {accountPostingEnabled ? <>
+                  <DashboardScopeDivider scope="user" lang={formLanguage} />
                   <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="TASTING & EVENT" title={isEn ? "Create a coffee record" : "コーヒーの記録を作成"} /><CreateLogForm onLogCreated={() => setUserPostRefreshKey((key) => key + 1)} lang={formLanguage} /></section>
                   <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="GEAR REVIEW" description={isEn ? "Record your experience with coffee equipment." : "コーヒー器具の使用体験を記録します。"} /><GearReviewForm lang={formLanguage} /></section>
-                </> : <UserProfileGuard lang={formLanguage} />}
-                {hasProAccess && (proPostingEnabled ? <>
-                  <CreateBlogForm onBlogCreated={() => setProPostRefreshKey((key) => key + 1)} lang={formLanguage} authorType="pro" membership_tier={profile.membership_tier} />
-                  <PublishProRecipeForm userId={profile.id} membership_tier={profile.membership_tier} lang={formLanguage} onRecipeCreated={() => setProPostRefreshKey((key) => key + 1)} />
-                </> : <ProfileReviewGuard lang={formLanguage} accountType="pro" />)}
+                  {(hasProAccess || hasBusinessAccess) && professionalPostingEnabled && <>
+                    <DashboardScopeDivider scope={isAdmin ? "expert-origin" : hasBusinessAccess ? "origin" : "expert"} lang={formLanguage} />
+                    <CreateBlogForm onBlogCreated={() => setProPostRefreshKey((key) => key + 1)} lang={formLanguage} authorType={professionalAuthorType} publishTarget={professionalPublishTarget} membership_tier={profile.membership_tier} />
+                    <PublishProRecipeForm userId={profile.id} lang={formLanguage} authorType={professionalAuthorType} publishTarget={professionalPublishTarget} onRecipeCreated={() => setProPostRefreshKey((key) => key + 1)} />
+                  </>}
+                </> : profile.role === "user"
+                  ? <UserProfileGuard lang={formLanguage} />
+                  : <ProfileReviewGuard lang={formLanguage} accountType={profile.role === "owner" ? "owner" : "pro"} />}
               </div>
             )}
 
             {activeView === "library" && (
               <div className="animate-fadeIn space-y-8">
                 {userProfileComplete ? <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="MY ARTICLES" title={t.articlesTitle} /><PostList key={`${formLanguage}-${userPostRefreshKey}`} userId={profile.id} lang={formLanguage} /></section> : <UserProfileGuard lang={formLanguage} />}
-                {hasProAccess && proPostingEnabled && <><ProPostList userId={profile.id} lang={formLanguage} refreshKey={proPostRefreshKey} destination="experts" /><div className="border-t border-neutral-200 pt-8"><PeoplePostList userId={profile.id} lang={formLanguage} editable /></div></>}
-                {hasBusinessAccess && ownerPostingEnabled && <><ProPostList userId={profile.id} lang={formLanguage} refreshKey={proPostRefreshKey} destination="origins" />{ownerData?.id && <PeoplePostList userId={profile.id} originId={ownerData.id} targetType="origin" lang={formLanguage} editable />}</>}
+                {isAdmin ? <>
+                  <ProPostList userId={profile.id} lang={formLanguage} refreshKey={proPostRefreshKey} destination="all" />
+                  <div className="border-t border-neutral-200 pt-8"><PeoplePostList userId={profile.id} lang={formLanguage} editable /></div>
+                  {ownerData?.id && <PeoplePostList userId={profile.id} originId={ownerData.id} targetType="origin" lang={formLanguage} editable />}
+                </> : <>
+                  {hasProAccess && proPostingEnabled && <><ProPostList userId={profile.id} lang={formLanguage} refreshKey={proPostRefreshKey} destination="experts" /><div className="border-t border-neutral-200 pt-8"><PeoplePostList userId={profile.id} lang={formLanguage} editable /></div></>}
+                  {hasBusinessAccess && ownerPostingEnabled && <><ProPostList userId={profile.id} lang={formLanguage} refreshKey={proPostRefreshKey} destination="origins" />{ownerData?.id && <PeoplePostList userId={profile.id} originId={ownerData.id} targetType="origin" lang={formLanguage} editable />}</>}
+                </>}
               </div>
             )}
 
@@ -839,14 +880,17 @@ export default function UnifiedDashboard({
 
             {activeView === "profiles" && (
               <div className="animate-fadeIn space-y-10">
+                <DashboardScopeDivider scope="user" lang={formLanguage} />
                 <section className="flex flex-col items-center gap-8 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><AvatarUpload userId={profile.id} initialAvatarUrl={sharedAvatarUrl} username={liveUserProfile.username} displayName={formLanguage === "en" ? (liveUserProfile.display_name_en || liveUserProfile.display_name) : liveUserProfile.display_name} label={t.uploadLabel} lang={formLanguage} onAvatarChanged={setSharedAvatarUrl} /><ProfileForm userId={profile.id} initialUsername={liveUserProfile.username} initialDisplayName={liveUserProfile.display_name} initialDisplayNameEn={liveUserProfile.display_name_en} initialBio={liveUserProfile.bio} initialBioEn={liveUserProfile.bio_en} lang={formLanguage} onProfileCompleteChange={setUserProfileComplete} /></section>
-                {hasProAccess && <ProProfileForm userId={profile.id} initialUsername={liveUserProfile.username} initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? null) : null} initialDisplayNameEn={expertData ? (expertData.pending_display_name_en ?? expertData.display_name_en ?? null) : null} initialBio={expertData ? expertData.bio_expert : liveUserProfile.bio} initialBioEn={expertData?.bio_expert_en ?? null} initialAvatarUrl={sharedAvatarUrl} initialCoverUrl={sharedCoverUrl} initialCurrentStore={expertData?.current_store ?? null} initialCurrentStoreEn={expertData?.current_store_en ?? null} initialPastStores={expertData?.past_stores ?? null} initialPastStoresEn={expertData?.past_stores_en ?? null} initialAwards={expertData?.awards ?? null} initialAwardsEn={expertData?.awards_en ?? null} initialPrimarySpecialty={expertData?.primary_specialty ?? null} initialPrimarySpecialtyEn={expertData?.primary_specialty_en ?? null} initialSubSpecialties={expertData?.sub_specialties ?? null} initialSubSpecialtiesEn={expertData?.sub_specialties_en ?? null} initialIsApproved={expertData?.is_approved ?? false} initialIsProfileCompleted={expertData?.is_profile_completed ?? false} initialIsPublic={expertData?.is_public ?? false} onAccessStatusChange={setProPostingEnabled} lang={formLanguage} />}
-                {hasBusinessAccess && <OwnerProfileForm userId={profile.id} initialOriginId={ownerData?.id ?? null} initialSlug={ownerData?.slug ?? null} initialUsername={liveUserProfile.username} initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? null} initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null} initialBio={ownerData?.bio ?? null} initialBioEn={ownerData?.bio_en ?? null} initialAvatarUrl={sharedAvatarUrl} initialCoverUrl={sharedCoverUrl} initialHeadquarters={ownerData?.headquarters ?? null} initialHeadquartersEn={ownerData?.headquarters_en ?? null} initialBranches={ownerData?.branches ?? []} initialBranchesEn={ownerData?.branches_en ?? []} initialLinks={ownerData?.links ?? []} initialGearIds={ownerData?._application_gear_ids ?? []} initialIsApproved={ownerData?.is_approved ?? false} initialIsProfileCompleted={ownerData?.is_profile_completed ?? false} initialIsPublic={ownerData?.is_public ?? false} onAccessStatusChange={setOwnerPostingEnabled} lang={formLanguage} />}
+                {hasProAccess && <div className="space-y-5"><DashboardScopeDivider scope="expert" lang={formLanguage} /><ProProfileForm userId={profile.id} initialUsername={liveUserProfile.username} initialDisplayName={expertData ? (expertData.pending_display_name ?? expertData.display_name ?? null) : null} initialDisplayNameEn={expertData ? (expertData.pending_display_name_en ?? expertData.display_name_en ?? null) : null} initialBio={expertData ? expertData.bio_expert : liveUserProfile.bio} initialBioEn={expertData?.bio_expert_en ?? null} initialAvatarUrl={sharedAvatarUrl} initialCoverUrl={sharedCoverUrl} initialCurrentStore={expertData?.current_store ?? null} initialCurrentStoreEn={expertData?.current_store_en ?? null} initialPastStores={expertData?.past_stores ?? null} initialPastStoresEn={expertData?.past_stores_en ?? null} initialAwards={expertData?.awards ?? null} initialAwardsEn={expertData?.awards_en ?? null} initialPrimarySpecialty={expertData?.primary_specialty ?? null} initialPrimarySpecialtyEn={expertData?.primary_specialty_en ?? null} initialSubSpecialties={expertData?.sub_specialties ?? null} initialSubSpecialtiesEn={expertData?.sub_specialties_en ?? null} initialIsApproved={expertData?.is_approved ?? false} initialIsProfileCompleted={expertData?.is_profile_completed ?? false} initialIsPublic={expertData?.is_public ?? false} onAccessStatusChange={setProPostingEnabled} lang={formLanguage} /></div>}
+                {hasBusinessAccess && <div className="space-y-5"><DashboardScopeDivider scope="origin" lang={formLanguage} /><OwnerProfileForm userId={profile.id} initialOriginId={ownerData?.id ?? null} initialSlug={ownerData?.slug ?? null} initialUsername={liveUserProfile.username} initialDisplayName={ownerData?.pending_display_name ?? ownerData?.display_name ?? null} initialDisplayNameEn={ownerData?.pending_display_name_en ?? ownerData?.display_name_en ?? null} initialBio={ownerData?.bio ?? null} initialBioEn={ownerData?.bio_en ?? null} initialAvatarUrl={sharedAvatarUrl} initialCoverUrl={sharedCoverUrl} initialHeadquarters={ownerData?.headquarters ?? null} initialHeadquartersEn={ownerData?.headquarters_en ?? null} initialBranches={ownerData?.branches ?? []} initialBranchesEn={ownerData?.branches_en ?? []} initialLinks={ownerData?.links ?? []} initialGearIds={ownerData?._application_gear_ids ?? []} initialIsApproved={ownerData?.is_approved ?? false} initialIsProfileCompleted={ownerData?.is_profile_completed ?? false} initialIsPublic={ownerData?.is_public ?? false} onAccessStatusChange={setOwnerPostingEnabled} lang={formLanguage} /></div>}
               </div>
             )}
 
             {activeView === "business" && (hasProAccess || hasBusinessAccess) && (
               <div className="animate-fadeIn space-y-8">
+                {proPostingEnabled && <ServiceMarketplacePanel providerUserId={profile.id} providerType="expert" lang={formLanguage} mode="manager" />}
+                {ownerPostingEnabled && ownerData?.id && <ServiceMarketplacePanel providerUserId={profile.id} providerType="origin" originId={ownerData.id} lang={formLanguage} mode="manager" />}
                 {hasProAccess && (proPostingEnabled ? <B2BInquiryPanel currentUserId={profile.id} currentUserTier={profile.membership_tier} lang={formLanguage} mode="sent" /> : <ProfileReviewGuard lang={formLanguage} accountType="pro" />)}
                 {hasBusinessAccess && (ownerPostingEnabled ? <>{ownerData?.id && <B2BInquiryPanel originId={ownerData.id} ownerId={profile.id} currentUserId={profile.id} currentUserTier={profile.membership_tier} lang={formLanguage} mode="inbox" />}<ShopProductsSection userId={userId} lang={formLanguage} /></> : <ProfileReviewGuard lang={formLanguage} accountType="owner" />)}
               </div>

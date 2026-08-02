@@ -10,8 +10,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ plat
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(new URL("/ja/login", request.url))
-  const { data: account } = await supabase.from("users").select("membership_tier").eq("id", user.id).maybeSingle()
-  if (account?.membership_tier !== "business") return NextResponse.json({ error: "Business membership required" }, { status: 403 })
+  const { data: origin } = await supabase.from("origins").select("id").eq("user_id", user.id).eq("is_approved", true).eq("is_public", true).limit(1).maybeSingle()
+  if (!origin) return NextResponse.json({ error: "Approved owner profile required" }, { status: 403 })
 
   const credentials = integrationCredentials(rawPlatform)
   if (!credentials.clientId || !credentials.clientSecret) return NextResponse.json({ error: `${rawPlatform} credentials are not configured` }, { status: 503 })

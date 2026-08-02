@@ -21,12 +21,11 @@ create policy "Participants read B2B messages" on public.b2b_messages for select
 
 create or replace function public.start_b2b_inquiry(p_origin_id integer, p_subject_type text, p_company_name text, p_body text)
 returns uuid language plpgsql security definer set search_path = public as $$
-declare v_sender uuid := auth.uid(); v_recipient uuid; v_id uuid; v_tier text;
+declare v_sender uuid := auth.uid(); v_recipient uuid; v_id uuid;
 begin
-  select membership_tier into v_tier from users where id = v_sender;
-  if v_sender is null or v_tier not in ('pro','business') then raise exception 'Professional or business membership required'; end if;
+  if v_sender is null then raise exception 'Authentication required'; end if;
   if p_subject_type not in ('wholesale','collaboration','media','large_order','other') or char_length(trim(p_body)) not between 1 and 2000 then raise exception 'Invalid inquiry'; end if;
-  select o.user_id into v_recipient from origins o join users u on u.id = o.user_id where o.id = p_origin_id and u.membership_tier = 'business' and o.is_public = true;
+  select o.user_id into v_recipient from origins o where o.id = p_origin_id and o.is_approved = true and o.is_public = true;
   if v_recipient is null or v_recipient = v_sender then raise exception 'Business recipient not found'; end if;
   insert into b2b_conversations(origin_id,sender_id,recipient_id,subject_type,company_name) values(p_origin_id,v_sender,v_recipient,p_subject_type,nullif(trim(p_company_name),''))
   on conflict(origin_id,sender_id,recipient_id) do update set updated_at=now() returning id into v_id;

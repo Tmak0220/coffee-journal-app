@@ -1,6 +1,5 @@
--- Supabase Authにユーザーが作成された時点で、申告したアカウント種別をpublic.usersへ保存する。
--- username / display_nameはプロフィール設定時までNULLのままにする。
-
+-- 新規登録時の自己申告を users.role へ保存する。
+-- user -> USER、pro -> EXPERT、owner -> ORIGIN の各ダッシュボードを利用する。
 create or replace function public.handle_new_auth_user()
 returns trigger
 language plpgsql
@@ -8,14 +7,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (
-    id,
-    email,
-    role,
-    membership_tier,
-    created_at,
-    updated_at
-  )
+  insert into public.users (id, email, role, membership_tier, created_at, updated_at)
   values (
     new.id,
     new.email,
@@ -27,17 +19,12 @@ begin
     'free',
     now(),
     now()
-  )
-  on conflict (id) do update
-  set email = excluded.email,
-      updated_at = now();
-
+  );
   return new;
 end;
 $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
-
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_auth_user();

@@ -15,6 +15,7 @@ import ProfileTimeline from "@/components/ProfileTimeline"
 import PublicShopProducts from "@/components/PublicShopProducts"
 import ProfileBlogList from "@/components/ProfileBlogList"
 import { canUseUserFeatures } from "@/lib/permissions"
+import ServiceMarketplacePanel from "@/components/ServiceMarketplacePanel"
 
 type BranchItem = {
   name: string
@@ -120,15 +121,15 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       linkPlaceholder: "関連リンクURL（任意）",
       targetGroupLabel: "配信対象",
       targetAll: "全員に公開",
-      targetPremium: "有料会員限定",
+      targetPremium: "ログインユーザー限定",
       publish: "投稿する",
       noCover: "NO COVER IMAGE",
       noBio: "ストーリーはまだ登録されていません。",
       noLinks: "登録されているリンクはありません。",
       noLocations: "登録されている活動拠点情報はありません。",
-      premiumBadge: "有料会員限定",
+      premiumBadge: "ログインユーザー限定",
       openLink: "リンクを見る",
-      premiumMaskText: "このコンテンツは有料会員限定です。閲覧するにはプランのアップグレードが必要です。"
+      premiumMaskText: "このコンテンツを閲覧するにはログインしてください。"
     },
     en: {
       followers: "FOLLOWERS",
@@ -146,15 +147,15 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       linkPlaceholder: "Related Link URL (Optional)",
       targetGroupLabel: "Target Audience",
       targetAll: "Public (Everyone)",
-      targetPremium: "Premium Members Only",
+      targetPremium: "Signed-in Users Only",
       publish: "Publish",
       noCover: "NO COVER IMAGE",
       noBio: "Our story has not been registered yet.",
       noLinks: "No links registered yet.",
       noLocations: "No locations registered yet.",
-      premiumBadge: "PREMIUM ONLY",
+      premiumBadge: "SIGNED-IN USERS",
       openLink: "Visit Link",
-      premiumMaskText: "This content is exclusive to premium members. Please upgrade your plan to view."
+      premiumMaskText: "Sign in to view this content."
     }
   }[lang]
 
@@ -243,7 +244,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     return () => { isMounted = false; subscription.unsubscribe() }
   }, [slug, origin.owner_id])
 
-  const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
+  const isPremiumUser = Boolean(currentUserId)
 
   const fetchTimelineData = async () => {
     if (!slug) return
@@ -480,6 +481,16 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           mode="public"
           className="mt-12 w-full"
         />
+
+        {origin.owner_id && (
+          <ServiceMarketplacePanel
+            providerUserId={origin.owner_id}
+            providerType="origin"
+            originId={origin.id}
+            lang={lang}
+            className="mt-12 w-full"
+          />
+        )}
 
         <ProfileTimeline
           items={notifications}

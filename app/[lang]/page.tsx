@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic"
 
 import type { Metadata } from "next"
 import Link from "next/link"
-import HomeMembershipLink from "@/components/HomeMembershipLink"
 
 type Props = {
   params: Promise<{
@@ -27,7 +26,6 @@ const dict = {
     guidePrefix: "初めに",
     guideLinkText: "使い方",
     guideSuffix: "を必ずお読みください。",
-    membership: "MEMBERSHIP",
     sections: [
       { id: "origins", name: "ORIGINS", name_lang: "起源", description: "生産地・消費地から探す", slug: "origins" },
       { id: "experts", name: "EXPERTS", name_lang: "人物", description: "生産者・ロースター・バリスタなどから探す", slug: "experts" },
@@ -41,7 +39,6 @@ const dict = {
     guidePrefix: "Please be sure to read the ",
     guideLinkText: "User Guide",
     guideSuffix: " first.",
-    membership: "MEMBERSHIP",
     sections: [
       { id: "origins", name: "ORIGINS", name_lang: "Origins", description: "Find by origins and destinations.", slug: "origins" },
       { id: "experts", name: "EXPERTS", name_lang: "Experts", description: "Find by producers, roasters, and baristas.", slug: "experts" },
@@ -59,11 +56,7 @@ export default async function Home({ params }: Props) {
   return (
     <div className="public-page-shell journal-page-wrapper w-full">
       <section className="relative z-10 mx-auto w-full max-w-6xl px-4 pt-6 sm:p-10 sm:pb-0 md:p-14 md:pb-0 lg:p-16 lg:pb-0">
-        <div className="flex min-h-[60px] items-start justify-end sm:min-h-[112px]">
-          <HomeMembershipLink lang={currentLang} />
-        </div>
-
-        <div className="mt-6 flex flex-col sm:mt-12">
+        <div className="flex flex-col pt-8 sm:pt-14">
           <h1 className="text-3xl font-semibold leading-none tracking-tight text-neutral-850 sm:text-5xl md:text-6xl">
             {t.title}
           </h1>

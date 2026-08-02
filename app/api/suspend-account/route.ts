@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient as createServerClient } from "@/lib/supabase-server"
-import { cancelUserSubscriptions } from "@/lib/stripe-billing"
 
 function serviceClient() {
   return createServiceClient(
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
         service.from("users").select("role").eq("id", requester.id).maybeSingle(),
         service
           .from("users")
-          .select("id, email, stripe_customer_id, stripe_subscription_id")
+          .select("id")
           .eq("id", userId)
           .maybeSingle(),
       ])
@@ -43,13 +42,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const canceledSubscriptions = await cancelUserSubscriptions({
-      userId,
-      email: target.email,
-      customerId: target.stripe_customer_id,
-      subscriptionId: target.stripe_subscription_id,
-    })
-
     const now = new Date().toISOString()
     const { error: updateError } = await service
       .from("users")
@@ -57,11 +49,6 @@ export async function POST(request: Request) {
         is_active: false,
         deactivated_at: now,
         deactivation_reason: "account_suspended",
-        membership_tier: "free",
-        role: "user",
-        stripe_subscription_status: canceledSubscriptions.length > 0 ? "canceled" : undefined,
-        stripe_cancel_at_period_end: false,
-        stripe_subscription_updated_at: now,
       })
       .eq("id", userId)
     if (updateError) throw updateError
@@ -75,7 +62,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      canceledSubscriptions,
     })
   } catch (error) {
     console.error("Account suspension failed:", error)

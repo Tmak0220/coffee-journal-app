@@ -24,8 +24,6 @@ export default function robots(): MetadataRoute.Robots {
         "/en/forgot-password",
         "/ja/reset-password",
         "/en/reset-password",
-        "/ja/members/success",
-        "/en/members/success",
         "/ja/search/result",
         "/en/search/result",
       ],

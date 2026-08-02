@@ -103,7 +103,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry(`/${lang}/experts`, { changeFrequency: "weekly", priority: 0.9 }),
     entry(`/${lang}/journal`, { changeFrequency: "daily", priority: 0.8 }),
     entry(`/${lang}/search`, { changeFrequency: "weekly", priority: 0.7 }),
-    entry(`/${lang}/members`, { changeFrequency: "monthly", priority: 0.6 }),
     entry(`/${lang}/guide`, { changeFrequency: "monthly", priority: 0.5 }),
     entry(`/${lang}/contact`, { changeFrequency: "yearly", priority: 0.3 }),
     entry(`/${lang}/terms`, { changeFrequency: "yearly", priority: 0.2 }),

@@ -12,7 +12,7 @@ type Props = {
 }
 
 // 💡 新しいrole構成に対応
-type UserRole = "user" | "barista" | "owner" | "admin"
+type UserRole = "user" | "pro" | "owner" | "admin"
 
 type UserData = {
   id: string
@@ -23,7 +23,7 @@ type UserData = {
 }
 
 // タブの選択肢に admin も内包、あるいは適宜割り振り
-type RoleTabType = "all" | "barista" | "owner" | "admin" | "user"
+type RoleTabType = "all" | "pro" | "owner" | "admin" | "user"
 
 type OriginData = {
   id: number
@@ -106,7 +106,7 @@ export default function FollowList({ userId, type, lang }: Props) {
   })
 
   // 各種カウンターの集計
-  const baristaCount = list.filter((u) => u.role === "barista").length
+  const baristaCount = list.filter((u) => u.role === "pro").length
   const ownerCount = list.filter((u) => u.role === "owner").length
   const adminCount = list.filter((u) => u.role === "admin").length
   const normalUserCount = list.filter((u) => u.role === "user").length
@@ -144,10 +144,10 @@ export default function FollowList({ userId, type, lang }: Props) {
     <div className="max-w-2xl mx-auto mt-6 space-y-6">
       {/* タブメニューメニュー */}
       <div className="flex items-center gap-1.5 border-b border-border pb-2 overflow-x-auto no-scrollbar">
-        {(["all", "barista", "owner", "admin", "user"] as RoleTabType[]).map((tab) => {
+        {(["all", "pro", "owner", "admin", "user"] as RoleTabType[]).map((tab) => {
           const label = {
             all: `すべて (${list.length})`,
-            barista: `プロ / 職人 (${baristaCount})`,
+            pro: `プロ / 職人 (${baristaCount})`,
             owner: `ロースター・店舗 (${ownerCount})`,
             admin: `運営・管理者 (${adminCount})`,
             user: `愛好家 (${normalUserCount})`,
@@ -216,7 +216,7 @@ export default function FollowList({ userId, type, lang }: Props) {
 
               {/* ロールバッジ出し分け */}
               <div className="flex-shrink-0">
-                {user.role === "barista" && <span className="text-[9px] bg-amber-900 text-amber-50 font-mono font-bold px-2 py-0.5 rounded">PRO</span>}
+                {user.role === "pro" && <span className="text-[9px] bg-amber-900 text-amber-50 font-mono font-bold px-2 py-0.5 rounded">PRO</span>}
                 {user.role === "owner" && <span className="text-[9px] bg-zinc-900 text-zinc-50 font-mono font-bold px-2 py-0.5 rounded">ROASTER</span>}
                 {user.role === "admin" && <span className="text-[9px] bg-red-900 text-red-50 font-mono font-bold px-2 py-0.5 rounded">ADMIN</span>}
                 {user.role === "user" && <span className="text-[9px] border border-border text-subtle font-mono px-2 py-0.5 rounded">USER</span>}

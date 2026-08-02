@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
+type SignupAccountType = "user" | "pro" | "owner"
+
 type StatusMessage = {
   text: string
   type: "error" | "success"
@@ -25,6 +27,7 @@ export default function LoginPageClient({ lang }: Props) {
   const [loginLoading, setLoginLoading] = useState(false)
   const [signupEmail, setSignupEmail] = useState("")
   const [signupPassword, setSignupPassword] = useState("")
+  const [signupAccountType, setSignupAccountType] = useState<SignupAccountType>("user")
   const [signupLoading, setSignupLoading] = useState(false)
 
   const t = {
@@ -38,11 +41,17 @@ export default function LoginPageClient({ lang }: Props) {
       loginFailed: "ログインに失敗しました",
       forgotPassword: "パスワードをお忘れの方",
       signupSubtitle: "初めてご利用になる方",
+      accountTypeLabel: "利用するアカウント",
+      accountTypes: {
+        user: { title: "ユーザー", description: "記録・投稿・フォローなどの基本機能" },
+        pro: { title: "プロ", description: "基本機能＋EXPERTプロフィールと専門記事" },
+        owner: { title: "オーナー", description: "基本機能＋ORIGINプロフィールと店舗機能" },
+      },
       signupBtn: "無料で新規登録",
       signupLoading: "登録中...",
       signupSuccess: "確認メールを送信しました。メール内のリンクから登録を完了してください。",
       signupComplete: "アカウントを作成しました。",
-      signupNote: "※PRO予定の方は業務用（フリー可）、OWNER予定の方は事業用のメールアドレス（または代替アドレス）でのご登録を推奨します。",
+      signupNote: "アカウント種別は登録後のダッシュボード機能と公開プロフィールに反映されます。",
     },
     en: {
       pageLabel: "ACCOUNT",
@@ -54,11 +63,17 @@ export default function LoginPageClient({ lang }: Props) {
       loginFailed: "Failed to log in",
       forgotPassword: "Forgot your password?",
       signupSubtitle: "New to Coffee Journal",
+      accountTypeLabel: "Account type",
+      accountTypes: {
+        user: { title: "User", description: "Records, posts, follows, and other core features" },
+        pro: { title: "Professional", description: "Core features plus an EXPERT profile and articles" },
+        owner: { title: "Owner", description: "Core features plus one ORIGIN profile and shop tools" },
+      },
       signupBtn: "CREATE FREE ACCOUNT",
       signupLoading: "Creating account...",
       signupSuccess: "We sent you a confirmation email. Open the link in the email to complete registration.",
       signupComplete: "Your account has been created.",
-      signupNote: "*PRO plan: Work email recommended (free email allowed). OWNER plan: Business email recommended (or alternative if inactive/not started).",
+      signupNote: "Your selection determines the dashboard tools and public profile available to you.",
     },
   }[lang]
 
@@ -69,28 +84,6 @@ export default function LoginPageClient({ lang }: Props) {
 
   const showMessage = (text: string, type: StatusMessage["type"]) => {
     setStatusMessage({ text, type })
-  }
-
-  // DBトリガー適用前に作成された認証ユーザーにも、初回ログイン時にusers行を補完する。
-  const ensureUserRecord = async (user: { id: string; email?: string | null }) => {
-    const { data, error: selectError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (selectError) throw selectError
-    if (data) return
-
-    const { error: insertError } = await supabase.from("users").insert({
-      id: user.id,
-      email: user.email ?? null,
-      role: "user",
-      membership_tier: "free",
-    })
-
-    // トリガーとの競合で先に行が作られた場合は成功として扱う。
-    if (insertError && insertError.code !== "23505") throw insertError
   }
 
   const handleLogin = async (event: FormEvent) => {
@@ -107,7 +100,6 @@ export default function LoginPageClient({ lang }: Props) {
       if (error) throw error
       if (!data.user) throw new Error(t.loginFailed)
 
-      await ensureUserRecord(data.user)
       router.push(destination)
       router.refresh()
     } catch (error) {
@@ -127,14 +119,15 @@ export default function LoginPageClient({ lang }: Props) {
       const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
+        options: {
+          data: { account_type: signupAccountType },
+        },
       })
       if (error) throw error
 
-      // users行はDBトリガーで即時作成される。確認メールなしの構成では念のため画面側でも補完する。
       if (data.session && data.user) {
-        await ensureUserRecord(data.user)
         showMessage(t.signupComplete, "success")
-        router.push(prefix)
+        router.push(`${prefix}/dashboard`)
         router.refresh()
         return
       }
@@ -194,6 +187,22 @@ export default function LoginPageClient({ lang }: Props) {
               <div className="mt-8 space-y-4">
                 <input type="email" autoComplete="email" placeholder="EMAIL" value={signupEmail} onChange={(event) => setSignupEmail(event.target.value)} required className={inputClass} />
                 <input type="password" autoComplete="new-password" minLength={6} placeholder="PASSWORD" value={signupPassword} onChange={(event) => setSignupPassword(event.target.value)} required className={inputClass} />
+                <fieldset>
+                  <legend className="mb-3 text-[11px] font-semibold tracking-[0.12em] text-neutral-500">{t.accountTypeLabel}</legend>
+                  <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+                    {(["user", "pro", "owner"] as SignupAccountType[]).map((type) => {
+                      const option = t.accountTypes[type]
+                      const selected = signupAccountType === type
+                      return (
+                        <label key={type} className={`cursor-pointer rounded-2xl border p-4 transition ${selected ? "border-neutral-950 bg-neutral-950 text-white shadow-sm" : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"}`}>
+                          <input type="radio" name="account_type" value={type} checked={selected} onChange={() => setSignupAccountType(type)} className="sr-only" />
+                          <span className="block text-xs font-semibold">{option.title}</span>
+                          <span className={`mt-2 block text-[10px] leading-5 ${selected ? "text-neutral-300" : "text-neutral-400"}`}>{option.description}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </fieldset>
               </div>
             </div>
             <div className="mt-8">

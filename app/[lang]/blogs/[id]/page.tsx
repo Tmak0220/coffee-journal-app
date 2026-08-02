@@ -55,24 +55,9 @@ export default async function BlogPage({ params }: Props) {
   const blog = await getBlogDetail(id)
   if (!blog) notFound()
 
-  // 2. 現在のユーザーセッションとメンバーシップ情報を取得
+  // 2. 現在のユーザーセッションを取得
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
-  let userTier: "free" | "standard" | "pro" | "business" = "free"
-  if (user) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("membership_tier, role")
-      .eq("id", user.id)
-      .maybeSingle()
-    
-    if (profile?.role === "admin") {
-      userTier = "business"
-    } else if (profile?.membership_tier) {
-      userTier = profile.membership_tier
-    }
-  }
 
   // 3. クライアントコンポーネントへ渡す
   return (
@@ -80,7 +65,6 @@ export default async function BlogPage({ params }: Props) {
       articleId={id} 
       lang={lang === "en" ? "en" : "ja"} 
       currentUserId={user?.id || null} 
-      currentUserTier={userTier} 
       initialArticle={blog}
     />
   )

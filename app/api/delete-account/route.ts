@@ -6,7 +6,6 @@ import {
 } from "@aws-sdk/client-s3"
 import { createClient as createServerClient } from "@/lib/supabase-server"
 import { r2 } from "@/lib/r2"
-import { cancelUserSubscriptions } from "@/lib/stripe-billing"
 
 const service = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -187,22 +186,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { data: billing, error: billingError } = await service
-      .from("users")
-      .select("email, stripe_customer_id, stripe_subscription_id")
-      .eq("id", userId)
-      .maybeSingle()
-    if (billingError) throw billingError
-
-    // Refuse account deletion if Stripe cannot confirm cancellation. This
-    // prevents deleting the IDs needed to stop future automatic renewals.
-    const canceledSubscriptions = await cancelUserSubscriptions({
-      userId,
-      email: billing?.email,
-      customerId: billing?.stripe_customer_id,
-      subscriptionId: billing?.stripe_subscription_id,
-    })
-
     // Collect first so database deletion cannot remove the URLs needed for
     // legacy objects whose key did not contain the user UUID.
     const r2Keys = await collectUserOwnedR2Keys(userId)
@@ -235,7 +218,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       deletedR2Objects: r2Keys.size,
-      canceledSubscriptions,
     })
   } catch (error) {
     console.error("Account deletion failed:", error)

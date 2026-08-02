@@ -42,7 +42,7 @@ export default function ProPostList({
   userId: string
   lang?: "ja" | "en"
   refreshKey?: number
-  destination?: "experts" | "origins"
+  destination?: "experts" | "origins" | "all"
 }) {
   const isEn = lang === "en"
   const [items, setItems] = useState<ProPostItem[]>([])
@@ -54,8 +54,10 @@ export default function ProPostList({
   const [isDeleting, setIsDeleting] = useState(false)
 
   const t = isEn ? {
-    title: destination === "origins" ? "OWNER POSTS" : "PRO POSTS",
-    description: destination === "origins"
+    title: destination === "all" ? "PROFESSIONAL POSTS" : destination === "origins" ? "OWNER POSTS" : "PRO POSTS",
+    description: destination === "all"
+      ? "Manage announcements, articles, and verification reports for both EXPERT and ORIGIN pages."
+      : destination === "origins"
       ? "Manage announcements, articles, and verification reports published to your origin page."
       : "Manage your announcements, articles, and verification reports.",
     all: "All Posts",
@@ -79,8 +81,10 @@ export default function ProPostList({
     confirmDelete: "Delete",
     deleting: "Deleting...",
   } : {
-    title: destination === "origins" ? "オーナー投稿" : "プロ投稿",
-    description: destination === "origins"
+    title: destination === "all" ? "プロ・オーナー投稿" : destination === "origins" ? "オーナー投稿" : "プロ投稿",
+    description: destination === "all"
+      ? "EXPERT・ORIGINへ公開した投稿を重複なくまとめて管理できます。"
+      : destination === "origins"
       ? "お知らせ・ブログ・検証記事をまとめて管理できます。"
       : "お知らせ・ブログ・検証記事をまとめて管理できます。",
     all: "すべての投稿",
@@ -116,9 +120,9 @@ export default function ProPostList({
       ])
 
       if (!active) return
-      const matchesAuthorType = (authorType: string | null | undefined) => destination === "origins"
-        ? authorType === "owner"
-        : !authorType || authorType === "pro"
+      const matchesAuthorType = (authorType: string | null | undefined) => destination === "all"
+        ? true
+        : destination === "origins" ? authorType === "owner" : !authorType || authorType === "pro"
       const notices = (noticesResult.data || []).filter((notice: any) => matchesAuthorType(notice.author_type)).map((notice: any): ProPostItem => ({
         id: notice.id,
         category: "notice",
@@ -131,9 +135,9 @@ export default function ProPostList({
         editHref: null,
       }))
       const blogs = (blogsResult.data || [])
-        .filter((blog: any) => destination === "origins"
+        .filter((blog: any) => destination === "all" || (destination === "origins"
           ? blog.publish_target === "origins" || blog.publish_target === "both" || (!blog.publish_target && blog.author_type === "owner")
-          : blog.publish_target === "experts" || blog.publish_target === "both" || (!blog.publish_target && blog.author_type !== "owner"))
+          : blog.publish_target === "experts" || blog.publish_target === "both" || (!blog.publish_target && blog.author_type !== "owner")))
         .map((blog: any): ProPostItem => ({
         id: blog.id,
         category: "blog",
@@ -146,9 +150,9 @@ export default function ProPostList({
         editHref: `/${lang}/edit/blog/${blog.id}`,
         }))
       const recipes = (recipesResult.data || [])
-        .filter((recipe: any) => destination === "origins"
+        .filter((recipe: any) => destination === "all" || (destination === "origins"
           ? recipe.target_category === "origins" || recipe.target_category === "both"
-          : !recipe.target_category || recipe.target_category === "experts" || recipe.target_category === "both")
+          : !recipe.target_category || recipe.target_category === "experts" || recipe.target_category === "both"))
         .map((recipe: any): ProPostItem => ({
         id: recipe.id,
         category: "verification",

@@ -19,8 +19,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ plat
   const auth = await createClient()
   const { data: { user } } = await auth.auth.getUser()
   if (!user || user.id !== context.userId) return NextResponse.redirect(dashboardRedirect(baseUrl, context.lang, "error", rawPlatform))
-  const { data: account } = await auth.from("users").select("membership_tier").eq("id", user.id).maybeSingle()
-  if (account?.membership_tier !== "business") return NextResponse.redirect(dashboardRedirect(baseUrl, context.lang, "error", rawPlatform))
+  const { data: origin } = await auth.from("origins").select("id").eq("user_id", user.id).eq("is_approved", true).eq("is_public", true).limit(1).maybeSingle()
+  if (!origin) return NextResponse.redirect(dashboardRedirect(baseUrl, context.lang, "error", rawPlatform))
 
   const credentials = integrationCredentials(rawPlatform)
   if (!credentials.clientId || !credentials.clientSecret) return NextResponse.redirect(dashboardRedirect(baseUrl, context.lang, "error", rawPlatform))

@@ -31,16 +31,17 @@ export default function B2BInquiryPanel({ originId, ownerId, currentUserId, curr
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
   const [recipientIsBusiness, setRecipientIsBusiness] = useState(false)
 
-  const canUse = currentUserTier === "pro" || currentUserTier === "business"
+  const canUse = Boolean(currentUserId)
   const isOwner = Boolean(currentUserId && ownerId === currentUserId)
 
   useEffect(() => {
     if (!ownerId) return
-    supabase.from("users").select("membership_tier").eq("id", ownerId).maybeSingle().then(({ data, error }) => {
+    if (!originId) return
+    supabase.from("origins").select("is_approved, is_public, user_id").eq("id", originId).eq("user_id", ownerId).maybeSingle().then(({ data, error }) => {
       if (error) console.error("Failed to verify B2B recipient:", error)
-      setRecipientIsBusiness(data?.membership_tier === "business")
+      setRecipientIsBusiness(Boolean(data?.is_approved && data?.is_public))
     })
-  }, [ownerId])
+  }, [originId, ownerId])
 
   const loadThreads = useCallback(async () => {
     if (!currentUserId || !canUse) return

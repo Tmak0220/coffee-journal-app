@@ -30,9 +30,9 @@ const formDict = {
     btnFailed: "配信失敗",
     targetAll: "全員に配信",
     targetAllDesc: "すべての閲覧者・顧客",
-    targetPremium: "有料会員限定",
-    targetPremiumDesc: "有料会員のみ",
-    badgeLocked: "有料会員のみ利用可能",
+    targetPremium: "ログインユーザー限定",
+    targetPremiumDesc: "ログインしているユーザーのみ",
+    badgeLocked: "",
     
     typeNotice: "お知らせ・案内",
     typeNewRelease: "新発売・入荷情報",
@@ -57,9 +57,9 @@ const formDict = {
     btnFailed: "Failed to Send",
     targetAll: "Broadcast to Everyone",
     targetAllDesc: "All viewers and customers",
-    targetPremium: "Paid Members Only",
-    targetPremiumDesc: "Paid members only",
-    badgeLocked: "Paid members only",
+    targetPremium: "Signed-in Users Only",
+    targetPremiumDesc: "Only signed-in users",
+    badgeLocked: "",
 
     typeNotice: "General Announcement",
     typeNewRelease: "New Release / Restock",
@@ -87,7 +87,7 @@ export default function BroadcastNotificationForm({
   const [targetGroup, setTargetGroup] = useState<"all" | "premium">("all")
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle")
 
-  const isPremiumFeatureLocked = membership_tier === "free"
+  const isPremiumFeatureLocked = false
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,7 +96,8 @@ export default function BroadcastNotificationForm({
     setStatus("sending")
 
     try {
-      // UIを経由しない値の改変があっても、無料会員が限定配信を作れないよう保存直前にも確定する。
+      // `premium` is retained as the database value for backward compatibility,
+      // but now represents signed-in users rather than a paid membership.
       const effectiveTargetGroup = isPremiumFeatureLocked ? "all" : targetGroup
       const record = {
         user_id: userId,
@@ -233,7 +234,7 @@ export default function BroadcastNotificationForm({
               </span>
             </button>
 
-            {/* 有料会員限定配信ボタン */}
+            {/* ログインユーザー限定配信ボタン */}
             <button
               type="button"
               disabled={isPremiumFeatureLocked}

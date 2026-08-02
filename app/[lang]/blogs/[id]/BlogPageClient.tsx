@@ -30,7 +30,6 @@ type Props = {
   articleId: string
   lang: "ja" | "en"
   currentUserId: string | null
-  currentUserTier: "free" | "standard" | "pro" | "business" | null
   initialArticle: BlogArticle
 }
 
@@ -81,7 +80,6 @@ export default function BlogPageClient({
   articleId,
   lang,
   currentUserId,
-  currentUserTier,
   initialArticle,
 }: Props) {
   const currentLang = lang === "en" ? "en" : "ja"
@@ -165,7 +163,7 @@ export default function BlogPageClient({
     if (articleId) {
       initArticlePage()
     }
-  }, [articleId, currentUserId, currentUserTier, currentLang, initialArticle, t.notFound])
+  }, [articleId, currentUserId, currentLang, initialArticle, t.notFound])
 
   const requirePlus = () => {
     if (!canUseUserFeatures(currentUserId)) {

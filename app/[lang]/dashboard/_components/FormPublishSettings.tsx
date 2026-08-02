@@ -3,15 +3,10 @@
 import React from "react"
 
 type VisibilityType = "draft" | "private" | "members" | "public"
-type TargetCategoryType = "experts" | "origins" | "both"
-
 type Props = {
   dict: any
-  normalizedTier: string | undefined
   visibility: VisibilityType
   setVisibility: (type: VisibilityType) => void
-  targetCategory: TargetCategoryType
-  setTargetCategory: (type: TargetCategoryType) => void
   submitting: boolean
   disabled?: boolean
   statusMessage: { type: "success" | "error"; text: string } | null
@@ -20,11 +15,8 @@ type Props = {
 
 export default function FormPublishSettings({
   dict,
-  normalizedTier,
   visibility,
   setVisibility,
-  targetCategory,
-  setTargetCategory,
   submitting,
   disabled = false,
   statusMessage,
@@ -79,36 +71,6 @@ export default function FormPublishSettings({
           </div>
         </div>
       </div>
-
-      {/* 投稿先カテゴリー（ビジネスプランのみ表示） */}
-      {normalizedTier === "business" && (
-        <div className="space-y-3 pt-2 text-left">
-          <label className="text-xs sm:text-[14px] font-bold text-neutral-900 tracking-wide block">
-            {dict?.labelPublishTarget || "投稿先カテゴリー"}
-          </label>
-          <div className="w-full overflow-x-auto no-scrollbar scroll-smooth -mx-2 px-2 py-1">
-            <div className="flex flex-nowrap md:grid md:grid-cols-3 gap-3 min-w-max md:min-w-0">
-              {(["experts", "origins", "both"] as TargetCategoryType[]).map((type) => {
-                const labelMap = {
-                  experts: dict?.targetExperts || "専門家",
-                  origins: dict?.targetOrigins || "原産地",
-                  both: dict?.targetBoth || "両方のカテゴリー",
-                }
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setTargetCategory(type)}
-                    className={getTabButtonStyle(targetCategory === type)}
-                  >
-                    {labelMap[type]}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-col justify-end gap-3 pt-2 sm:flex-row sm:items-center">
         <button 

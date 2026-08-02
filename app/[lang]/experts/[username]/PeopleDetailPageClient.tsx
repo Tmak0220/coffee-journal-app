@@ -13,6 +13,7 @@ import { ProfileSkeleton } from "@/components/ui/PageSkeletons"
 import ProfileTimeline from "@/components/ProfileTimeline"
 import ProfileBlogList from "@/components/ProfileBlogList"
 import { canUseUserFeatures } from "@/lib/permissions"
+import ServiceMarketplacePanel from "@/components/ServiceMarketplacePanel"
 
 type BaristaProfile = {
   id: string
@@ -83,14 +84,14 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
     servedPostsSectionTitle: isEn ? "Served & Provided Coffee" : "提供・関連された投稿",
     updatesSectionTitle: isEn ? "Updates & Announcements" : "お知らせ・タイムライン",
     noUpdates: isEn ? "No updates posted yet." : "まだ投稿はありません。",
-    premiumBadge: isEn ? "PREMIUM ONLY" : "有料会員限定",
+    premiumBadge: isEn ? "SIGNED-IN USERS" : "ログインユーザー限定",
     openLink: isEn ? "Visit Link" : "リンクを見る",
     follow: isEn ? "Follow" : "フォローする",
     following: isEn ? "Following" : "フォロー中",
     followers: isEn ? "Followers" : "フォロワー",
     premiumMaskText: isEn 
-      ? "This content is exclusive to premium members. Please upgrade your plan to view." 
-      : "このコンテンツは有料会員限定です。閲覧するにはプランのアップグレードが必要です。"
+      ? "Sign in to view this content."
+      : "このコンテンツを閲覧するにはログインしてください。"
   }
 
   useEffect(() => {
@@ -109,10 +110,8 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
           .maybeSingle()
         const viewerTier = viewerData?.membership_tier || "free"
         setCurrentUserTier(viewerTier)
-        // Broadcasts may still be intentionally restricted to paid plans.
-        // This is separate from content visibility `members`, which now means
-        // every signed-in account including Free.
-        viewerIsPremium = ["standard", "pro", "business"].includes(viewerTier)
+        // Legacy `premium` notifications now mean signed-in users.
+        viewerIsPremium = true
       } else {
         setCurrentUserTier(null)
       }
@@ -338,7 +337,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   }[specialtyAccentKey[specialtyKey] || specialtyKey.toLowerCase()]
     || "border-neutral-200 bg-neutral-50 text-neutral-800"
 
-  const isPremiumUser = currentUserTier === "standard" || currentUserTier === "pro" || currentUserTier === "business"
+  const isPremiumUser = Boolean(currentUserId)
 
   return (
     <main className="public-page-shell pb-24 text-foreground">
@@ -427,6 +426,13 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
             )}
           </div>
         )}
+
+        <ServiceMarketplacePanel
+          providerUserId={profile.id}
+          providerType="expert"
+          lang={isEn ? "en" : "ja"}
+          className="mt-12"
+        />
 
         <ProfileTimeline
           items={notifications}

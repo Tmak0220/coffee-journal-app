@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useRef, type ReactNode } from "react"
+import React, { useState, useEffect, useRef, type ReactNode } from "react"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
@@ -128,7 +128,7 @@ type Props = {
   onRecipeCreated?: () => void 
   lang?: string
   authorType?: "pro" | "owner"
-  membership_tier?: "free" | "standard" | "pro" | "business" | string
+  publishTarget?: TargetCategoryType
   editId?: string
   secondaryAction?: ReactNode
   deleteStatusMessage?: { text: string; type: "success" | "error" } | null
@@ -281,11 +281,7 @@ const RECIPE_FORM_DICT = {
     statusDraft: "下書き",
     statusPrivate: "非公開 (自分のみ)",
     statusMembers: "限定公開（ログインユーザーのみ）",
-    statusPublic: "公開 (全員に公開)",
-    labelPublishTarget: "投稿先の選択",
-    targetExperts: "人カテゴリー (experts)",
-    targetOrigins: "場所カテゴリー (origins)",
-    targetBoth: "両方のカテゴリー"
+    statusPublic: "公開 (全員に公開)"
   },
   en: {
     mainTitle: "PUBLISH RECIPE",
@@ -300,11 +296,7 @@ const RECIPE_FORM_DICT = {
     statusDraft: "Draft",
     statusPrivate: "Private (Just me)",
     statusMembers: "Signed-in Users Only",
-    statusPublic: "Public (Everyone)",
-    labelPublishTarget: "Publish Target Category",
-    targetExperts: "People (experts)",
-    targetOrigins: "Places (origins)",
-    targetBoth: "Publish to Both"
+    statusPublic: "Public (Everyone)"
   }
 } as const
 
@@ -313,7 +305,7 @@ export default function PublishProRecipeForm({
   onRecipeCreated, 
   lang = "ja", 
   authorType = "pro", 
-  membership_tier,
+  publishTarget,
   editId,
   secondaryAction,
   deleteStatusMessage,
@@ -323,8 +315,6 @@ export default function PublishProRecipeForm({
   const currentLang = lang === "en" ? "en" : "ja"
   const dict = RECIPE_FORM_DICT[currentLang]
   
-  const normalizedTier = useMemo(() => membership_tier?.trim().toLowerCase(), [membership_tier])
-
   const [data, setData] = useState<RecipeFormData>({
     heroImageUrl: "",
     heroImageUrls: [],
@@ -364,7 +354,6 @@ export default function PublishProRecipeForm({
   const [submitting, setSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [visibility, setVisibility] = useState<VisibilityType>("draft")
-  const [targetCategory, setTargetCategory] = useState<TargetCategoryType>("experts")
   const [loadingInitial, setLoadingInitial] = useState(Boolean(editId))
   const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
   const initialImagesRef = useRef<string[]>([])
@@ -433,7 +422,6 @@ export default function PublishProRecipeForm({
         logPurpose: recipe.log_purpose || "", logProcess: recipe.log_process || "", logConclusion: recipe.log_conclusion || "",
       })
       setVisibility(recipe.visibility || "draft")
-      setTargetCategory(recipe.target_category || "experts")
       setLoadingInitial(false)
     })()
     return () => { active = false }
@@ -759,8 +747,7 @@ export default function PublishProRecipeForm({
       const permanentImageUrls = await Promise.all(
         imageUrls.map(url => serverMoveToPermanentStorage(url))
       )
-      const finalTargetCategory: TargetCategoryType =
-        normalizedTier === "business" ? targetCategory : "experts"
+      const finalTargetCategory: TargetCategoryType = publishTarget ?? (authorType === "owner" ? "origins" : "experts")
 
       const normalizedPatterns = normalizePatternUnits(data.verifications)
       const primaryPattern = normalizedPatterns.find(pattern => pattern.isBest) || normalizedPatterns[0]
@@ -1252,11 +1239,8 @@ export default function PublishProRecipeForm({
 
         <FormPublishSettings 
           dict={dict}
-          normalizedTier={normalizedTier}
           visibility={visibility}
           setVisibility={setVisibility}
-          targetCategory={targetCategory}
-          setTargetCategory={setTargetCategory}
           submitting={submitting}
           disabled={isFormInvalid}
           statusMessage={deleteStatusMessage || statusMessage}
