@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase"
 
 type Log = {
   countries: string[]
+  roasters: string[]
   varieties: string[]
   processes: string[]
   flavorTags: string[]
@@ -31,6 +32,7 @@ const analyticsDict = {
     unit: "回",
     other: "その他",
     titleCountry: "Origin Countries (生産国)",
+    titleRoaster: "Roasters (ロースター)",
     titleVariety: "Varieties (品種)",
     titleProcess: "Process (精製方法)",
     titleFlavor: "Favorite Tastes (テイスト)"
@@ -42,6 +44,7 @@ const analyticsDict = {
     unit: "times",
     other: "Other",
     titleCountry: "Origin Countries",
+    titleRoaster: "Roasters",
     titleVariety: "Varieties",
     titleProcess: "Process",
     titleFlavor: "Favorite Tastes"
@@ -67,7 +70,7 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
       setLoading(true)
       const { data: posts, error: postsError } = await supabase
         .from("posts")
-        .select("id, source_origin_id")
+        .select("id, source_origin_id, market_origin_id")
         .eq("user_id", userId)
         .eq("type", "blog")
         .neq("visibility", "draft")
@@ -95,9 +98,15 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
           .filter((id): id is number => typeof id === "number"),
       ))
 
+      const marketOriginIds = Array.from(new Set(
+        (posts || [])
+          .map((post) => post.market_origin_id)
+          .filter((id): id is number => typeof id === "number"),
+      ))
+
       const loadOriginHierarchy = async () => {
         const nodes = new Map<number, OriginNode>()
-        let pending = sourceOriginIds
+        let pending = Array.from(new Set([...sourceOriginIds, ...marketOriginIds]))
 
         // Origins are normally shallow, but the limit also protects against
         // malformed parent cycles in master data.
@@ -139,7 +148,7 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
       ])
 
       if (!active) return
-      const rows = new Map<string, Log>(postIds.map((id) => [id, { countries: [], varieties: [], processes: [], flavorTags: [] }]))
+      const rows = new Map<string, Log>(postIds.map((id) => [id, { countries: [], roasters: [], varieties: [], processes: [], flavorTags: [] }]))
       const localizedName = (record: Record<string, unknown> | null) => {
         if (!record) return null
         const primary = currentLang === "ja" ? record.name_ja : record.name
@@ -150,6 +159,12 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
       }
 
       for (const post of posts || []) {
+        if (typeof post.market_origin_id === "number") {
+          const market = originNodes.get(post.market_origin_id)
+          const marketName = localizedName(market as unknown as Record<string, unknown> | null)
+          if (marketName) rows.get(post.id)?.roasters.push(marketName)
+        }
+
         let originId = typeof post.source_origin_id === "number" ? post.source_origin_id : null
         const visited = new Set<number>()
         while (originId !== null && !visited.has(originId)) {
@@ -197,6 +212,7 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
     }
     return {
       countries: count(logs.map((log) => log.countries)),
+      roasters: count(logs.map((log) => log.roasters)),
       varieties: count(logs.map((log) => log.varieties)),
       processes: count(logs.map((log) => log.processes)),
       flavors: count(logs.map((log) => log.flavorTags)),
@@ -240,10 +256,14 @@ export default function CoffeeAnalyticsCharts({ userId, lang = "ja" }: Props) {
   return (
     <div>
       <p className="mb-4 font-mono text-[10px] uppercase tracking-wider text-neutral-400">{t.posts}: {postCount}</p>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{t.titleCountry}</h4>
           <DistributionBars data={analyticsData.countries} accent="bg-emerald-600/70" />
+        </section>
+        <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{t.titleRoaster}</h4>
+          <DistributionBars data={analyticsData.roasters} accent="bg-orange-500/70" />
         </section>
         <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">{t.titleVariety}</h4>
