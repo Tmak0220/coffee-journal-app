@@ -893,14 +893,6 @@ export type Database = {
           is_active: boolean
           membership_tier: string | null
           role: string | null
-          stripe_cancel_at_period_end: boolean
-          stripe_current_period_end: string | null
-          stripe_customer_id: string | null
-          stripe_plan_key: string | null
-          stripe_price_id: string | null
-          stripe_subscription_id: string | null
-          stripe_subscription_status: string | null
-          stripe_subscription_updated_at: string | null
           updated_at: string
           username: string | null
         }
@@ -919,14 +911,6 @@ export type Database = {
           is_active?: boolean
           membership_tier?: string | null
           role?: string | null
-          stripe_cancel_at_period_end?: boolean
-          stripe_current_period_end?: string | null
-          stripe_customer_id?: string | null
-          stripe_plan_key?: string | null
-          stripe_price_id?: string | null
-          stripe_subscription_id?: string | null
-          stripe_subscription_status?: string | null
-          stripe_subscription_updated_at?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -945,14 +929,6 @@ export type Database = {
           is_active?: boolean
           membership_tier?: string | null
           role?: string | null
-          stripe_cancel_at_period_end?: boolean
-          stripe_current_period_end?: string | null
-          stripe_customer_id?: string | null
-          stripe_plan_key?: string | null
-          stripe_price_id?: string | null
-          stripe_subscription_id?: string | null
-          stripe_subscription_status?: string | null
-          stripe_subscription_updated_at?: string | null
           updated_at?: string
           username?: string | null
         }
