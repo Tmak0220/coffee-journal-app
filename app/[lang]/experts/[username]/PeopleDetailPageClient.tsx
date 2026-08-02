@@ -69,7 +69,6 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   const [following, setFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followLoading, setFollowLoading] = useState(false)
-  const [currentUserTier, setCurrentUserTier] = useState<string | null>(null)
 
   const t = {
     noRecipes: isEn ? "No recipes published yet." : "現在公開されているレシピはありません。",
@@ -99,22 +98,8 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
       const { data: sessionData } = await supabase.auth.getSession()
       const loginUid = sessionData?.session?.user?.id || null
       setCurrentUserId(loginUid)
-      let viewerIsPremium = false
+      const viewerIsSignedIn = Boolean(loginUid)
       const viewerCanViewMembers = Boolean(loginUid)
-      
-      if (loginUid) {
-        const { data: viewerData } = await supabase
-          .from("users")
-          .select("membership_tier")
-          .eq("id", loginUid)
-          .maybeSingle()
-        const viewerTier = viewerData?.membership_tier || "free"
-        setCurrentUserTier(viewerTier)
-        // Legacy `premium` notifications now mean signed-in users.
-        viewerIsPremium = true
-      } else {
-        setCurrentUserTier(null)
-      }
 
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -211,7 +196,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         .select("id, title, content, link_url, link_source, target_group, created_at, lang")
         .eq("user_id", userData.id)
         .eq("lang", isEn ? "en" : "ja")
-        .in("target_group", viewerIsPremium ? ["all", "premium"] : ["all"])
+        .in("target_group", viewerIsSignedIn ? ["all", "premium"] : ["all"])
         .order("created_at", { ascending: false })
 
       setNotifications((noticeData || []).map((notice: any) => ({
@@ -337,7 +322,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
   }[specialtyAccentKey[specialtyKey] || specialtyKey.toLowerCase()]
     || "border-neutral-200 bg-neutral-50 text-neutral-800"
 
-  const isPremiumUser = Boolean(currentUserId)
+  const isSignedInUser = Boolean(currentUserId)
 
   return (
     <main className="public-page-shell pb-24 text-foreground">
@@ -437,7 +422,7 @@ export default function PeopleDetailPageClient({ username, lang = "ja" }: Client
         <ProfileTimeline
           items={notifications}
           lang={isEn ? "en" : "ja"}
-          isPremiumUser={isPremiumUser}
+          isSignedInUser={isSignedInUser}
         />
 
         <ProfileBlogList userId={profile.id} target="experts" lang={isEn ? "en" : "ja"} />

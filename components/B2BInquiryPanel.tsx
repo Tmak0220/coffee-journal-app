@@ -11,13 +11,12 @@ type B2BInquiryPanelProps = {
   originId?: number
   ownerId?: string | null
   currentUserId: string | null
-  currentUserTier: string | null
   lang: "ja" | "en"
   mode?: "public" | "inbox" | "sent"
   className?: string
 }
 
-export default function B2BInquiryPanel({ originId, ownerId, currentUserId, currentUserTier, lang, mode = "public", className = "" }: B2BInquiryPanelProps) {
+export default function B2BInquiryPanel({ originId, ownerId, currentUserId, lang, mode = "public", className = "" }: B2BInquiryPanelProps) {
   const isEn = lang === "en"
   const { showPopup, confirmPopup } = useAppPopup()
   const [conversations, setConversations] = useState<Conversation[]>([])

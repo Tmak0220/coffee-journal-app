@@ -67,7 +67,6 @@ const ADMIN_DICT = {
       data_correction: "データ修正依頼",
       other_inquiry: "その他のお問い合わせ",
       account_delete_request: "アカウント削除リクエスト",
-      account_suspend_request: "アカウント一時停止リクエスト",
       content_warning: "投稿に関する運営からの警告",
     },
   },
@@ -103,7 +102,6 @@ const ADMIN_DICT = {
       data_correction: "Data Correction",
       other_inquiry: "Other Inquiry",
       account_delete_request: "Account Deletion Request",
-      account_suspend_request: "Account Suspension Request",
       content_warning: "Post Warning from the Team",
     },
   },
@@ -373,11 +371,8 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
       }
 
       if (newStatus === "approved") {
-        if (req.type === "account_suspend_request" || req.type === "account_delete_request") {
-          const endpoint = req.type === "account_delete_request"
-            ? "/api/delete-account"
-            : "/api/suspend-account"
-          const response = await fetch(endpoint, {
+        if (req.type === "account_delete_request") {
+          const response = await fetch("/api/delete-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: req.user_id }),
@@ -387,11 +382,9 @@ export default function AdminNotificationManager({ lang = "ja" }: { lang?: "ja" 
             throw new Error(result?.error || "Account action failed")
           }
 
-          if (req.type === "account_delete_request") {
-            setRequests((previous) => previous.filter((item) => item.id !== req.id))
-            setPendingCount((previous) => Math.max(0, previous - 1))
-            return
-          }
+          setRequests((previous) => previous.filter((item) => item.id !== req.id))
+          setPendingCount((previous) => Math.max(0, previous - 1))
+          return
         }
         else if (req.type === "master_request") {
           await handleMasterRequestApproval(req)

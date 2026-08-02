@@ -63,7 +63,7 @@ type Props = {
   gears: Gear[]
   isOwner: boolean
   currentUserId: string | null
-  viewerIsTierMember: boolean
+  viewerIsSignedIn: boolean
   lang: "ja" | "en"
 }
 
@@ -136,14 +136,14 @@ const dict = {
   },
 }
 
-export default function ProVerificationDetail({ recipe, author, gears, isOwner, currentUserId, viewerIsTierMember, lang }: Props) {
+export default function ProVerificationDetail({ recipe, author, gears, isOwner, currentUserId, viewerIsSignedIn, lang }: Props) {
   const t = dict[lang]
   const [bookmarked, setBookmarked] = useState(false)
   const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!currentUserId || !viewerIsTierMember) return
+    if (!currentUserId || !viewerIsSignedIn) return
     supabase
       .from("pro_recipe_bookmarks")
       .select("id")
@@ -151,11 +151,11 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
       .eq("pro_recipe_id", recipe.id)
       .maybeSingle()
       .then(({ data }) => setBookmarked(Boolean(data)))
-  }, [currentUserId, recipe.id, viewerIsTierMember])
+  }, [currentUserId, recipe.id, viewerIsSignedIn])
 
   const handleBookmark = async () => {
     setStatusMessage(null)
-    if (!currentUserId || !viewerIsTierMember) {
+    if (!currentUserId || !viewerIsSignedIn) {
       setStatusMessage(t.membershipRequired)
       return
     }

@@ -37,7 +37,6 @@ type UserProfile = {
   avatar_url: string | null
   cover_url: string | null
   role: "user" | "pro" | "owner" | "admin"
-  membership_tier: "free" | "standard" | "pro" | "business"
   current_store?: string | null
   past_stores?: string[] | null
   awards?: string | null
@@ -93,8 +92,8 @@ function ProfileReviewGuard({ lang, accountType }: { lang: "ja" | "en"; accountT
       </p>
       <p className="text-sm leading-relaxed text-neutral-600">
         {lang === "en"
-          ? `Posting features will become available after your ${label} profile is approved and published.`
-          : `${label}プロフィールの審査が完了し、公開された後に投稿フォームと各機能をご利用いただけます。`}
+          ? `Features for your ${label} public page will become available after the profile is approved and published. Tasting records, event posts, and gear reviews remain available.`
+          : `${label}公開ページ向けの投稿・ビジネス機能は、プロフィールの審査が完了し公開された後に利用できます。テイスト投稿・イベント投稿・器具レビューは引き続き利用できます。`}
       </p>
     </div>
   )
@@ -524,10 +523,9 @@ export default function UnifiedDashboard({
   const hasProAccess = profile.role === "pro" || isAdmin
   const hasBusinessAccess = profile.role === "owner" || isAdmin
   const professionalPostingEnabled = isAdmin || (profile.role === "pro" ? proPostingEnabled : ownerPostingEnabled)
-  const accountPostingEnabled = isAdmin
-    || (profile.role === "user" && userProfileComplete)
-    || (profile.role === "pro" && proPostingEnabled)
-    || (profile.role === "owner" && ownerPostingEnabled)
+  // Tasting records, event posts, and gear reviews belong to the shared user
+  // workspace. Professional profile review must only guard expert/origin features.
+  const userPostingEnabled = isAdmin || userProfileComplete
   const professionalAuthorType: "pro" | "owner" = profile.role === "owner" ? "owner" : "pro"
   const professionalPublishTarget: "experts" | "origins" | "both" = isAdmin
     ? "both"
@@ -556,7 +554,7 @@ export default function UnifiedDashboard({
     async function refreshSharedUserProfile() {
       const { data, error } = await supabase
         .from("users")
-        .select("id, username, display_name, display_name_en, bio, bio_en, avatar_url, cover_url, role, membership_tier")
+        .select("id, username, display_name, display_name_en, bio, bio_en, avatar_url, cover_url, role")
         .eq("id", profile.id)
         .maybeSingle()
 
@@ -569,6 +567,7 @@ export default function UnifiedDashboard({
         setLiveUserProfile((current) => ({ ...current, ...data }))
         setSharedAvatarUrl(data.avatar_url ?? null)
         setSharedCoverUrl(data.cover_url ?? null)
+        setUserProfileComplete(Boolean(data.username && data.display_name))
       }
     }
 
@@ -773,7 +772,7 @@ export default function UnifiedDashboard({
     <section className="w-full space-y-7 rounded-3xl border border-neutral-200 bg-neutral-50/60 p-5 shadow-sm sm:p-7">
       {!isAdmin && <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">{formLanguage === "en" ? "ACCOUNT TYPE" : "アカウント種別"}</p>
-        <p className="mt-2 text-xs leading-6 text-neutral-500">{formLanguage === "en" ? "Choose the workspace that matches how you use Coffee Journal." : "Coffee Journalの利用方法に合う種別を選択してください。"}</p>
+        <p className="mt-2 text-xs leading-6 text-neutral-500">{formLanguage === "en" ? "Choose the workspace that fits your purpose." : "利用方法に合う種別を選択してください。"}</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {(["user", "pro", "owner"] as const).map((role) => {
             const selected = profile.role === role
@@ -847,18 +846,20 @@ export default function UnifiedDashboard({
 
             {activeView === "create" && (
               <div className="animate-fadeIn space-y-8">
-                {accountPostingEnabled ? <>
+                {userPostingEnabled ? <>
                   <DashboardScopeDivider scope="user" lang={formLanguage} />
                   <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="TASTING & EVENT" title={isEn ? "Create a coffee record" : "コーヒーの記録を作成"} /><CreateLogForm onLogCreated={() => setUserPostRefreshKey((key) => key + 1)} lang={formLanguage} /></section>
                   <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="GEAR REVIEW" description={isEn ? "Record your experience with coffee equipment." : "コーヒー器具の使用体験を記録します。"} /><GearReviewForm lang={formLanguage} /></section>
-                  {(hasProAccess || hasBusinessAccess) && professionalPostingEnabled && <>
+                </> : <UserProfileGuard lang={formLanguage} />}
+
+                {(hasProAccess || hasBusinessAccess) && (professionalPostingEnabled ? <>
                     <DashboardScopeDivider scope={isAdmin ? "expert-origin" : hasBusinessAccess ? "origin" : "expert"} lang={formLanguage} />
-                    <CreateBlogForm onBlogCreated={() => setProPostRefreshKey((key) => key + 1)} lang={formLanguage} authorType={professionalAuthorType} publishTarget={professionalPublishTarget} membership_tier={profile.membership_tier} />
+                    <CreateBlogForm onBlogCreated={() => setProPostRefreshKey((key) => key + 1)} lang={formLanguage} authorType={professionalAuthorType} publishTarget={professionalPublishTarget} />
                     <PublishProRecipeForm userId={profile.id} lang={formLanguage} authorType={professionalAuthorType} publishTarget={professionalPublishTarget} onRecipeCreated={() => setProPostRefreshKey((key) => key + 1)} />
-                  </>}
-                </> : profile.role === "user"
-                  ? <UserProfileGuard lang={formLanguage} />
-                  : <ProfileReviewGuard lang={formLanguage} accountType={profile.role === "owner" ? "owner" : "pro"} />}
+                  </> : <>
+                    <DashboardScopeDivider scope={hasBusinessAccess ? "origin" : "expert"} lang={formLanguage} />
+                    <ProfileReviewGuard lang={formLanguage} accountType={profile.role === "owner" ? "owner" : "pro"} />
+                  </>)}
               </div>
             )}
 
@@ -891,12 +892,12 @@ export default function UnifiedDashboard({
               <div className="animate-fadeIn space-y-8">
                 {proPostingEnabled && <ServiceMarketplacePanel providerUserId={profile.id} providerType="expert" lang={formLanguage} mode="manager" />}
                 {ownerPostingEnabled && ownerData?.id && <ServiceMarketplacePanel providerUserId={profile.id} providerType="origin" originId={ownerData.id} lang={formLanguage} mode="manager" />}
-                {hasProAccess && (proPostingEnabled ? <B2BInquiryPanel currentUserId={profile.id} currentUserTier={profile.membership_tier} lang={formLanguage} mode="sent" /> : <ProfileReviewGuard lang={formLanguage} accountType="pro" />)}
-                {hasBusinessAccess && (ownerPostingEnabled ? <>{ownerData?.id && <B2BInquiryPanel originId={ownerData.id} ownerId={profile.id} currentUserId={profile.id} currentUserTier={profile.membership_tier} lang={formLanguage} mode="inbox" />}<ShopProductsSection userId={userId} lang={formLanguage} /></> : <ProfileReviewGuard lang={formLanguage} accountType="owner" />)}
+                {hasProAccess && (proPostingEnabled ? <B2BInquiryPanel currentUserId={profile.id} lang={formLanguage} mode="sent" /> : <ProfileReviewGuard lang={formLanguage} accountType="pro" />)}
+                {hasBusinessAccess && (ownerPostingEnabled ? <>{ownerData?.id && <B2BInquiryPanel originId={ownerData.id} ownerId={profile.id} currentUserId={profile.id} lang={formLanguage} mode="inbox" />}<ShopProductsSection userId={userId} lang={formLanguage} /></> : <ProfileReviewGuard lang={formLanguage} accountType="owner" />)}
               </div>
             )}
 
-            {activeView === "notifications" && <div className="animate-fadeIn space-y-8"><NotificationCenter lang={formLanguage} />{hasProAccess && proPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="pro" membership_tier={profile.membership_tier} lang={formLanguage} onNotificationCreated={() => setProPostRefreshKey((key) => key + 1)} />}{hasBusinessAccess && ownerPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="owner" membership_tier={profile.membership_tier} lang={formLanguage} originSlug={ownerData?.slug ?? null} />}</div>}
+            {activeView === "notifications" && <div className="animate-fadeIn space-y-8"><NotificationCenter lang={formLanguage} />{hasProAccess && proPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="pro" lang={formLanguage} onNotificationCreated={() => setProPostRefreshKey((key) => key + 1)} />}{hasBusinessAccess && ownerPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="owner" lang={formLanguage} originSlug={ownerData?.slug ?? null} />}</div>}
             {activeView === "settings" && <div className="animate-fadeIn">{accountSettings}</div>}
             {activeView === "admin" && isAdmin && <div className="animate-fadeIn space-y-8"><AdminNotificationManager lang={formLanguage} /><AdminJournalManager authorId={profile.id} lang={formLanguage} /></div>}
             {activeView === "r2_viewer" && isAdmin && <div className="animate-fadeIn"><R2ImageViewer isEn={isEn} /></div>}

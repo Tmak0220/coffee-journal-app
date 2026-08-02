@@ -63,10 +63,9 @@ export default function FollowingTimeline({ currentUserId, lang }: Props) {
     const fetchTimeline = async () => {
       setLoading(true)
 
-      const [{ data: followData, error: followError }, { data: originFollowData, error: originFollowError }, { data: viewer }] = await Promise.all([
+      const [{ data: followData, error: followError }, { data: originFollowData, error: originFollowError }] = await Promise.all([
         supabase.from("follows").select("following_id").eq("follower_id", currentUserId),
         supabase.from("origin_follows").select("origin_slug").eq("user_id", currentUserId),
-        supabase.from("users").select("membership_tier").eq("id", currentUserId).maybeSingle(),
       ])
 
       if (followError || originFollowError) {

@@ -94,7 +94,7 @@ export default function ProPostList({
     allVisibility: "すべての公開状態",
     draft: "下書き",
     private: "非公開",
-    members: "会員限定",
+    members: "ログインユーザー限定",
     public: "公開",
     newest: "新しい順",
     oldest: "古い順",

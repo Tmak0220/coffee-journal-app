@@ -7,7 +7,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (id, email, role, membership_tier, created_at, updated_at)
+  insert into public.users (id, email, role, created_at, updated_at)
   values (
     new.id,
     new.email,
@@ -16,7 +16,6 @@ begin
       when 'owner' then 'owner'
       else 'user'
     end,
-    'free',
     now(),
     now()
   );

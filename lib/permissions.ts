@@ -1,16 +1,8 @@
-export type MembershipTier = "free" | "standard" | "pro" | "business"
 export type ContentVisibility = "draft" | "private" | "members" | "public"
-
-const PAID_TIERS = new Set<MembershipTier>(["standard", "pro", "business"])
 
 /** Account-level features available to every signed-in account, including Free. */
 export function canUseUserFeatures(userId: string | null | undefined): boolean {
   return Boolean(userId)
-}
-
-/** Paid-plan checks are reserved for Pro/Business-specific product capabilities. */
-export function hasPaidMembership(tier: string | null | undefined): boolean {
-  return PAID_TIERS.has(tier as MembershipTier)
 }
 
 /** `members` means every signed-in account; it is no longer a paid-plan boundary. */

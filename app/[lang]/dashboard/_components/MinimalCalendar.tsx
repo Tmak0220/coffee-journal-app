@@ -31,7 +31,7 @@ type Props = {
   ) => void
   lang?: "ja" | "en" 
   isOwnProfile?: boolean
-  isTierMember?: boolean
+  isSignedInViewer?: boolean
   editable?: boolean
 }
 
@@ -104,7 +104,7 @@ export default function MinimalCalendar({
   onEventUpdate,
   lang = "ja",
   isOwnProfile = false,
-  isTierMember = false,
+  isSignedInViewer = false,
   editable = false
 }: Props) {
   const t = calendarDict[lang]
@@ -137,10 +137,10 @@ export default function MinimalCalendar({
       if (vis === "draft") return false
       if (vis === "private") return isOwnProfile
       if (vis === "public") return true
-      if (vis === "members" && isTierMember) return true
+      if (vis === "members" && isSignedInViewer) return true
       return false
     })
-  }, [events, editable, isOwnProfile, isTierMember])
+  }, [events, editable, isOwnProfile, isSignedInViewer])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()

@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase"
 type Props = {
   userId: string
   authorType: "pro" | "owner" | "admin"
-  membership_tier?: "free" | "standard" | "pro" | "business"
   lang?: "ja" | "en"
   originSlug?: string | null
   onNotificationCreated?: () => void
@@ -72,7 +71,6 @@ const formDict = {
 export default function BroadcastNotificationForm({ 
   userId, 
   authorType, 
-  membership_tier = "free", 
   lang = "ja",
   originSlug = null,
   onNotificationCreated,
@@ -109,7 +107,6 @@ export default function BroadcastNotificationForm({
         target_group: effectiveTargetGroup,
         lang: isEn ? "en" : "ja",
         author_type: authorType,
-        membership_tier,
         origin_slug: authorType === "owner" ? originSlug : null,
       }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, type ReactNode } from "react"
+import { useState, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
@@ -12,7 +12,6 @@ type Props = {
   lang?: string
   authorType: "pro" | "owner"
   publishTarget?: TargetCategoryType
-  membership_tier: "free" | "standard" | "pro" | "business"
   editId?: string
   secondaryAction?: ReactNode
   deleteStatusMessage?: StatusMessage | null
@@ -73,12 +72,10 @@ const BLOG_FORM_DICT = {
   }
 } as const
 
-export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, publishTarget, membership_tier, editId, secondaryAction, deleteStatusMessage }: Props) {
+export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType, publishTarget, editId, secondaryAction, deleteStatusMessage }: Props) {
   const router = useRouter()
   const currentLang = lang === "en" ? "en" : "ja"
   const t = BLOG_FORM_DICT[currentLang]
-
-  const normalizedTier = useMemo(() => membership_tier?.trim().toLowerCase(), [membership_tier])
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -168,7 +165,6 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
         image_urls: permanentImageUrls,
         visibility: visibility,         
         publish_target: finalCategory,
-        membership_tier: normalizedTier
       }
       const blogQuery = editId
         ? supabase.from("blogs").update(payload).eq("id", editId).eq("user_id", user.id)

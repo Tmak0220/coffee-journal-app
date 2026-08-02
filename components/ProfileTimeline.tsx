@@ -13,14 +13,14 @@ type TimelineItem = {
 type ProfileTimelineProps = {
   items: TimelineItem[] | null
   lang: "ja" | "en"
-  isPremiumUser: boolean
+  isSignedInUser: boolean
   className?: string
 }
 
 export default function ProfileTimeline({
   items,
   lang,
-  isPremiumUser,
+  isSignedInUser,
   className = "",
 }: ProfileTimelineProps) {
   const isEn = lang === "en"
@@ -46,7 +46,7 @@ export default function ProfileTimeline({
       ) : (
         <div className="divide-y divide-border/35">
           {items.map((item) => {
-            const isRestricted = item.target_group === "premium" && !isPremiumUser
+            const isRestricted = item.target_group === "premium" && !isSignedInUser
             return (
               <article key={item.id} className="px-5 py-5 transition-colors hover:bg-neutral-50/70 sm:px-6">
                 <div className="flex flex-wrap items-center gap-2">

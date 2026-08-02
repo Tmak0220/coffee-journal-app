@@ -77,7 +77,6 @@ const dict = {
       data_correction: "データ修正依頼",
       other_inquiry: "その他のお問い合わせ",
       account_delete_request: "アカウント削除リクエスト",
-      account_suspend_request: "アカウント一時停止リクエスト",
       content_warning: "投稿に関する運営からの警告"
     }
   },
@@ -113,7 +112,6 @@ const dict = {
       data_correction: "Data Correction",
       other_inquiry: "Other Inquiry",
       account_delete_request: "Account Deletion Request",
-      account_suspend_request: "Account Suspension Request",
       content_warning: "Post Warning from the Team"
     }
   }

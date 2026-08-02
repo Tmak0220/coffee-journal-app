@@ -16,7 +16,6 @@ type UserProfile = {
   avatar_url: string | null
   cover_url: string | null
   role: "user" | "pro" | "owner" | "admin"
-  membership_tier: "free" | "standard" | "pro" | "business"
   enabled_tools: ToolType[]
 }
 

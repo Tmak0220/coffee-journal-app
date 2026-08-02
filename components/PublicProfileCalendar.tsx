@@ -24,7 +24,7 @@ type Props = {
 export default function PublicProfileCalendar({ targetUserId, lang, className = "" }: Props) {
   const [events, setEvents] = useState<CalendarItem[]>([])
   const [isOwnProfile, setIsOwnProfile] = useState(false)
-  const [isTierMember, setIsTierMember] = useState(false)
+  const [isSignedInViewer, setIsSignedInViewer] = useState(false)
 
   useEffect(() => {
     if (!targetUserId) {
@@ -38,7 +38,7 @@ export default function PublicProfileCalendar({ targetUserId, lang, className = 
       const { data: { user } } = await supabase.auth.getUser()
       const viewerId = user?.id || null
       const isOwn = viewerId === targetUserId
-      const viewerIsTierMember = Boolean(viewerId)
+      const viewerIsSignedIn = Boolean(viewerId)
 
       let memoQuery = supabase
         .from("calendar_memos")
@@ -84,7 +84,7 @@ export default function PublicProfileCalendar({ targetUserId, lang, className = 
         }))
 
       setIsOwnProfile(isOwn)
-      setIsTierMember(viewerIsTierMember)
+      setIsSignedInViewer(viewerIsSignedIn)
       setEvents([...memoItems, ...postItems])
     }
 
@@ -99,7 +99,7 @@ export default function PublicProfileCalendar({ targetUserId, lang, className = 
       <MinimalCalendar
         events={events}
         isOwnProfile={isOwnProfile}
-        isTierMember={isTierMember}
+        isSignedInViewer={isSignedInViewer}
         editable={false}
         lang={lang}
       />

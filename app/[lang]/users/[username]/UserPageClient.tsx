@@ -20,7 +20,6 @@ type UserProfile = {
   bio_en: string | null
   avatar_url: string | null
   role: "user" | "pro" | "owner" | "admin"
-  membership_tier: "free" | "standard" | "pro" | "business" | null
 }
 
 type ContentType = "tasting" | "gear" | "event" | "blog" | "verification"
@@ -61,7 +60,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
   const [posts, setPosts] = useState<ProfileContent[]>([])
   const [calendarItems, setCalendarItems] = useState<CalendarEventItem[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [isTierMember, setIsTierMember] = useState(false)
+  const [isSignedInViewer, setIsSignedInViewer] = useState(false)
   const [following, setFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
@@ -138,12 +137,12 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
         loggedInUserId = user.id
         setCurrentUserId(user.id)
         userIsSignedIn = true
-        setIsTierMember(userIsSignedIn)
+        setIsSignedInViewer(userIsSignedIn)
       }
 
       const { data: profileData } = await supabase
         .from("users")
-        .select("id, username, display_name, display_name_en, bio, bio_en, avatar_url, role, membership_tier")
+        .select("id, username, display_name, display_name_en, bio, bio_en, avatar_url, role")
         .eq("username", targetUsername)
         .maybeSingle()
 
@@ -373,7 +372,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
     }
 
     fetchPostsData()
-  }, [profile, currentUserId, isTierMember, lang, dict.untitled])
+  }, [profile, currentUserId, isSignedInViewer, lang, dict.untitled])
 
   const handleFollow = async () => {
     if (!canUseUserFeatures(currentUserId)) {
@@ -593,7 +592,7 @@ export default function UserPageClient({ username: rawUsername, lang = "ja" }: C
           <MinimalCalendar 
             events={calendarItems} 
             isOwnProfile={currentUserId !== null && profile !== null && currentUserId === profile.id}
-            isTierMember={isTierMember}
+            isSignedInViewer={isSignedInViewer}
             lang={lang}
           />
         </div>

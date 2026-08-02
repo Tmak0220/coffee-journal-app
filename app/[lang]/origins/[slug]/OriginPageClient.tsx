@@ -97,7 +97,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
   const [notifications, setNotifications] = useState<NotificationPost[]>([])
   const [recipes, setRecipes] = useState<OriginRecipe[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserTier, setCurrentUserTier] = useState<string | null>(null)
 
   const urlLang = params.lang as string | undefined
   const isEnglishPath = pathname.startsWith('/en/') || pathname === '/en'
@@ -193,25 +192,19 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         if (!isMounted) return
         setCurrentUserId(loginUid)
 
-        const followQuery = supabase
+        const { data: followStatus } = await supabase
           .from("origin_follows")
           .select("id")
           .eq("user_id", loginUid)
           .eq("origin_slug", slug)
           .maybeSingle()
-        const [userData, followStatus] = await Promise.all([
-          supabase.from("users").select("membership_tier").eq("id", loginUid).maybeSingle(),
-          followQuery,
-        ])
 
         if (isMounted) {
-          setCurrentUserTier(userData.data?.membership_tier || "free")
-          setFollowing(!!followStatus.data)
+          setFollowing(Boolean(followStatus))
         }
       } else {
         if (isMounted) {
           setCurrentUserId(null)
-          setCurrentUserTier(null)
         }
       }
     }
@@ -222,21 +215,15 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
       if (!isMounted) return
       if (session?.user) {
         setCurrentUserId(session.user.id)
-        const followQuery = supabase
+        const { data: followData } = await supabase
           .from("origin_follows")
           .select("id")
           .eq("user_id", session.user.id)
           .eq("origin_slug", slug)
           .maybeSingle()
-        const [{ data: userData }, { data: followData }] = await Promise.all([
-          supabase.from("users").select("membership_tier").eq("id", session.user.id).maybeSingle(),
-          followQuery,
-        ])
-        setCurrentUserTier(userData?.membership_tier || "free")
         setFollowing(Boolean(followData))
       } else {
         setCurrentUserId(null)
-        setCurrentUserTier(null)
         setFollowing(false)
       }
     })
@@ -244,7 +231,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     return () => { isMounted = false; subscription.unsubscribe() }
   }, [slug, origin.owner_id])
 
-  const isPremiumUser = Boolean(currentUserId)
+  const isSignedInUser = Boolean(currentUserId)
 
   const fetchTimelineData = async () => {
     if (!slug) return
@@ -258,7 +245,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         .select("id, title, content, link_url, link_source, target_group, created_at, lang")
         .eq("origin_slug", slug)
         .eq("lang", lang)
-        .in("target_group", isPremiumUser ? ["all", "premium"] : ["all"])
+        .in("target_group", isSignedInUser ? ["all", "premium"] : ["all"])
         .order("created_at", { ascending: false }),
       followCountQuery,
     ])
@@ -269,7 +256,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     setFollowersCount(followCountRes.count || 0)
   }
 
-  useEffect(() => { fetchTimelineData() }, [lang, slug, origin.owner_id, isPremiumUser])
+  useEffect(() => { fetchTimelineData() }, [lang, slug, origin.owner_id, isSignedInUser])
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -301,7 +288,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
     }
 
     fetchRecipes()
-  }, [origin.owner_id, currentUserId, isPremiumUser, lang])
+  }, [origin.owner_id, currentUserId, isSignedInUser, lang])
 
   const handleFollow = async () => {
     if (!canUseUserFeatures(currentUserId)) {
@@ -476,7 +463,6 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
           originId={origin.id}
           ownerId={origin.owner_id}
           currentUserId={currentUserId}
-          currentUserTier={currentUserTier}
           lang={lang}
           mode="public"
           className="mt-12 w-full"
@@ -495,7 +481,7 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
         <ProfileTimeline
           items={notifications}
           lang={lang}
-          isPremiumUser={isPremiumUser}
+          isSignedInUser={isSignedInUser}
         />
 
         <ProfileBlogList userId={origin.owner_id} target="origins" lang={lang} />

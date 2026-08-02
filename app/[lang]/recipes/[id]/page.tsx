@@ -52,7 +52,7 @@ async function getProVerification(id: string, lang: string) {
     return gear ? [gear] : []
   })
 
-  return { recipe, author, gears, isOwner, currentUserId: user?.id || null, viewerIsTierMember: Boolean(user) }
+  return { recipe, author, gears, isOwner, currentUserId: user?.id || null, viewerIsSignedIn: Boolean(user) }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

@@ -22,7 +22,6 @@ type BlogArticle = {
   image_urls: string[] | string | null
   visibility: "draft" | "private" | "members" | "public"
   publish_target: "experts" | "origins" | "both"
-  membership_tier: string
   created_at: string
 }
 

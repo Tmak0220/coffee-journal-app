@@ -11,7 +11,6 @@ type Props = {
     username: string
     display_name: string | null
     email: string
-    membership_tier: "free" | "standard" | "pro" | "business"
   }
   lang: "ja" | "en"
 }

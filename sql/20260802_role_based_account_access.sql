@@ -1,6 +1,6 @@
 -- 月額メンバーシップではなく、登録時に自己申告した users.role を
 -- ダッシュボードとRLSの権限基準として使用する。
--- membership_tier は将来用途のため列を残すが、現在の新規登録はすべて free。
+-- membership_tier には依存せず、role とログイン状態だけで判定する。
 
 create or replace function private.is_paid_member()
 returns boolean

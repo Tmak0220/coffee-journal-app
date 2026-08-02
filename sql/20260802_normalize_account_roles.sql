@@ -28,7 +28,7 @@ alter table public.users
   check (role in ('user', 'pro', 'owner', 'admin'));
 
 -- 通常ユーザーは user / pro / owner の間だけ自己変更できる。
--- adminへの昇格、adminからの変更、契約・停止状態の変更は引き続き保護する。
+-- adminへの昇格、adminからの変更、停止状態の変更は引き続き保護する。
 create or replace function private.protect_user_authorization_fields()
 returns trigger
 language plpgsql
@@ -50,7 +50,6 @@ begin
     if old.role = 'admin' or new.role not in ('user', 'pro', 'owner') then
       new.role := old.role;
     end if;
-    new.membership_tier := old.membership_tier;
     new.is_active := old.is_active;
     new.deactivated_at := old.deactivated_at;
     new.deactivation_reason := old.deactivation_reason;

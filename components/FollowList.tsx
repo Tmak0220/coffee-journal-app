@@ -106,7 +106,7 @@ export default function FollowList({ userId, type, lang }: Props) {
   })
 
   // 各種カウンターの集計
-  const baristaCount = list.filter((u) => u.role === "pro").length
+  const proCount = list.filter((u) => u.role === "pro").length
   const ownerCount = list.filter((u) => u.role === "owner").length
   const adminCount = list.filter((u) => u.role === "admin").length
   const normalUserCount = list.filter((u) => u.role === "user").length
@@ -147,7 +147,7 @@ export default function FollowList({ userId, type, lang }: Props) {
         {(["all", "pro", "owner", "admin", "user"] as RoleTabType[]).map((tab) => {
           const label = {
             all: `すべて (${list.length})`,
-            pro: `プロ / 職人 (${baristaCount})`,
+            pro: `プロ / 職人 (${proCount})`,
             owner: `ロースター・店舗 (${ownerCount})`,
             admin: `運営・管理者 (${adminCount})`,
             user: `愛好家 (${normalUserCount})`,
