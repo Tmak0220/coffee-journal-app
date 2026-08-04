@@ -11,7 +11,6 @@ type Props = {
   }>
 }
 
-// サーバーサイドで記事データを取得する関数
 async function getBlogDetail(id: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -51,15 +50,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPage({ params }: Props) {
   const { lang, id } = await params
   
-  // 1. 記事データを取得
   const blog = await getBlogDetail(id)
   if (!blog) notFound()
 
-  // 2. 現在のユーザーセッションを取得
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 3. クライアントコンポーネントへ渡す
   return (
     <BlogPageClient 
       articleId={id} 
