@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { createClient as createServerSupabaseClient } from "@/lib/supabase-server"
 import { S3Client, CopyObjectCommand, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import { isAdminUser, translateAdminResource } from "@/lib/admin-content-translation"
 
 const r2 = new S3Client({
   region: "auto",
@@ -415,6 +416,14 @@ export async function createPost(input: any, userId: string) {
 
     await syncOriginPostLinks(supabaseAdmin, post.id)
 
+    if (insertPayload.lang === "ja" && await isAdminUser(currentUserId)) {
+      try {
+        await translateAdminResource("posts", post.id)
+      } catch (translationError) {
+        console.error("Admin English translation failed:", translationError)
+      }
+    }
+
     return post
   } catch (err: any) {
     console.error("CreatePost Error:", err.message)
@@ -536,6 +545,15 @@ export async function updatePost(postId: string, input: any, userId: string) {
     }
 
     await syncOriginPostLinks(supabaseAdmin, postId)
+
+    const { data: sourcePost } = await supabaseAdmin.from("posts").select("lang").eq("id", postId).maybeSingle()
+    if (sourcePost?.lang === "ja" && await isAdminUser(userId)) {
+      try {
+        await translateAdminResource("posts", postId)
+      } catch (translationError) {
+        console.error("Admin English translation update failed:", translationError)
+      }
+    }
 
     return {
       success: true,

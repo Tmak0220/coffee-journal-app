@@ -9,6 +9,7 @@ type ContentRecord = {
   user_id: string
   image_urls: unknown
   type?: string | null
+  translation_group_id?: string | null
 }
 
 const TABLE_BY_TYPE: Record<ContentType, "posts" | "blogs" | "pro_recipes"> = {
@@ -91,8 +92,9 @@ async function deleteR2Images(imageUrls: string[]) {
   return keys.length
 }
 
-async function deleteRows(table: string, column: string, id: string) {
-  const { error } = await admin.from(table).delete().eq(column, id)
+async function deleteRows(table: string, column: string, ids: string[]) {
+  if (!ids.length) return
+  const { error } = await admin.from(table).delete().in(column, ids)
   if (error) throw error
 }
 
@@ -109,10 +111,10 @@ export async function POST(request: NextRequest) {
 
     const table = TABLE_BY_TYPE[type]
     const result = table === "posts"
-      ? await admin.from("posts").select("id, user_id, image_urls, type").eq("id", id).maybeSingle()
+      ? await admin.from("posts").select("id, user_id, image_urls, type, translation_group_id").eq("id", id).maybeSingle()
       : table === "blogs"
-        ? await admin.from("blogs").select("id, user_id, image_urls").eq("id", id).maybeSingle()
-        : await admin.from("pro_recipes").select("id, user_id, image_urls").eq("id", id).maybeSingle()
+        ? await admin.from("blogs").select("id, user_id, image_urls, translation_group_id").eq("id", id).maybeSingle()
+        : await admin.from("pro_recipes").select("id, user_id, image_urls, translation_group_id").eq("id", id).maybeSingle()
     const record = result.data as ContentRecord | null
     const fetchError = result.error
 
@@ -123,23 +125,32 @@ export async function POST(request: NextRequest) {
     if (type === "event" && record.type !== "event") return NextResponse.json({ error: "Content type mismatch" }, { status: 400 })
     if (type === "gear" && record.type !== "gear_review") return NextResponse.json({ error: "Content type mismatch" }, { status: 400 })
 
-    // Delete R2 objects first. If storage deletion fails, keep the database
-    // record so the operation can safely be retried instead of orphaning files.
-    const imageUrls = imageUrlsFromValue(record.image_urls)
+    const { data: groupedRecords, error: groupedError } = record.translation_group_id
+      ? await admin.from(table).select("id, user_id, image_urls").eq("translation_group_id", record.translation_group_id)
+      : { data: [record], error: null }
+    if (groupedError) throw groupedError
+    const records = (groupedRecords || [record]) as ContentRecord[]
+    if (records.some(item => item.user_id !== user.id)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const recordIds = records.map(item => item.id)
+
+    // Japanese and English rows share the same R2 objects. Delete storage once,
+    // then remove the whole translation group so no broken counterpart remains.
+    // If storage deletion fails, database rows remain and deletion can be retried.
+    const imageUrls = Array.from(new Set(records.flatMap(item => imageUrlsFromValue(item.image_urls))))
     const deletedImageCount = await deleteR2Images(imageUrls)
 
     if (table === "posts") {
       for (const childTable of ["likes", "bookmarks", "post_views", "post_tastes", "post_gears", "post_processes", "post_varieties", "origin_post_links", "expert_post_links", "recipes"]) {
-        await deleteRows(childTable, "post_id", id)
+        await deleteRows(childTable, "post_id", recordIds)
       }
     } else if (table === "blogs") {
-      await deleteRows("blog_bookmarks", "blog_id", id)
+      await deleteRows("blog_bookmarks", "blog_id", recordIds)
     } else {
-      await deleteRows("pro_recipe_bookmarks", "pro_recipe_id", id)
-      await deleteRows("pro_recipe_gears", "pro_recipe_id", id)
+      await deleteRows("pro_recipe_bookmarks", "pro_recipe_id", recordIds)
+      await deleteRows("pro_recipe_gears", "pro_recipe_id", recordIds)
     }
 
-    await deleteRows(table, "id", id)
+    await deleteRows(table, "id", recordIds)
 
     return NextResponse.json({ success: true, deletedImageCount })
   } catch (error) {

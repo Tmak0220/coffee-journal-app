@@ -272,14 +272,14 @@ export default function EditPostPage({ params }: Props) {
         const { data: srcOrg } = await supabase.from("origins").select("*").eq("id", postData.source_origin_id).single()
         if (srcOrg) {
           setSelectedSource(srcOrg as any)
-          setSourceInput(currentLang === "en" ? srcOrg.name : srcOrg.name_ja)
+          setSourceInput(currentLang === "en" ? (srcOrg.display_name_en || srcOrg.name) : (srcOrg.name_ja || srcOrg.name))
         }
       }
       if (postData.market_origin_id) {
         const { data: mktOrg } = await supabase.from("origins").select("*").eq("id", postData.market_origin_id).single()
         if (mktOrg) {
           setSelectedMarket(mktOrg as any)
-          setMarketInput(currentLang === "en" ? mktOrg.name : mktOrg.name_ja)
+          setMarketInput(currentLang === "en" ? (mktOrg.display_name_en || mktOrg.name) : (mktOrg.name_ja || mktOrg.name))
         }
       }
 

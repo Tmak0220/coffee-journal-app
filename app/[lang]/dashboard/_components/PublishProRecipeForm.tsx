@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
 import { useAppPopup } from "@/context/AppPopupContext"
 import { numericPart } from "@/components/ui/UnitNumberInput"
+import { tryAdminTranslation } from "@/lib/request-admin-translation"
 
 export type RecipeModuleData = {
   id: string
@@ -807,6 +808,11 @@ export default function PublishProRecipeForm({
           gearIds.map((gearId, sort_order) => ({ pro_recipe_id: proRecipe.id, gear_id: gearId, sort_order }))
         )
         if (gearError) throw gearError
+      }
+
+
+      if (currentLang === "ja") {
+        await tryAdminTranslation("pro_recipes", proRecipe.id)
       }
 
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !permanentImageUrls.includes(url))) {

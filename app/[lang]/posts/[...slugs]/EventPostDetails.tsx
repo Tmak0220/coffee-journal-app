@@ -41,7 +41,7 @@ export default function EventPostDetails({ post, lang }: EventProps) {
 
   const originName = origin
     ? lang === "en"
-      ? (origin.display_name_en || origin.display_name || origin.name || origin.name_ja)
+      ? (origin.display_name_en || origin.name)
       : (origin.display_name || origin.name_ja || origin.name)
     : null
 

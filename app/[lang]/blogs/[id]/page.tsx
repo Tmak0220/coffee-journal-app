@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server"
 import { canViewContent } from "@/lib/permissions"
 import { notFound } from "next/navigation"
 import BlogPageClient from "./BlogPageClient"
+import { resolveLocalizedResource } from "@/lib/admin-content-translation"
 
 type Props = {
   params: Promise<{
@@ -11,14 +12,15 @@ type Props = {
   }>
 }
 
-async function getBlogDetail(id: string) {
+async function getBlogDetail(id: string, lang: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const localized = await resolveLocalizedResource("blogs", id, lang === "en" ? "en" : "ja")
   const { data: blog, error } = await supabase
     .from("blogs")
     .select("*")
-    .eq("id", id)
+    .eq("id", localized?.id || id)
     .maybeSingle()
 
   if (error || !blog) {
@@ -36,7 +38,7 @@ async function getBlogDetail(id: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, lang } = await params
-  const blog = await getBlogDetail(id)
+  const blog = await getBlogDetail(id, lang)
 
   const isEn = lang === "en"
   const title = blog?.title ? `${blog.title} | MEMBER` : (isEn ? "Blog Detail | MEMBER" : "ブログ詳細 | MEMBER")
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPage({ params }: Props) {
   const { lang, id } = await params
   
-  const blog = await getBlogDetail(id)
+  const blog = await getBlogDetail(id, lang)
   if (!blog) notFound()
 
   const supabase = await createClient()
@@ -58,7 +60,7 @@ export default async function BlogPage({ params }: Props) {
 
   return (
     <BlogPageClient 
-      articleId={id} 
+      articleId={blog.id}
       lang={lang === "en" ? "en" : "ja"} 
       currentUserId={user?.id || null} 
       initialArticle={blog}

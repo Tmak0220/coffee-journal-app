@@ -89,8 +89,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
-  const name = isEn 
-    ? (origin.display_name_en || origin.display_name || origin.name) 
+  const name = isEn
+    ? (origin.display_name_en || origin.name)
     : (origin.display_name || origin.name_ja || origin.name)
 
   // descriptionの文字列型チェックを確実にして .slice を呼ぶ
@@ -140,8 +140,8 @@ export default async function Page({ params }: Props) {
       image_url: null
     }))
 
-  const displayName = isEn 
-    ? (origin.display_name_en || origin.display_name || origin.name) 
+  const displayName = isEn
+    ? (origin.display_name_en || origin.name)
     : (origin.display_name || origin.name_ja || origin.name)
 
   const breadcrumbs = [

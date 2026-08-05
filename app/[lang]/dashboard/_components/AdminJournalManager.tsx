@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
+import { tryAdminTranslation } from "@/lib/request-admin-translation"
 
 type JournalPost = {
   id: string
@@ -13,6 +14,7 @@ type JournalPost = {
   lang: "ja" | "en"
   created_at: string
   updated_at?: string
+  translation_group_id?: string | null
 }
 
 type Props = {
@@ -141,8 +143,9 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from("admin_journals")
-      .select("id, title, source_name, source_url, content, category, lang, created_at, updated_at")
+      .select("id, title, source_name, source_url, content, category, lang, created_at, updated_at, translation_group_id")
       .eq("author_id", authorId)
+      .eq("lang", lang)
       .order("created_at", { ascending: false })
     
     if (!error && data) {
@@ -152,7 +155,7 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
 
   useEffect(() => {
     fetchPosts()
-  }, [authorId])
+  }, [authorId, lang])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,7 +173,7 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
 
     try {
       if (editingId) {
-        const { error: updateError } = await supabase
+        const { data: updated, error: updateError } = await supabase
           .from("admin_journals")
           .update({
             title: journalTitle,
@@ -182,14 +185,17 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
             updated_at: new Date().toISOString()
           })
           .eq("id", editingId)
+          .select("id")
+          .single()
 
         if (updateError) throw updateError
+        if (lang === "ja" && updated?.id) await tryAdminTranslation("admin_journals", updated.id)
         
         setStatusMessage({ text: formUi.alertUpdateSuccess, type: "success" })
         resetForm()
         fetchPosts()
       } else {
-        const { error: insertError } = await supabase.from("admin_journals").insert({
+        const { data: inserted, error: insertError } = await supabase.from("admin_journals").insert({
           author_id: authorId,
           title: journalTitle,
           source_name: formattedSourceName,
@@ -198,9 +204,10 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
           category: category,
           is_published: true,
           lang: lang
-        })
+        }).select("id").single()
 
         if (insertError) throw insertError
+        if (lang === "ja" && inserted?.id) await tryAdminTranslation("admin_journals", inserted.id)
 
         setStatusMessage({ text: formUi.alertSuccess, type: "success" })
         resetForm()
@@ -218,11 +225,11 @@ export default function AdminJournalManager({ authorId, lang }: Props) {
 
   const handleDelete = async (id: string) => {
     setStatusMessage(null)
-    
-    const { error } = await supabase
-      .from("admin_journals")
-      .delete()
-      .eq("id", id)
+    const target = posts.find(post => post.id === id)
+    const deleteQuery = supabase.from("admin_journals").delete()
+    const { error } = target?.translation_group_id
+      ? await deleteQuery.eq("translation_group_id", target.translation_group_id)
+      : await deleteQuery.eq("id", id)
 
     if (error) {
       setStatusMessage({ text: formUi.alertFail + error.message, type: "error" })

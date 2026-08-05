@@ -11,6 +11,7 @@ import GearReviewDetails from "./GearReviewDetails"
 import CoffeeBeanLikeIcon from "@/components/CoffeeBeanLikeIcon"
 import RelatedContent from "@/components/RelatedContent"
 import { canUseUserFeatures } from "@/lib/permissions"
+import SocialShareButton from "@/components/SocialShareButton"
 
 type RelatedPost = {
   id: string
@@ -395,6 +396,10 @@ export default function PostPageClient({ id, lang, marketSlug, sourceSlug, initi
               >
                 {bookmarked ? t.btnSaved : t.btnSave}
               </button>
+
+              {post.visibility !== "draft" && post.visibility !== "private" && (
+                <SocialShareButton title={post.title || (currentLang === "ja" ? "コーヒーの投稿" : "Coffee post")} text={post.description || undefined} lang={currentLang} compact className="h-14 w-14" />
+              )}
 
             </div>
 

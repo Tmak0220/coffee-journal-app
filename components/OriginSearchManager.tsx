@@ -53,7 +53,7 @@ export default function OriginSearchManager({ initialAreas, lang }: OriginSearch
     if (lang === 'ja') {
       return item.name_ja || item.display_name || item.name || ''
     }
-    return item.name || item.display_name_en || ''
+    return item.display_name_en || item.name || ''
   }
 
   const [navHistory, setNavHistory] = useState<{ id: number | null; name: string }[]>([

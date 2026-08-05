@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { canViewContent } from "@/lib/permissions"
 import { createClient } from "@/lib/supabase-server"
 import PostPageClient from "./PostPageClient"
+import { resolveLocalizedResource } from "@/lib/admin-content-translation"
 
 type Props = {
   params: Promise<{
@@ -38,12 +39,14 @@ function parseSlugs(slugs: string[]) {
   return { actualId, marketSlug, sourceSlug }
 }
 
-async function getPostDetail(actualId: string) {
+async function getPostDetail(actualId: string, lang: string) {
   if (!actualId) return null
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const localized = await resolveLocalizedResource("posts", actualId, lang === "en" ? "en" : "ja")
+  const localizedId = localized?.id || actualId
   const { data: post, error } = await supabase
     .from("posts")
     .select(`
@@ -71,7 +74,7 @@ async function getPostDetail(actualId: string) {
       ),
       recipes(*)
     `)
-    .eq("id", actualId)
+    .eq("id", localizedId)
     .maybeSingle()
 
   if (error) {
@@ -112,7 +115,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slugs, lang } = await params
   const { actualId } = parseSlugs(slugs)
 
-  const post = await getPostDetail(actualId)
+  const post = await getPostDetail(actualId, lang)
 
   const isEn = lang === "en"
   const defaultTitle = isEn ? "Post Detail | MEMBER" : "投稿詳細 | MEMBER"
@@ -135,7 +138,7 @@ export default async function Page({ params }: Props) {
   const { slugs, lang } = await params
   const { actualId } = parseSlugs(slugs)
 
-  const post = await getPostDetail(actualId)
+  const post = await getPostDetail(actualId, lang)
   const marketSlug = post?.market_origin?.slug || null
   const sourceSlug = post?.source_origin?.slug || null
   const gearSlug = post?.type === "gear_review"
@@ -145,8 +148,8 @@ export default async function Page({ params }: Props) {
   if (post) {
     const canonicalSegments = (
       post.type === "gear_review"
-        ? [gearSlug, actualId]
-        : [marketSlug, sourceSlug, actualId]
+        ? [gearSlug, post.id]
+        : [marketSlug, sourceSlug, post.id]
     ).filter(
       (segment): segment is string => Boolean(segment)
     )
@@ -157,7 +160,7 @@ export default async function Page({ params }: Props) {
 
   return (
     <PostPageClient 
-      id={actualId} 
+      id={post?.id || actualId}
       lang={lang} 
       marketSlug={marketSlug}
       sourceSlug={sourceSlug}

@@ -14,6 +14,7 @@ import GearReviewForm from "./GearReviewForm"
 import NotificationCenter from "./NotificationCenter"
 import PostList from "./PostList"
 import AdminJournalManager from "./AdminJournalManager"
+import AdminTranslationManager from "./AdminTranslationManager"
 import AdminNotificationManager from "./AdminNotificationManager" 
 import LanguageSwitcherTabs from "./LanguageSwitcherTabs" 
 import PublishProRecipeForm from "./PublishProRecipeForm"
@@ -899,7 +900,7 @@ export default function UnifiedDashboard({
 
             {activeView === "notifications" && <div className="animate-fadeIn space-y-8"><NotificationCenter lang={formLanguage} />{hasProAccess && proPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="pro" lang={formLanguage} onNotificationCreated={() => setProPostRefreshKey((key) => key + 1)} />}{hasBusinessAccess && ownerPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="owner" lang={formLanguage} originSlug={ownerData?.slug ?? null} />}</div>}
             {activeView === "settings" && <div className="animate-fadeIn">{accountSettings}</div>}
-            {activeView === "admin" && isAdmin && <div className="animate-fadeIn space-y-8"><AdminNotificationManager lang={formLanguage} /><AdminJournalManager authorId={profile.id} lang={formLanguage} /></div>}
+            {activeView === "admin" && isAdmin && <div className="animate-fadeIn space-y-8"><AdminNotificationManager lang={formLanguage} /><AdminJournalManager authorId={profile.id} lang={formLanguage} /><AdminTranslationManager lang={formLanguage} /></div>}
             {activeView === "r2_viewer" && isAdmin && <div className="animate-fadeIn"><R2ImageViewer isEn={isEn} /></div>}
           </div>
         </div>

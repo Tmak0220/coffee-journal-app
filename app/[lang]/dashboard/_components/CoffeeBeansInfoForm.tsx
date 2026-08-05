@@ -8,7 +8,8 @@ export type OriginSuggestion = {
   id: number
   slug: string
   name: string
-  name_ja: string
+  name_ja: string | null
+  display_name_en?: string | null
   type: "source" | "market" | "region" | "sub_region" | "country" | "prefecture" | "area"
 }
 
@@ -146,6 +147,9 @@ export default function CoffeeBeansInfoForm({
   isAdmin = false
 }: CoffeeBeansInfoProps) {
   const t = dict[currentLang]
+  const getOriginDisplayName = (origin: OriginSuggestion) => currentLang === "en"
+    ? (origin.display_name_en || origin.name)
+    : (origin.name_ja || origin.name)
 
   const [sourceSuggestions, setSourceSuggestions] = useState<OriginSuggestion[]>([])
   const [marketSuggestions, setMarketSuggestions] = useState<OriginSuggestion[]>([])
@@ -224,7 +228,7 @@ export default function CoffeeBeansInfoForm({
 
   // Source サジェスト
   useEffect(() => {
-    const currentName = selectedSource ? (currentLang === "en" ? selectedSource.name : selectedSource.name_ja) : ""
+    const currentName = selectedSource ? getOriginDisplayName(selectedSource) : ""
     if (sourceInput.trim().length < 1 || (selectedSource && currentName === sourceInput)) {
       setSourceSuggestions([])
       return
@@ -232,7 +236,7 @@ export default function CoffeeBeansInfoForm({
     const fetchSources = async () => {
       const { data } = await supabase
         .from("origins")
-        .select("id, slug, name, name_ja, type")
+        .select("id, slug, name, name_ja, display_name_en, type")
         .eq("type", "source")
         .ilike("search_keywords", `%${sourceInput}%`)
         .limit(5)
@@ -244,7 +248,7 @@ export default function CoffeeBeansInfoForm({
 
   // Market サジェスト
   useEffect(() => {
-    const currentName = selectedMarket ? (currentLang === "en" ? selectedMarket.name : selectedMarket.name_ja) : ""
+    const currentName = selectedMarket ? getOriginDisplayName(selectedMarket) : ""
     if (marketInput.trim().length < 1 || (selectedMarket && currentName === marketInput)) {
       setMarketSuggestions([])
       return
@@ -252,7 +256,7 @@ export default function CoffeeBeansInfoForm({
     const fetchMarkets = async () => {
       const { data } = await supabase
         .from("origins")
-        .select("id, slug, name, name_ja, type")
+        .select("id, slug, name, name_ja, display_name_en, type")
         .eq("type", "market")
         .ilike("search_keywords", `%${marketInput}%`)
         .limit(5)
@@ -449,7 +453,7 @@ export default function CoffeeBeansInfoForm({
           {sourceSuggestions.length > 0 && (
             <ul className="absolute z-20 w-full bg-white border border-[#e5e5e5] rounded-[12px] mt-1 shadow-[0_4px_20px_rgba(0,0,0,0.05)] max-h-48 overflow-y-auto divide-y divide-[#f0f0f0]">
               {sourceSuggestions.map((item) => {
-                const displayName = currentLang === "en" ? item.name : item.name_ja
+                const displayName = getOriginDisplayName(item)
                 return (
                   <li 
                     key={item.id} 
@@ -488,7 +492,7 @@ export default function CoffeeBeansInfoForm({
           {marketSuggestions.length > 0 && (
             <ul className="absolute z-20 w-full bg-white border border-[#e5e5e5] rounded-[12px] mt-1 shadow-[0_4px_20px_rgba(0,0,0,0.05)] max-h-48 overflow-y-auto divide-y divide-[#f0f0f0]">
               {marketSuggestions.map((item) => {
-                const displayName = currentLang === "en" ? item.name : item.name_ja
+                const displayName = getOriginDisplayName(item)
                 return (
                   <li 
                     key={item.id} 

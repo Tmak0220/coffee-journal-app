@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
+import { tryAdminTranslation } from "@/lib/request-admin-translation"
 
 type OriginEventOption = {
   id: string
@@ -251,6 +252,10 @@ export default function EventPostForm({ userId, lang = "ja", isAdmin = false, on
             .delete()
             .eq("post_id", targetPostId)
         }
+      }
+
+      if (currentLang === "ja" && targetPostId) {
+        await tryAdminTranslation("posts", targetPostId)
       }
 
       // 3. 画像のクリーンアップ

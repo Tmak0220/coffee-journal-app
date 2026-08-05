@@ -154,9 +154,9 @@ export default function CoffeeDetails({ post, lang }: DetailsProps) {
 
   const getOriginName = (origin: any, fallbackId: number | null | undefined) => {
     if (!origin) return fallbackId ? `ID: ${fallbackId}` : null
-    return currentLang === "ja" 
-      ? origin.display_name || origin.name_ja || origin.name 
-      : origin.display_name_en || origin.display_name || origin.name
+    return currentLang === "ja"
+      ? origin.display_name || origin.name_ja || origin.name
+      : origin.display_name_en || origin.name
   }
 
   const formatSeconds = (seconds: number | null | undefined) => {

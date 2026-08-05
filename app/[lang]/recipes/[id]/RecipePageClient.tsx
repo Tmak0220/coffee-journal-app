@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase"
 import PostLoading from "./loading"
 import CoffeeBeanLikeIcon from "@/components/CoffeeBeanLikeIcon"
 import { canUseUserFeatures } from "@/lib/permissions"
+import SocialShareButton from "@/components/SocialShareButton"
 
 // ----------------------------------------------------
 // DBテーブル型定義
@@ -473,6 +474,7 @@ export default function RecipesPageClient({ lang, recipeId }: Props) {
           >
             {bookmarked ? t.btnSaved : t.btnSave}
           </button>
+          <SocialShareButton title={recipe.bean_name || recipe.posts?.title || (currentLang === "ja" ? "抽出レシピ" : "Brew recipe")} lang={currentLang} compact className="h-12 w-12 rounded-xl" />
         </div>
 
         {statusMessage && (

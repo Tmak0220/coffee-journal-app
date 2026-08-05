@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import RelatedContent from "@/components/RelatedContent"
+import SocialShareButton from "@/components/SocialShareButton"
 
 type Recipe = {
   id: string
@@ -372,9 +373,12 @@ export default function ProVerificationDetail({ recipe, author, gears, isOwner, 
           </section>
 
           <section className="border-t border-neutral-200 pt-8">
-            <button type="button" onClick={handleBookmark} disabled={bookmarkLoading} className={`w-full rounded-2xl border px-6 py-4 text-xs font-semibold tracking-[0.12em] transition disabled:opacity-50 ${bookmarked ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400"}`}>
-              {bookmarked ? t.saved : t.save}
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={handleBookmark} disabled={bookmarkLoading} className={`min-w-0 flex-1 rounded-2xl border px-6 py-4 text-xs font-semibold tracking-[0.12em] transition disabled:opacity-50 ${bookmarked ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400"}`}>
+                {bookmarked ? t.saved : t.save}
+              </button>
+              {recipe.visibility !== "draft" && recipe.visibility !== "private" && <SocialShareButton title={recipe.recipe_title} text={recipe.log_purpose || undefined} lang={lang} compact className="h-[50px] w-[50px]" />}
+            </div>
             {statusMessage && <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"><span>{statusMessage}</span><Link href={`/${lang}/login`} className="shrink-0 font-semibold underline underline-offset-2">SIGN IN</Link></div>}
           </section>
 

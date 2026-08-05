@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import FormPublishSettings from "./FormPublishSettings" // ✨ インポート
 import { serverMoveToPermanentStorage } from "@/app/actions/createPost"
+import { tryAdminTranslation } from "@/lib/request-admin-translation"
 
 type Props = { 
   onBlogCreated: () => void 
@@ -172,6 +173,9 @@ export default function CreateBlogForm({ onBlogCreated, lang = "ja", authorType,
       const { data: savedBlog, error } = await blogQuery.select("id").single()
 
       if (error) throw error
+      if (currentLang === "ja" && savedBlog?.id) {
+        await tryAdminTranslation("blogs", savedBlog.id)
+      }
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {
         await fetch("/api/delete-object", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
       }

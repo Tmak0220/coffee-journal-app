@@ -312,8 +312,8 @@ export default function OriginPageClient({ origin, relatedOrigins }: Props) {
 
   const isOwner = !!(currentUserId && origin.owner_id === currentUserId)
 
-  const displayName = isEn 
-    ? (origin.display_name_en || origin.display_name || origin.name) 
+  const displayName = isEn
+    ? (origin.display_name_en || origin.name)
     : (origin.display_name || origin.name_ja || origin.name)
 
   const displayBio = isEn ? (origin.description_en || origin.description) : origin.description

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase"
 import HeroImageUploader from "./HeroImageUploader"
 import MasterRequestButton, { MasterRequestOption } from "./MasterRequestButton"
 import { serverMoveToPermanentStorage, syncPostOriginLinksForOwner } from "@/app/actions/createPost"
+import { tryAdminTranslation } from "@/lib/request-admin-translation"
 
 type GearSuggestion = {
   id: number
@@ -335,6 +336,10 @@ export default function GearReviewForm({ lang = "ja", editId, secondaryAction, d
         // 投稿そのものは保存済みなので、画面遷移を妨げない。
         // エラーは運営側で追跡できるようコンソールへ残す。
         console.error("Failed to sync gear review origin links:", syncError)
+      }
+
+      if (currentLang === "ja") {
+        await tryAdminTranslation("posts", postData.id)
       }
 
       for (const url of removedImageUrls.filter(url => initialImagesRef.current.includes(url) && !imageUrls.includes(url))) {

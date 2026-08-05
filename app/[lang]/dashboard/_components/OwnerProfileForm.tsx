@@ -213,7 +213,7 @@ function getErrorMessage(error: unknown): string {
 // 💡 店舗名（表示用）の決定ロジック：name / name_ja を最優先
 function getStoreDisplayName(item: OriginSuggestion, lang: string): string {
   if (lang === "en") {
-    return item.name || item.display_name_en || item.display_name || item.slug
+    return item.display_name_en || item.name || item.slug
   }
   return item.name_ja || item.name || item.display_name || item.slug
 }

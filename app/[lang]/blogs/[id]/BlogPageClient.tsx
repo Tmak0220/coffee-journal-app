@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
 import { canUseUserFeatures } from "@/lib/permissions"
+import SocialShareButton from "@/components/SocialShareButton"
 
 type BlogArticle = {
   id: string
@@ -326,6 +327,10 @@ export default function BlogPageClient({
             >
               {bookmarked ? t.btnSaved : t.btnSave}
             </button>
+
+            {article.visibility !== "draft" && article.visibility !== "private" && (
+              <SocialShareButton title={article.title} text={article.content.slice(0, 140)} lang={currentLang} compact className="h-14 w-14" />
+            )}
 
           </div>
 

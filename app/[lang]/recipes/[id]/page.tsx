@@ -4,6 +4,7 @@ import { canViewContent } from "@/lib/permissions"
 import RecipePageClient from "./RecipePageClient"
 import ProVerificationDetail from "./ProVerificationDetail"
 import { notFound } from "next/navigation"
+import { resolveLocalizedResource } from "@/lib/admin-content-translation"
 
 type Props = {
   params: Promise<{
@@ -16,11 +17,12 @@ async function getProVerification(id: string, lang: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const localized = await resolveLocalizedResource("pro_recipes", id, lang === "en" ? "en" : "ja")
+
   const { data: recipe, error } = await supabase
     .from("pro_recipes")
     .select("*")
-    .eq("id", id)
-    .eq("lang", lang === "en" ? "en" : "ja")
+    .eq("id", localized?.id || id)
     .maybeSingle()
 
   if (error || !recipe) return null
