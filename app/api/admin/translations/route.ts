@@ -14,6 +14,11 @@ type TranslationListRow = {
   [key: string]: unknown
 }
 
+type IgnoredTranslationRow = {
+  resource: TranslatableResource
+  resource_id: string
+}
+
 async function fetchAllByLanguage(
   db: any,
   resource: TranslatableResource,
@@ -39,6 +44,27 @@ async function fetchAllByLanguage(
   return rows
 }
 
+async function fetchAllIgnored(db: any) {
+  const rows: IgnoredTranslationRow[] = []
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db
+      .from("admin_translation_ignores")
+      .select("resource, resource_id")
+      .range(from, from + PAGE_SIZE - 1)
+
+    // Keep the translation list usable while the accompanying SQL migration
+    // is being deployed. Dismissal itself still requires the table.
+    if (error?.code === "42P01" || error?.code === "PGRST205") return []
+    if (error) throw error
+    const page = (data || []) as IgnoredTranslationRow[]
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) break
+  }
+
+  return rows
+}
+
 async function authenticate() {
   const auth = await createServerClient()
   const { data: { user } } = await auth.auth.getUser()
@@ -49,6 +75,16 @@ export async function GET() {
   if (!await authenticate()) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   const db = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const items: Array<{ resource: TranslatableResource; id: string; title: string; created_at: string | null }> = []
+  let ignoredKeys: Set<string>
+  try {
+    const ignored = await fetchAllIgnored(db)
+    ignoredKeys = new Set(ignored.map(row => `${row.resource}:${row.resource_id}`))
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to load ignored translations" },
+      { status: 500 },
+    )
+  }
   for (const resource of resources) {
     const titleField = resource === "pro_recipes" ? "recipe_title" : "title"
     try {
@@ -62,7 +98,8 @@ export async function GET() {
 
       for (const row of japaneseRows) {
         const hasEnglish = Boolean(row.translation_group_id && translatedGroupIds.has(row.translation_group_id))
-        if (!hasEnglish) {
+        const isIgnored = ignoredKeys.has(`${resource}:${row.id}`)
+        if (!hasEnglish && !isIgnored) {
           items.push({
             resource,
             id: row.id,
@@ -80,6 +117,23 @@ export async function GET() {
   }
   items.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
   return NextResponse.json({ items })
+}
+
+export async function DELETE(request: NextRequest) {
+  const user = await authenticate()
+  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const body = await request.json().catch(() => ({}))
+  if (!isResource(body.resource) || typeof body.id !== "string") {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  }
+
+  const db = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const { error } = await db.from("admin_translation_ignores").upsert(
+    { resource: body.resource, resource_id: body.id, ignored_by: user.id },
+    { onConflict: "resource,resource_id" },
+  )
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ dismissed: true })
 }
 
 export async function POST(request: NextRequest) {

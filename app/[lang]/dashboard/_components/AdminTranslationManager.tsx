@@ -33,6 +33,24 @@ export default function AdminTranslationManager({ lang }: { lang: "ja" | "en" })
     } finally { setProcessing(null) }
   }
 
+  const dismiss = async (item: Item) => {
+    const key = `${item.resource}:${item.id}`
+    setProcessing(`dismiss:${key}`); setMessage(null)
+    try {
+      const response = await fetch("/api/admin/translations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resource: item.resource, id: item.id }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error || "Failed to dismiss translation candidate")
+      setItems(current => current.filter(candidate => candidate.id !== item.id || candidate.resource !== item.resource))
+      setMessage(lang === "en" ? "Removed from translation suggestions." : "英語版の作成候補から外しました。")
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : (lang === "en" ? "Failed to remove suggestion." : "候補から外せませんでした。"))
+    } finally { setProcessing(null) }
+  }
+
   const translateAll = async () => {
     setProcessing("all"); setMessage(null)
     let completed = 0
@@ -59,7 +77,7 @@ export default function AdminTranslationManager({ lang }: { lang: "ja" | "en" })
         <p className="py-10 text-center text-sm text-neutral-400">{lang === "en" ? "All Japanese posts have an English version." : "すべての日本語投稿に英語版があります。"}</p>
       ) : <div className="mt-5 divide-y divide-neutral-100">{items.map(item => {
         const key = `${item.resource}:${item.id}`
-        return <div key={key} className="flex items-center justify-between gap-4 py-4"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{item.resource}</p><p className="mt-1 truncate text-sm font-semibold">{item.title}</p></div><button type="button" disabled={Boolean(processing)} onClick={() => void translate(item)} className="shrink-0 rounded-xl bg-neutral-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{processing === key ? (lang === "en" ? "Translating..." : "翻訳中...") : (lang === "en" ? "Create English" : "英語版を作成")}</button></div>
+        return <div key={key} className="flex items-center justify-between gap-4 py-4"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{item.resource}</p><p className="mt-1 truncate text-sm font-semibold">{item.title}</p></div><div className="flex shrink-0 items-center gap-2"><button type="button" disabled={Boolean(processing)} onClick={() => void dismiss(item)} className="rounded-xl border border-neutral-200 px-4 py-2 text-xs font-bold text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40">{processing === `dismiss:${key}` ? (lang === "en" ? "Removing..." : "処理中...") : (lang === "en" ? "Dismiss" : "候補から外す")}</button><button type="button" disabled={Boolean(processing)} onClick={() => void translate(item)} className="rounded-xl bg-neutral-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{processing === key ? (lang === "en" ? "Translating..." : "翻訳中...") : (lang === "en" ? "Create English" : "英語版を作成")}</button></div></div>
       })}</div>}
     </section>
   )
