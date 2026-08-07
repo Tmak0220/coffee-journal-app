@@ -24,12 +24,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function GuidePage() {
+export default async function GuidePage({ params }: Props) {
+  const { lang } = await params
+  const currentLang = lang === "en" ? "en" : "ja"
+
   const { data: item, error } = await supabase
     .from("site_contents")
     .select("title, content, type")
     .eq("key", "guide")
-    .eq("lang", "ja")
+    .eq("lang", currentLang)
     .maybeSingle()
 
   if (error || !item) {
@@ -38,8 +41,11 @@ export default async function GuidePage() {
   }
 
   const breadcrumbs = [
-    { label: "コーヒージャーナル", href: "/" },
-    { label: "使い方" },
+    {
+      label: currentLang === "en" ? "Coffee Journal" : "コーヒージャーナル",
+      href: `/${currentLang}`,
+    },
+    { label: currentLang === "en" ? "Guide" : "使い方" },
   ]
 
   return (
