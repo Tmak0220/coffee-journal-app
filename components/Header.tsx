@@ -211,11 +211,17 @@ export default function Header() {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 border border-neutral-200/60 bg-white/50 rounded-xl p-1 shrink-0">
+        <div
+          className="flex items-center gap-1.5 border border-neutral-200/60 bg-white/50 rounded-xl p-1 shrink-0"
+          aria-label={activeLang === "en" ? "Interface language" : "画面表示の言語"}
+          title={activeLang === "en" ? "Change the website display language" : "Webページの表示言語を変更"}
+        >
           <div className="text-neutral-400 p-1 hidden sm:block">
             <Globe size={13} strokeWidth={1.8} />
           </div>
           <button
+            type="button"
+            aria-label="Webページを日本語で表示"
             onClick={() => changeLanguage("ja")}
             className={`px-2.5 py-1.5 text-[9px] font-mono font-bold rounded-lg transition-all sm:px-3 ${
               activeLang === "ja" 
@@ -226,6 +232,8 @@ export default function Header() {
             JA
           </button>
           <button
+            type="button"
+            aria-label="Display the website in English"
             onClick={() => changeLanguage("en")}
             className={`px-2.5 py-1.5 text-[9px] font-mono font-bold rounded-lg transition-all sm:px-3 ${
               activeLang === "en" 

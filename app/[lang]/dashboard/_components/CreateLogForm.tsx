@@ -67,7 +67,7 @@ const logFormDict = {
 }
 
 export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Props) {
-  const currentLang = (lang === "en" || formLanguage === "en") ? "en" : "ja"
+  const currentLang = formLanguage ?? (lang === "en" ? "en" : "ja")
   const t = logFormDict[currentLang]
   const { showPopup } = useAppPopup()
   const router = useRouter()
