@@ -134,8 +134,9 @@ function DashboardSectionHeading({
 }
 
 type DashboardScope = "user" | "expert" | "origin" | "expert-origin"
+type DashboardScopeContext = "public" | "business" | "notifications" | "analytics"
 
-function DashboardScopeDivider({ scope, lang }: { scope: DashboardScope; lang: "ja" | "en" }) {
+function DashboardScopeDivider({ scope, lang, context = "public" }: { scope: DashboardScope; lang: "ja" | "en"; context?: DashboardScopeContext }) {
   const content: Record<DashboardScope, {
     eyebrow: string
     title: { ja: string; en: string }
@@ -149,25 +150,53 @@ function DashboardScopeDivider({ scope, lang }: { scope: DashboardScope; lang: "
       description: { ja: "共通プロフィール、テイスト投稿、イベント投稿、器具レビューを管理します。", en: "Manage your shared profile, tasting posts, event posts, and gear reviews." },
     },
     expert: {
-      eyebrow: "PRO / EXPERT",
+      eyebrow: "PRO / EXPERTS",
       title: { ja: "プロアカウントの機能", en: "Pro account tools" },
-      destination: { ja: "表示先：EXPERTページ", en: "Appears on: EXPERT page" },
+      destination: { ja: "表示先：EXPERTSページ", en: "Appears on: EXPERTS page" },
       description: { ja: "専門プロフィール、ブログ、検証記事、プロ向けのお知らせを管理します。", en: "Manage your expert profile, blogs, verification articles, and professional updates." },
     },
     origin: {
-      eyebrow: "OWNER / ORIGIN",
+      eyebrow: "OWNER / ORIGINS",
       title: { ja: "オーナーアカウントの機能", en: "Owner account tools" },
-      destination: { ja: "表示先：ORIGINページ", en: "Appears on: ORIGIN page" },
+      destination: { ja: "表示先：ORIGINSページ", en: "Appears on: ORIGINS page" },
       description: { ja: "店舗・ブランドプロフィール、ブログ、検証記事、店舗からのお知らせを管理します。", en: "Manage your shop or brand profile, blogs, verification articles, and origin updates." },
     },
     "expert-origin": {
       eyebrow: "ADMIN / PROFESSIONAL",
       title: { ja: "専門ページ共通の機能", en: "Professional page tools" },
-      destination: { ja: "表示先：EXPERT・ORIGIN両ページ", en: "Appears on: EXPERT and ORIGIN pages" },
-      description: { ja: "ここで作成したブログと検証記事は、EXPERTとORIGINの両方に表示されます。", en: "Blogs and verification articles created here appear on both EXPERT and ORIGIN pages." },
+      destination: { ja: "表示先：EXPERTS・ORIGINS両ページ", en: "Appears on: EXPERTS and ORIGINS pages" },
+      description: { ja: "ここで作成したブログと検証記事は、EXPERTSとORIGINSの両方に表示されます。", en: "Blogs and verification articles created here appear on both EXPERTS and ORIGINS pages." },
     },
   }
   const item = content[scope]
+  const contextual = context === "business"
+    ? scope === "expert"
+      ? {
+          destination: { ja: "管理対象：EXPERTS", en: "Managed for: EXPERTS" },
+          description: { ja: "EXPERTSページで提供するサービスと、送信したビジネス問い合わせを管理します。", en: "Manage services offered through your EXPERTS page and business inquiries you have sent." },
+        }
+      : {
+          destination: { ja: "管理対象：ORIGINS", en: "Managed for: ORIGINS" },
+          description: { ja: "ORIGINSページで提供するサービス、受信した問い合わせ、ECショップ連携を管理します。", en: "Manage services offered through your ORIGINS page, received inquiries, and shop integrations." },
+        }
+    : context === "notifications"
+      ? scope === "expert"
+        ? {
+            destination: { ja: "配信元：EXPERTS", en: "Published from: EXPERTS" },
+            description: { ja: "EXPERTSページから配信するお知らせを作成します。", en: "Create updates published from your EXPERTS page." },
+          }
+        : {
+            destination: { ja: "配信元：ORIGINS", en: "Published from: ORIGINS" },
+            description: { ja: "ORIGINSページから配信するお知らせを作成します。", en: "Create updates published from your ORIGINS page." },
+          }
+      : context === "analytics"
+        ? {
+            destination: { ja: "集計対象：USER投稿", en: "Analyzes: USER posts" },
+            description: { ja: "USERページに投稿したテイスト記録をもとに、コーヒーデータを集計します。", en: "Analyze coffee data from tasting records published to your USER page." },
+          }
+        : null
+  const destination = contextual?.destination ?? item.destination
+  const description = contextual?.description ?? item.description
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-neutral-50/70 px-4 py-4 sm:px-5" role="group" aria-label={item.title[lang]}>
@@ -175,10 +204,10 @@ function DashboardScopeDivider({ scope, lang }: { scope: DashboardScope; lang: "
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">{item.eyebrow}</p>
           <h2 className="mt-1.5 text-sm font-bold text-neutral-900">{item.title[lang]}</h2>
-          <p className="mt-1 text-[11px] leading-5 text-neutral-500">{item.description[lang]}</p>
+          <p className="mt-1 text-[11px] leading-5 text-neutral-500">{description[lang]}</p>
         </div>
         <span className="w-fit shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[9px] font-semibold tracking-wide text-neutral-600 shadow-sm">
-          {item.destination[lang]}
+          {destination[lang]}
         </span>
       </div>
     </div>
@@ -825,7 +854,7 @@ export default function UnifiedDashboard({
             const title = role === "pro" ? "PRO" : role === "owner" ? "OWNER" : "USER"
             const description = isEn
               ? role === "pro" ? "Expert profile and professional publishing" : role === "owner" ? "One Origin profile and shop tools" : "Coffee records and community tools"
-              : role === "pro" ? "EXPERTプロフィールと専門投稿" : role === "owner" ? "1つのORIGINプロフィールと店舗機能" : "コーヒー記録とコミュニティ機能"
+              : role === "pro" ? "EXPERTSプロフィールと専門投稿" : role === "owner" ? "1つのORIGINSプロフィールと店舗機能" : "コーヒー記録とコミュニティ機能"
             return <button key={role} type="button" disabled={roleChanging} onClick={() => void handleRoleChange(role)} className={`rounded-2xl border p-4 text-left transition disabled:opacity-50 ${selected ? "border-neutral-950 bg-neutral-950 text-white shadow-md" : "border-neutral-200 bg-white hover:border-neutral-400"}`}><span className="block text-sm font-bold">{title}</span><span className={`mt-2 block text-[10px] leading-5 ${selected ? "text-neutral-300" : "text-neutral-500"}`}>{description}</span></button>
           })}
         </div>
@@ -925,7 +954,7 @@ export default function UnifiedDashboard({
               </div>
             )}
 
-            {activeView === "analytics" && (userProfileComplete ? <section className="animate-fadeIn space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="ANALYTICS" title={t.analyticsTitle} /><div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-6"><CoffeeAnalyticsCharts userId={profile.id} lang={formLanguage} /></div></section> : <UserProfileGuard lang={formLanguage} />)}
+            {activeView === "analytics" && (userProfileComplete ? <div className="animate-fadeIn space-y-8"><DashboardScopeDivider scope="user" lang={lang} context="analytics" /><section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-8"><DashboardSectionHeading eyebrow="ANALYTICS" title={t.analyticsTitle} /><div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-4 sm:p-6"><CoffeeAnalyticsCharts userId={profile.id} lang={formLanguage} /></div></section></div> : <UserProfileGuard lang={formLanguage} />)}
 
             {activeView === "profiles" && (
               <div className="animate-fadeIn space-y-10">
@@ -938,14 +967,18 @@ export default function UnifiedDashboard({
 
             {activeView === "business" && (hasProAccess || hasBusinessAccess) && (
               <div className="animate-fadeIn space-y-8">
-                {proPostingEnabled && <ServiceMarketplacePanel providerUserId={profile.id} providerType="expert" lang={lang} mode="manager" />}
-                {ownerPostingEnabled && ownerData?.id && <ServiceMarketplacePanel providerUserId={profile.id} providerType="origin" originId={ownerData.id} lang={lang} mode="manager" />}
-                {hasProAccess && (proPostingEnabled ? <B2BInquiryPanel currentUserId={profile.id} lang={lang} mode="sent" /> : <ProfileReviewGuard lang={lang} accountType="pro" />)}
-                {hasBusinessAccess && (ownerPostingEnabled ? <>{ownerData?.id && <B2BInquiryPanel originId={ownerData.id} ownerId={profile.id} currentUserId={profile.id} lang={lang} mode="inbox" />}<ShopProductsSection userId={userId} lang={lang} /></> : <ProfileReviewGuard lang={lang} accountType="owner" />)}
+                {hasProAccess && <div className="space-y-8">
+                  <DashboardScopeDivider scope="expert" lang={lang} context="business" />
+                  {proPostingEnabled ? <><ServiceMarketplacePanel providerUserId={profile.id} providerType="expert" lang={lang} mode="manager" /><B2BInquiryPanel currentUserId={profile.id} lang={lang} mode="sent" /></> : <ProfileReviewGuard lang={lang} accountType="pro" />}
+                </div>}
+                {hasBusinessAccess && <div className="space-y-8">
+                  <DashboardScopeDivider scope="origin" lang={lang} context="business" />
+                  {ownerPostingEnabled ? <>{ownerData?.id && <><ServiceMarketplacePanel providerUserId={profile.id} providerType="origin" originId={ownerData.id} lang={lang} mode="manager" /><B2BInquiryPanel originId={ownerData.id} ownerId={profile.id} currentUserId={profile.id} lang={lang} mode="inbox" /></>}<ShopProductsSection userId={userId} lang={lang} /></> : <ProfileReviewGuard lang={lang} accountType="owner" />}
+                </div>}
               </div>
             )}
 
-            {activeView === "notifications" && <div className="animate-fadeIn space-y-8"><NotificationCenter lang={lang} />{hasProAccess && proPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="pro" lang={formLanguage} onNotificationCreated={() => setProPostRefreshKey((key) => key + 1)} />}{hasBusinessAccess && ownerPostingEnabled && <BroadcastNotificationForm userId={profile.id} authorType="owner" lang={formLanguage} originSlug={ownerData?.slug ?? null} />}</div>}
+            {activeView === "notifications" && <div className="animate-fadeIn space-y-8"><NotificationCenter lang={lang} />{hasProAccess && proPostingEnabled && <div className="space-y-8"><DashboardScopeDivider scope="expert" lang={lang} context="notifications" /><BroadcastNotificationForm userId={profile.id} authorType="pro" lang={formLanguage} onNotificationCreated={() => setProPostRefreshKey((key) => key + 1)} /></div>}{hasBusinessAccess && ownerPostingEnabled && <div className="space-y-8"><DashboardScopeDivider scope="origin" lang={lang} context="notifications" /><BroadcastNotificationForm userId={profile.id} authorType="owner" lang={formLanguage} originSlug={ownerData?.slug ?? null} /></div>}</div>}
             {activeView === "settings" && <div className="animate-fadeIn">{accountSettings}</div>}
             {activeView === "admin" && isAdmin && <div className="animate-fadeIn space-y-8"><AdminNotificationManager lang={lang} /><AdminJournalManager authorId={profile.id} lang={formLanguage} /><AdminTranslationManager lang={lang} /></div>}
             {activeView === "r2_viewer" && isAdmin && <div className="animate-fadeIn"><R2ImageViewer isEn={isEn} /></div>}

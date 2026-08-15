@@ -56,7 +56,7 @@ export default function ProPostList({
   const t = isEn ? {
     title: destination === "all" ? "PROFESSIONAL POSTS" : destination === "origins" ? "OWNER POSTS" : "PRO POSTS",
     description: destination === "all"
-      ? "Manage announcements, articles, and verification reports for both EXPERT and ORIGIN pages."
+      ? "Manage announcements, articles, and verification reports for both EXPERTS and ORIGINS pages."
       : destination === "origins"
       ? "Manage announcements, articles, and verification reports published to your origin page."
       : "Manage your announcements, articles, and verification reports.",
@@ -83,7 +83,7 @@ export default function ProPostList({
   } : {
     title: destination === "all" ? "プロ・オーナー投稿" : destination === "origins" ? "オーナー投稿" : "プロ投稿",
     description: destination === "all"
-      ? "EXPERT・ORIGINへ公開した投稿を重複なくまとめて管理できます。"
+      ? "EXPERTS・ORIGINSへ公開した投稿を重複なくまとめて管理できます。"
       : destination === "origins"
       ? "お知らせ・ブログ・検証記事をまとめて管理できます。"
       : "お知らせ・ブログ・検証記事をまとめて管理できます。",
