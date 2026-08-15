@@ -4,6 +4,7 @@ import { useEffect, useState, useLayoutEffect, useRef, use, useCallback } from "
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { buildPostPath } from "@/lib/post-path"
 import { FormSkeleton } from "@/components/ui/PageSkeletons"
 import { serverMoveToPermanentStorage, syncPostOriginLinksForOwner } from "@/app/actions/createPost"
 import HeroImageUploader from "@/app/[lang]/dashboard/_components/HeroImageUploader"
@@ -636,8 +637,8 @@ export default function EditPostPage({ params }: Props) {
         selectedMarket?.slug || null,
         selectedSource?.slug || null,
         postId,
-      ].filter((segment): segment is string => Boolean(segment))
-      const postUrl = `/${currentLang}/posts/${postSegments.map(encodeURIComponent).join("/")}`
+      ]
+      const postUrl = buildPostPath(currentLang, postSegments)
 
       setTimeout(() => {
         router.push(postUrl)

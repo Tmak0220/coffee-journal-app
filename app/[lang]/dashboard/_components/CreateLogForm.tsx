@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { buildPostPath } from "@/lib/post-path"
 
 import HeroImageUploader from "./HeroImageUploader"
 import CoffeeBeansInfoForm, { OriginSuggestion } from "./CoffeeBeansInfoForm"
@@ -328,8 +329,8 @@ export default function CreateLogForm({ onLogCreated, lang, formLanguage }: Prop
         finalMarketId ? originSlugMap.get(finalMarketId) : null,
         finalSourceId ? originSlugMap.get(finalSourceId) : null,
         createdPost.id,
-      ].filter((segment): segment is string => Boolean(segment))
-      const postUrl = `/${currentLang}/posts/${postSegments.map(encodeURIComponent).join("/")}`
+      ]
+      const postUrl = buildPostPath(currentLang, postSegments)
       
       setStatusMessage({ text: t.successMessage, type: "success" })
 

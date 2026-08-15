@@ -4,19 +4,13 @@ import { canViewContent } from "@/lib/permissions"
 import { createClient } from "@/lib/supabase-server"
 import PostPageClient from "./PostPageClient"
 import { resolveLocalizedResource } from "@/lib/admin-content-translation"
+import { buildPostPath, cleanPostPathSegment, extractPostId, isCanonicalPostPath } from "@/lib/post-path"
 
 type Props = {
   params: Promise<{
     lang: string
     slugs: string[]
   }>
-}
-
-function extractUuid(paramId: string): string {
-  if (paramId && paramId.length >= 36) {
-    return paramId.slice(-36)
-  }
-  return paramId
 }
 
 // slugs 配列から ID、Market、Source を抽出するヘルパー関数
@@ -26,15 +20,14 @@ function parseSlugs(slugs: string[]) {
   }
 
   // 配列の一番最後（末尾）を ID として取り出す
-  const rawId = slugs[slugs.length - 1]
-  const actualId = extractUuid(rawId)
+  const actualId = extractPostId(slugs)
 
   // パス階層の数に応じてスラッグを振り分け
   // 例: /posts/lupicia/ethiopia/id  -> slugs: ["lupicia", "ethiopia", "id"]
   // 例: /posts/lupicia/id            -> slugs: ["lupicia", "id"]
   // 例: /posts/id                    -> slugs: ["id"]
-  const marketSlug = slugs.length > 2 ? slugs[0] : slugs.length === 2 ? slugs[0] : null
-  const sourceSlug = slugs.length > 2 ? slugs[1] : null
+  const marketSlug = slugs.length > 2 ? cleanPostPathSegment(slugs[0]) : slugs.length === 2 ? cleanPostPathSegment(slugs[0]) : null
+  const sourceSlug = slugs.length > 2 ? cleanPostPathSegment(slugs[1]) : null
 
   return { actualId, marketSlug, sourceSlug }
 }
@@ -139,8 +132,8 @@ export default async function Page({ params }: Props) {
   const { actualId } = parseSlugs(slugs)
 
   const post = await getPostDetail(actualId, lang)
-  const marketSlug = post?.market_origin?.slug || null
-  const sourceSlug = post?.source_origin?.slug || null
+  const marketSlug = cleanPostPathSegment(post?.market_origin?.slug)
+  const sourceSlug = cleanPostPathSegment(post?.source_origin?.slug)
   const gearSlug = post?.type === "gear_review"
     ? post.post_gears?.find((item: any) => item?.gears?.slug)?.gears?.slug || null
     : null
@@ -153,8 +146,8 @@ export default async function Page({ params }: Props) {
     ).filter(
       (segment): segment is string => Boolean(segment)
     )
-    if (slugs.join("/") !== canonicalSegments.join("/")) {
-      redirect(`/${lang}/posts/${canonicalSegments.map(encodeURIComponent).join("/")}`)
+    if (!isCanonicalPostPath(slugs, canonicalSegments)) {
+      redirect(buildPostPath(lang, canonicalSegments))
     }
   }
 

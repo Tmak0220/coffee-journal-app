@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { buildPostPath, cleanPostPathSegment } from "@/lib/post-path"
 
 const PAGE_SIZE = 8
 
@@ -69,7 +70,7 @@ const firstImage = (value: LatestPost["image_urls"]): string | null => {
 
 const relationSlug = (value: unknown) => {
   const relation = relationValue(value)
-  return typeof relation?.slug === "string" && relation.slug ? relation.slug : null
+  return cleanPostPathSegment(relation?.slug)
 }
 
 const postHref = (post: LatestPost, lang: string) => {
@@ -77,10 +78,10 @@ const postHref = (post: LatestPost, lang: string) => {
     const links = Array.isArray(post.post_gears) ? post.post_gears : []
     const gear = relationValue(relationValue(links[0])?.gears)
     const gearSlug = typeof gear?.slug === "string" ? gear.slug : null
-    return gearSlug ? `/${lang}/posts/${gearSlug}/${post.id}` : `/${lang}/posts/${post.id}`
+    return buildPostPath(lang, [gearSlug, post.id])
   }
   const slugs = [relationSlug(post.market_origin), relationSlug(post.source_origin)].filter(Boolean)
-  return `/${lang}/posts/${[...slugs, post.id].join("/")}`
+  return buildPostPath(lang, [...slugs, post.id])
 }
 
 export default function LatestPostsFeed({ lang }: { lang: "ja" | "en" }) {
